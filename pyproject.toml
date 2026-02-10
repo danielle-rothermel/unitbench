@@ -1,8 +1,9 @@
 [project]
 name = "unitbench"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLM Unit Test Benchmark"
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Danielle Rothermel", email = "danielle.rothermel@gmail.com" }
 ]
