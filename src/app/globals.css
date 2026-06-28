@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-display-src), 'Space Grotesk', ui-sans-serif,
+    system-ui, sans-serif;
+  --font-sans: var(--font-sans-src), 'Hanken Grotesk', ui-sans-serif,
+    system-ui, sans-serif;
+  --font-mono: var(--font-mono-src), 'Fira Code', ui-monospace,
+    'SF Mono', monospace;
+}
+
+:root {
+  --bg-primary: oklch(1 0 0);
+  --bg-secondary: oklch(0.982 0.006 210);
+  --bg-tertiary: oklch(0.958 0.008 210);
+  --bg-hover: oklch(0.945 0.01 210);
+  --bg-code: oklch(0.988 0.004 210);
+  --border: oklch(0.9 0.009 210);
+  --border-subtle: oklch(0.935 0.007 210);
+  --border-strong: oklch(0.82 0.018 210);
+  --text-primary: oklch(0.25 0.028 220);
+  --text-secondary: oklch(0.43 0.027 220);
+  --text-muted: oklch(0.55 0.02 220);
+  --accent: oklch(0.48 0.13 172);
+  --accent-hover: oklch(0.42 0.13 172);
+  --accent-bg: oklch(0.955 0.04 172);
+  --accent-ring: oklch(0.58 0.11 172 / 0.45);
+  --green: oklch(0.48 0.14 150);
+  --green-bg: oklch(0.95 0.04 150);
+  --red: oklch(0.52 0.2 27);
+  --red-bg: oklch(0.955 0.025 27);
+  --red-border: oklch(0.85 0.07 27);
+  --yellow: oklch(0.5 0.11 75);
+  --yellow-bg: oklch(0.95 0.05 80);
+  --blue: oklch(0.48 0.14 250);
+  --blue-bg: oklch(0.955 0.03 250);
+  --syntax-keyword: oklch(0.46 0.14 290);
+  --syntax-string: oklch(0.44 0.11 150);
+  --syntax-number: oklch(0.52 0.15 52);
+  --syntax-function: oklch(0.46 0.14 250);
+  --syntax-builtin: oklch(0.45 0.1 200);
+  --syntax-comment: oklch(0.56 0.02 220);
+  --syntax-punctuation: oklch(0.42 0.02 220);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 130ms;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  a:hover {
+    color: var(--accent-hover);
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    border-radius: 4px;
+    outline: 2px solid var(--accent-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-bg);
+  }
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 2px solid var(--bg-primary);
+  border-radius: 6px;
+}
+
+code,
+pre,
+.hljs {
+  font-feature-settings: 'liga' 1, 'calt' 1;
+  font-variant-ligatures: contextual;
+}
+
+.hljs {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-doctag,
+.hljs-name {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-meta-string {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--syntax-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-built_in.function_ {
+  color: var(--syntax-function);
+}
+
+.hljs-built_in,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-params {
+  color: var(--syntax-builtin);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-property {
+  color: var(--text-primary);
+}
+
+.hljs-punctuation,
+.hljs-operator {
+  color: var(--syntax-punctuation);
+}
+
+.hljs-meta {
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

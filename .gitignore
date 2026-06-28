@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Next.js frontend source — the Python "lib/" ignore above must not catch it.
+!src/lib/
 parts/
 sdist/
 var/
@@ -205,3 +207,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
