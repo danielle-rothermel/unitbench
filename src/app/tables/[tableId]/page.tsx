@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { GenericTable } from '@/components/GenericTable'
+import { TableFilters } from '@/components/TableFilters'
 import { ErrorSection } from '@/components/panels/ErrorSection'
-import { Dot, SECTION_LABEL, Tag } from '@/components/primitives'
-import { getTablePage } from '@/lib/table-data'
+import { Dot, Tag } from '@/components/primitives'
+import { getTableFacets, getTablePage } from '@/lib/table-data'
 import { UnknownTableError } from '@/lib/table-config'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +27,11 @@ export default async function Page({ params, searchParams }: PageProps) {
     if (error instanceof UnknownTableError) notFound()
     throw error
   }
+
+  const facets =
+    tablePage.status === 'ok'
+      ? await getTableFacets(tablePage.config)
+      : {}
 
   return (
     <div className="w-full">
@@ -52,14 +58,6 @@ export default async function Page({ params, searchParams }: PageProps) {
         </p>
       </header>
 
-      <section className="mb-5 flex max-w-[980px] flex-col gap-1.5">
-        <span className={SECTION_LABEL}>Default sort</span>
-        <div className="font-mono text-[12px] text-[var(--text-muted)]">
-          {tablePage.config.defaultSort.column}{' '}
-          {tablePage.config.defaultSort.direction}
-        </div>
-      </section>
-
       {tablePage.status === 'missing-url' && (
         <ErrorSection
           tone="setup"
@@ -69,21 +67,24 @@ export default async function Page({ params, searchParams }: PageProps) {
       )}
 
       {tablePage.status === 'error' && (
-        <ErrorSection
-          title="Failed to load table"
-          message={tablePage.message}
-        />
+        <ErrorSection title="Failed to load table" message={tablePage.message} />
       )}
 
       {tablePage.status === 'ok' && (
-        <GenericTable
-          config={tablePage.config}
-          rows={tablePage.rows}
-          total={tablePage.total}
-          page={tablePage.page}
-          pageSize={tablePage.pageSize}
-          totalPages={tablePage.totalPages}
-        />
+        <>
+          <TableFilters
+            config={tablePage.config}
+            state={tablePage.state}
+            facets={facets}
+          />
+          <GenericTable
+            config={tablePage.config}
+            state={tablePage.state}
+            rows={tablePage.rows}
+            total={tablePage.total}
+            totalPages={tablePage.totalPages}
+          />
+        </>
       )}
     </div>
   )
