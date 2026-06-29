@@ -40,12 +40,25 @@ describe('PredictionDetailPage', () => {
     render(<PredictionDetailPage detail={makeDetail()} backHref="/tables/x" />)
 
     expect(
-      screen.getByText('dr-dspy/direct/prediction/abc'),
-    ).toBeInTheDocument()
+      screen.getAllByText('dr-dspy/direct/prediction/abc'),
+    ).toHaveLength(2)
     expect(screen.getByText('passed')).toBeInTheDocument()
+    expect(screen.getAllByText('dr-dspy')).toHaveLength(2)
+    expect(screen.getAllByText('humaneval_direct')).toHaveLength(2)
+    expect(screen.getByText('openai/gpt-test')).toBeInTheDocument()
+    expect(screen.getByText('$0.0012')).toBeInTheDocument()
+    expect(screen.getByText('Provenance')).toBeInTheDocument()
+    expect(screen.getByText('Generation · prompt → output')).toBeInTheDocument()
+    expect(screen.getByText('Debug payloads')).toBeInTheDocument()
     expect(screen.getByText('Prompt')).toBeInTheDocument()
     expect(screen.getByText('Code')).toBeInTheDocument()
     expect(screen.getByText('Metrics')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'dr-dspy/direct/sweep-1' }),
+    ).toHaveAttribute(
+      'href',
+      '/tables/published-experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
+    )
     // Empty JSON payloads are omitted rather than shown as empty panels.
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
     expect(screen.queryByText('Raw generation')).not.toBeInTheDocument()

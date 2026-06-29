@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTransition, type KeyboardEvent } from 'react'
 import { SECTION_LABEL } from '@/components/primitives'
+import { cn } from '@/lib/cn'
 import { filterColumns, type TableConfig } from '@/lib/table-config'
 import type { TableFacets } from '@/lib/table-data'
 import { tableHref, type TableState } from '@/lib/table-params'
@@ -42,7 +43,10 @@ export function TableFilters({ config, state, facets }: TableFiltersProps) {
 
   return (
     <div
-      className={`mb-5 flex flex-wrap items-end gap-3 ${isPending ? 'opacity-60' : ''}`}
+      className={cn(
+        'mb-5 flex flex-wrap items-end gap-3',
+        isPending && 'opacity-60',
+      )}
     >
       {columns.map(column => {
         const current = state.filters[column.key] ?? ''
@@ -70,7 +74,7 @@ export function TableFilters({ config, state, facets }: TableFiltersProps) {
                 placeholder={`Filter ${column.label.toLowerCase()}…`}
                 onKeyDown={onTextKeyDown(column.key)}
                 onBlur={event => setFilter(column.key, event.currentTarget.value)}
-                className={`${CONTROL_CLASS} w-[180px] font-mono`}
+                className={cn(CONTROL_CLASS, 'w-[180px] font-mono')}
               />
             )}
           </label>

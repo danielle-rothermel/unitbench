@@ -1,39 +1,47 @@
+import { cn } from '@/lib/cn'
+
 type ErrorSectionProps = {
   title: string
   message: string
   tone?: 'error' | 'setup'
+  className?: string
 }
 
 export function ErrorSection({
   title,
   message,
   tone = 'error',
+  className,
 }: ErrorSectionProps) {
   const isError = tone === 'error'
   return (
     <div
-      className={
+      className={cn(
+        'flex items-start gap-4 rounded-xl border p-5',
         isError
-          ? 'flex items-start gap-4 rounded-xl border border-[var(--red-border)] bg-[var(--red-bg)] p-5'
-          : 'flex items-start gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5'
-      }
+          ? 'border-[var(--red-border)] bg-[var(--red-bg)]'
+          : 'border-[var(--border)] bg-[var(--bg-secondary)]',
+        className,
+      )}
     >
       <span
-        className={
+        className={cn(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white',
           isError
-            ? 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--red)] text-sm font-bold text-white'
-            : 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white'
-        }
+            ? 'bg-[var(--red)]'
+            : 'bg-[var(--accent)]',
+        )}
       >
         !
       </span>
       <div>
         <p
-          className={
+          className={cn(
+            'mb-1 font-semibold',
             isError
-              ? 'mb-1 font-semibold text-[var(--red)]'
-              : 'mb-1 font-semibold text-[var(--text-primary)]'
-          }
+              ? 'text-[var(--red)]'
+              : 'text-[var(--text-primary)]',
+          )}
         >
           {title}
         </p>

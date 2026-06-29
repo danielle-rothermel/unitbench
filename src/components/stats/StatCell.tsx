@@ -6,11 +6,18 @@ type StatCellProps = {
   value: string | number | null | undefined
   sub?: string | null
   mono?: boolean
+  className?: string
 }
 
-export function StatCell({ label, value, sub, mono = false }: StatCellProps) {
+export function StatCell({
+  label,
+  value,
+  sub,
+  mono = false,
+  className,
+}: StatCellProps) {
   return (
-    <div className="bg-[var(--bg-primary)] px-4 py-3">
+    <div className={cn('bg-[var(--bg-primary)] px-4 py-3', className)}>
       <div className={SECTION_LABEL}>{label}</div>
       <div
         className={cn(

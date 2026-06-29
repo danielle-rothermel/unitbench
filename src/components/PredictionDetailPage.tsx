@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { IdChip } from '@/components/chips/IdChip'
 import { CodePane } from '@/components/code/CodePane'
@@ -5,6 +7,7 @@ import { ErrorSection } from '@/components/panels/ErrorSection'
 import { TextPanel } from '@/components/panels/TextPanel'
 import { Dot, ResultBadge, SECTION_LABEL, Tag } from '@/components/primitives'
 import { StatCell } from '@/components/stats/StatCell'
+import { useCopy } from '@/hooks/useCopy'
 import { prettyJson, shortDate } from '@/lib/format'
 import type { PredictionDetail } from '@/lib/prediction-detail'
 
@@ -25,6 +28,7 @@ export function PredictionDetailPage({
   detail,
   backHref,
 }: PredictionDetailPageProps) {
+  const [copied, copy] = useCopy()
   const isError = detail.result_state === 'error'
   const experimentHref = `/tables/published-experiments?experiment_id=${encodeURIComponent(detail.experiment_id)}`
   const jsonPanels: { label: string; value: unknown }[] = [
@@ -37,7 +41,7 @@ export function PredictionDetailPage({
 
   return (
     <div className="w-full">
-      <div className="mb-6">
+      <div className="mb-6 max-w-[1280px]">
         <Link
           href={backHref}
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
@@ -46,7 +50,7 @@ export function PredictionDetailPage({
         </Link>
       </div>
 
-      <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
+      <header className="mb-8 flex max-w-[1280px] items-start justify-between gap-6 max-md:flex-col">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-[var(--text-secondary)]">
             <Tag tone="accent">{detail.source}</Tag>
@@ -58,7 +62,7 @@ export function PredictionDetailPage({
               </>
             )}
           </div>
-          <h1 className="font-mono text-[20px] leading-tight font-semibold break-all text-[var(--text-primary)]">
+          <h1 className="font-mono text-[26px] leading-tight font-semibold break-all text-[var(--text-primary)]">
             {detail.prediction_id}
           </h1>
         </div>
@@ -66,7 +70,7 @@ export function PredictionDetailPage({
       </header>
 
       {isError && (
-        <div className="mb-6">
+        <div className="mb-6 max-w-[1280px]">
           <ErrorSection
             title="Prediction errored"
             message={`Generation: ${detail.generation_status ?? 'n/a'} · Scoring: ${detail.scoring_status ?? 'n/a'}`}
@@ -74,56 +78,130 @@ export function PredictionDetailPage({
         </div>
       )}
 
-      <section className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3 lg:grid-cols-6">
+      <section className="mb-7 grid max-w-[1280px] grid-cols-4 gap-px border-y border-[var(--border)] bg-[var(--border-subtle)] max-md:grid-cols-2">
         <StatCell label="Model" value={detail.model} mono />
-        <StatCell label="Task" value={detail.task_id} mono />
         <StatCell label="Score" value={formatScore(detail.score)} mono />
-        <StatCell label="Provider cost" value={formatCost(detail.provider_cost)} mono />
-        <StatCell label="Sample" value={detail.sample_index} mono />
+        <StatCell
+          label="Provider cost"
+          value={formatCost(detail.provider_cost)}
+          mono
+        />
         <StatCell label="Created" value={shortDate(detail.created_at)} />
       </section>
 
-      <section className="mb-6 flex flex-col gap-2">
+      <section className="mb-8 flex max-w-[1280px] flex-col gap-2.5">
         <span className={SECTION_LABEL}>Provenance</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={experimentHref}>
-            <IdChip label="Experiment" value={detail.experiment_id} />
+        <div className="flex flex-wrap gap-1.5">
+          <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
+            {detail.source}
+          </span>
+          <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
+            {detail.experiment_kind}
+          </span>
+        </div>
+        <div className="group flex w-full items-baseline gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-3 py-2 text-left transition-colors hover:border-[var(--border-strong)]">
+          <span className="shrink-0 text-[10px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
+            Experiment
+          </span>
+          <Link
+            href={experimentHref}
+            className="[overflow-wrap:anywhere] font-mono text-[12.5px] text-[var(--accent)] hover:text-[var(--accent-hover)]"
+          >
+            {detail.experiment_id}
           </Link>
-          <IdChip label="Generation" value={detail.generation_status} />
-          <IdChip label="Scoring" value={detail.scoring_status} />
-          <IdChip label="Updated" value={shortDate(detail.updated_at)} />
+        </div>
+        <div className="-ml-1.5 flex flex-wrap items-center gap-x-1 gap-y-1">
+          <IdChip
+            label="prediction"
+            value={detail.prediction_id}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="experiment"
+            value={detail.experiment_id}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="task"
+            value={detail.task_id}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="sample"
+            value={detail.sample_index}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="generation"
+            value={detail.generation_status}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="scoring"
+            value={detail.scoring_status}
+            copied={copied}
+            onCopy={copy}
+          />
+          <IdChip
+            label="updated"
+            value={detail.updated_at}
+            display={shortDate(detail.updated_at)}
+            copied={copied}
+            onCopy={copy}
+          />
         </div>
       </section>
 
-      <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <TextPanel label={detail.input_kind ?? 'Input'} value={detail.input_text} />
-        <TextPanel
-          label={detail.output_kind ?? 'Output'}
-          value={detail.output_text}
-        />
-      </section>
+      <div className="flex flex-col gap-5">
+        <div className="flex max-w-[1280px] flex-col gap-5">
+          <div className="grid grid-cols-2 items-start gap-x-5 gap-y-5 max-lg:grid-cols-1">
+            <TextPanel
+              label={detail.input_kind ?? 'Input'}
+              value={detail.input_text}
+            />
+            <TextPanel
+              label={detail.output_kind ?? 'Output'}
+              value={detail.output_text}
+            />
+          </div>
+        </div>
 
-      <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <CodePane label="Prompt" value={detail.prompt_text} />
-        <CodePane
-          label="Code"
-          value={detail.code_text}
-          language="python"
-          accent
-        />
-        <CodePane label="Raw generation" value={detail.raw_generation} />
-      </section>
+        {(detail.prompt_text || detail.code_text || detail.raw_generation) && (
+          <div className="flex flex-col gap-2.5">
+            <span className={SECTION_LABEL}>Generation · prompt → output</span>
+            <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
+              <CodePane label="Prompt" value={detail.prompt_text} />
+              <CodePane
+                label="Code"
+                value={detail.code_text}
+                language="python"
+                accent
+              />
+              <CodePane label="Raw generation" value={detail.raw_generation} />
+            </div>
+          </div>
+        )}
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {jsonPanels.map(panel => (
-          <CodePane
-            key={panel.label}
-            label={panel.label}
-            value={prettyJson(panel.value)}
-            language="json"
-          />
-        ))}
-      </section>
+        <div className="flex flex-col gap-2.5">
+          <span className={SECTION_LABEL}>Debug payloads</span>
+          <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
+            {jsonPanels.map(panel => (
+              <CodePane
+                key={panel.label}
+                label={panel.label}
+                value={prettyJson(panel.value)}
+                language="json"
+                badge="json"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Fira_Code, Hanken_Grotesk, Space_Grotesk } from 'next/font/google'
 import AppShell from '@/components/AppShell'
+import { cn } from '@/lib/cn'
 import { getTableConfigs } from '@/lib/table-config'
 import './globals.css'
 
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      className={cn(display.variable, sans.variable, mono.variable)}
     >
       <body>
         <AppShell tables={getTableConfigs()}>{children}</AppShell>
