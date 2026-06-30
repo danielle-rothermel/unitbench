@@ -1,4 +1,4 @@
-import { isFilterColumn } from '@/lib/aggregate-config'
+import { FILTER_COLUMNS } from '@/lib/aggregate-config'
 
 export type AggregateFilters = {
   filterIn: Record<string, string[]>
@@ -24,36 +24,48 @@ function allValues(value: string | string[] | undefined): string[] {
     .filter(Boolean)
 }
 
-function parseFilterMap(
+export function parseFilters(
   input: SearchParamsRecord,
-  mode: 'in' | 'out',
-): Record<string, string[]> {
-  const filters: Record<string, string[]> = {}
-  for (const [key, rawValue] of Object.entries(input)) {
-    if (mode === 'in') {
-      if (AGGREGATE_RESERVED_PARAMS.has(key) || key.startsWith(EXCLUDE_PREFIX)) {
+  options: {
+    allowedColumns: readonly string[]
+    reservedParams: Set<string>
+  },
+): AggregateFilters {
+  const allowed = new Set(options.allowedColumns)
+
+  const parseMap = (mode: 'in' | 'out'): Record<string, string[]> => {
+    const result: Record<string, string[]> = {}
+    for (const [key, rawValue] of Object.entries(input)) {
+      if (mode === 'in') {
+        if (options.reservedParams.has(key) || key.startsWith(EXCLUDE_PREFIX)) {
+          continue
+        }
+        if (!allowed.has(key)) continue
+        const values = allValues(rawValue)
+        if (values.length > 0) result[key] = values
         continue
       }
-      if (!isFilterColumn(key)) continue
-      const values = allValues(rawValue)
-      if (values.length > 0) filters[key] = values
-      continue
-    }
 
-    if (!key.startsWith(EXCLUDE_PREFIX)) continue
-    const column = key.slice(EXCLUDE_PREFIX.length)
-    if (!isFilterColumn(column)) continue
-    const values = allValues(rawValue)
-    if (values.length > 0) filters[column] = values
+      if (!key.startsWith(EXCLUDE_PREFIX)) continue
+      const column = key.slice(EXCLUDE_PREFIX.length)
+      if (!allowed.has(column)) continue
+      const values = allValues(rawValue)
+      if (values.length > 0) result[column] = values
+    }
+    return result
   }
-  return filters
+
+  return {
+    filterIn: parseMap('in'),
+    filterOut: parseMap('out'),
+  }
 }
 
 export function parseAggregateFilters(input: SearchParamsRecord): AggregateFilters {
-  return {
-    filterIn: parseFilterMap(input, 'in'),
-    filterOut: parseFilterMap(input, 'out'),
-  }
+  return parseFilters(input, {
+    allowedColumns: FILTER_COLUMNS,
+    reservedParams: AGGREGATE_RESERVED_PARAMS,
+  })
 }
 
 export function buildFilterQueryParams(filters: AggregateFilters): URLSearchParams {

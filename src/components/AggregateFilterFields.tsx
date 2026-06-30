@@ -12,6 +12,9 @@ type AggregateFilterFieldsProps = {
   facets: AggregateFacets
   onChange: (next: AggregateFilters) => void
   isPending?: boolean
+  filterColumns?: readonly string[]
+  filterLabels?: Record<string, string>
+  clearFilters?: () => void
 }
 
 const CONTROL_CLASS =
@@ -57,6 +60,9 @@ export function AggregateFilterFields({
   facets,
   onChange,
   isPending = false,
+  filterColumns = FILTER_COLUMNS,
+  filterLabels = FILTER_LABELS,
+  clearFilters,
 }: AggregateFilterFieldsProps) {
   const [includeDraft, setIncludeDraft] = useState<Record<string, string>>({})
   const [excludeDraft, setExcludeDraft] = useState<Record<string, string>>({})
@@ -100,11 +106,11 @@ export function AggregateFilterFields({
 
   return (
     <div className={cn('flex flex-wrap items-end gap-4', isPending && 'opacity-60')}>
-      {FILTER_COLUMNS.map(column => (
+      {filterColumns.map(column => (
         <div key={column} className="flex flex-col gap-2">
           <label className="flex flex-col gap-1">
             <span className={SECTION_LABEL}>
-              Include {FILTER_LABELS[column]}
+              Include {filterLabels[column] ?? column}
             </span>
             <div className="flex items-center gap-2">
               <select
@@ -141,11 +147,11 @@ export function AggregateFilterFields({
         </div>
       ))}
 
-      {FILTER_COLUMNS.map(column => (
+      {filterColumns.map(column => (
         <div key={`exclude-${column}`} className="flex flex-col gap-2">
           <label className="flex flex-col gap-1">
             <span className={SECTION_LABEL}>
-              Exclude {FILTER_LABELS[column]}
+              Exclude {filterLabels[column] ?? column}
             </span>
             <div className="flex items-center gap-2">
               <select
@@ -187,7 +193,9 @@ export function AggregateFilterFields({
       {hasActiveFilters && (
         <button
           type="button"
-          onClick={() => onChange({ filterIn: {}, filterOut: {} })}
+          onClick={() =>
+            clearFilters ? clearFilters() : onChange({ filterIn: {}, filterOut: {} })
+          }
           className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
         >
           Clear filters

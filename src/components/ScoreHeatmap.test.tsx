@@ -2,10 +2,17 @@ import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
 
+const defaultAxes = {
+  xAxis: 'experiment_kind' as const,
+  yAxis: 'model' as const,
+  colorMeasure: 'avg_score' as const,
+}
+
 describe('ScoreHeatmap', () => {
   it('colors cells when one model is missing an experiment kind', () => {
     const { container } = render(
       <ScoreHeatmap
+        {...defaultAxes}
         rows={[
           {
             model: 'openai/gpt-5.4-nano',
@@ -37,9 +44,10 @@ describe('ScoreHeatmap', () => {
     expect(backgrounds.some(style => style.includes('NaN'))).toBe(false)
   })
 
-  it('uses the same color scale for every experiment kind column', () => {
+  it('uses the same color scale for every column', () => {
     const { container } = render(
       <ScoreHeatmap
+        {...defaultAxes}
         rows={[
           {
             model: 'model-a',

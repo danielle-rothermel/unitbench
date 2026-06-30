@@ -41,10 +41,14 @@ const GROUP_BY_LABELS: Record<GroupByColumn, string> = {
 
 const MEASURE_LABELS: Record<SortMeasure, string> = {
   n: 'N',
-  avg_score: 'Avg score',
+  avg_score: 'Average Binary Pass Rate',
   stddev_score: 'Stddev score',
-  pass_rate: 'Pass rate',
+  pass_rate: 'Average % Pass Rate',
   avg_cost: 'Avg cost',
+}
+
+export function measureLabel(measure: SortMeasure): string {
+  return MEASURE_LABELS[measure]
 }
 
 export type AggregateStateShape = {

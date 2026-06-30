@@ -1,17 +1,30 @@
 import { cn } from '@/lib/cn'
+import { measureLabel } from '@/lib/aggregate-config'
+import { formatNumber } from '@/lib/format'
+import {
+  heatmapAxisLabel,
+  heatmapTitle,
+  type HeatmapAxis,
+  type SortMeasure,
+} from '@/lib/heatmap-config'
 import type { TableRow } from '@/lib/table-data'
 
 type ScoreHeatmapProps = {
   rows: TableRow[]
+  xAxis: HeatmapAxis
+  yAxis: HeatmapAxis
+  colorMeasure: SortMeasure
 }
 
 type HeatmapCell = {
-  avgScore: number | null
+  value: number | null
   n: number
 }
 
-function formatScore(value: number | null): string {
+function formatMeasure(value: number | null, measure: SortMeasure): string {
   if (value === null || Number.isNaN(value)) return '—'
+  if (measure === 'n') return formatNumber(value)
+  if (measure === 'avg_cost') return formatNumber(value)
   return value.toFixed(3)
 }
 
@@ -40,49 +53,66 @@ function scoreColor(value: number | null, min: number, max: number): string {
   return `rgb(${red}, ${green}, ${blue})`
 }
 
-function pivotRows(rows: TableRow[]): {
-  models: string[]
-  kinds: string[]
+function pivotRows(
+  rows: TableRow[],
+  yAxis: HeatmapAxis,
+  xAxis: HeatmapAxis,
+  colorMeasure: SortMeasure,
+): {
+  yValues: string[]
+  xValues: string[]
   cells: Map<string, Map<string, HeatmapCell>>
 } {
-  const kindSet = new Set<string>()
+  const xSet = new Set<string>()
   const cellMap = new Map<string, Map<string, HeatmapCell>>()
 
   for (const row of rows) {
-    const model = String(row.model ?? '')
-    const kind = String(row.experiment_kind ?? '')
-    if (!model || !kind) continue
-    kindSet.add(kind)
-    const avgScore = parseScore(row.avg_score)
+    const yVal = String(row[yAxis] ?? '')
+    const xVal = String(row[xAxis] ?? '')
+    if (!yVal || !xVal) continue
+    xSet.add(xVal)
+    const value = parseScore(row[colorMeasure])
     const nRaw = row.n
     const n =
       typeof nRaw === 'number'
         ? nRaw
         : Number.parseInt(String(nRaw ?? '0'), 10) || 0
-    if (!cellMap.has(model)) cellMap.set(model, new Map())
-    cellMap.get(model)?.set(kind, { avgScore, n })
+    if (!cellMap.has(yVal)) cellMap.set(yVal, new Map())
+    cellMap.get(yVal)?.set(xVal, { value, n })
   }
 
-  const kinds = [...kindSet].sort()
-  const models = [...cellMap.keys()].sort((left, right) => {
-    const leftScores = kinds
-      .map(kind => cellMap.get(left)?.get(kind)?.avgScore)
-      .filter((value): value is number => isFiniteScore(value))
-    const rightScores = kinds
-      .map(kind => cellMap.get(right)?.get(kind)?.avgScore)
-      .filter((value): value is number => isFiniteScore(value))
-    const leftMin = leftScores.length > 0 ? Math.min(...leftScores) : Number.POSITIVE_INFINITY
-    const rightMin = rightScores.length > 0 ? Math.min(...rightScores) : Number.POSITIVE_INFINITY
+  const xValues = [...xSet].sort()
+  const yValues = [...cellMap.keys()].sort((left, right) => {
+    const leftValues = xValues
+      .map(xVal => cellMap.get(left)?.get(xVal)?.value)
+      .filter(isFiniteScore)
+    const rightValues = xValues
+      .map(xVal => cellMap.get(right)?.get(xVal)?.value)
+      .filter(isFiniteScore)
+    const leftMin =
+      leftValues.length > 0 ? Math.min(...leftValues) : Number.POSITIVE_INFINITY
+    const rightMin =
+      rightValues.length > 0 ? Math.min(...rightValues) : Number.POSITIVE_INFINITY
     if (leftMin !== rightMin) return leftMin - rightMin
     return left.localeCompare(right)
   })
 
-  return { models, kinds, cells: cellMap }
+  return { yValues, xValues, cells: cellMap }
 }
 
-export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
-  const { models, kinds, cells } = pivotRows(rows)
-  if (models.length === 0 || kinds.length === 0) {
+export function ScoreHeatmap({
+  rows,
+  xAxis,
+  yAxis,
+  colorMeasure,
+}: ScoreHeatmapProps) {
+  const { yValues, xValues, cells } = pivotRows(
+    rows,
+    yAxis,
+    xAxis,
+    colorMeasure,
+  )
+  if (yValues.length === 0 || xValues.length === 0) {
     return (
       <div className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
         No heatmap data for the current filters.
@@ -90,32 +120,32 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
     )
   }
 
-  const scores = models.flatMap(model =>
-    kinds
-      .map(kind => cells.get(model)?.get(kind)?.avgScore)
+  const colorValues = yValues.flatMap(yVal =>
+    xValues
+      .map(xVal => cells.get(yVal)?.get(xVal)?.value)
       .filter(isFiniteScore),
   )
-  const min = scores.length > 0 ? Math.min(...scores) : 0
-  const max = scores.length > 0 ? Math.max(...scores) : 1
+  const min = colorValues.length > 0 ? Math.min(...colorValues) : 0
+  const max = colorValues.length > 0 ? Math.max(...colorValues) : 1
+  const colorLabel = measureLabel(colorMeasure)
 
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
-            Model × experiment kind
+            {heatmapTitle(xAxis, yAxis)}
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Average score by model and experiment kind. Enc-dec labels like
-            {" "}
-            <code className="font-mono text-[12px]">model -&gt; model</code>
-            {" "}
-            are collapsed to the same row as direct runs. Lower scores appear more red.
-            All columns share the same color scale.
+            {colorLabel} by {heatmapAxisLabel(yAxis).toLowerCase()} and{' '}
+            {heatmapAxisLabel(xAxis).toLowerCase()}. Enc-dec model labels like{' '}
+            <code className="font-mono text-[12px]">model -&gt; model</code> are
+            collapsed to the same row as direct runs when model is on an axis.
+            Lower values appear more red. All cells share the same color scale.
           </p>
         </div>
         <div className="hidden items-center gap-2 text-[11px] text-[var(--text-muted)] sm:flex">
-          <span>{formatScore(min)}</span>
+          <span>{formatMeasure(min, colorMeasure)}</span>
           <div
             className="h-3 w-24 rounded-sm border border-[var(--border)]"
             style={{
@@ -123,7 +153,7 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
                 'linear-gradient(to right, rgb(220, 38, 38), rgb(70, 180, 98))',
             }}
           />
-          <span>{formatScore(max)}</span>
+          <span>{formatMeasure(max, colorMeasure)}</span>
         </div>
       </div>
 
@@ -131,40 +161,40 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
         <div
           className="grid min-w-max gap-px bg-[var(--border)] p-px"
           style={{
-            gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${kinds.length}, minmax(120px, 1fr))`,
+            gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${xValues.length}, minmax(120px, 1fr))`,
           }}
         >
           <div className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
-            Model
+            {heatmapAxisLabel(yAxis)}
           </div>
-          {kinds.map(kind => (
+          {xValues.map(xVal => (
             <div
-              key={kind}
+              key={xVal}
               className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
             >
-              {kind}
+              {xVal}
             </div>
           ))}
 
-          {models.map(model => (
-            <div key={model} className="contents">
+          {yValues.map(yVal => (
+            <div key={yVal} className="contents">
               <div
                 className="bg-[var(--bg-primary)] px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]"
-                title={model}
+                title={yVal}
               >
-                <span className="block truncate">{model}</span>
+                <span className="block truncate">{yVal}</span>
               </div>
-              {kinds.map(kind => {
-                const cell = cells.get(model)?.get(kind)
-                const avgScore = cell?.avgScore ?? null
-                const background = scoreColor(avgScore, min, max)
+              {xValues.map(xVal => {
+                const cell = cells.get(yVal)?.get(xVal)
+                const value = cell?.value ?? null
+                const background = scoreColor(value, min, max)
                 const textClass =
-                  isFiniteScore(avgScore) && avgScore < (min + max) / 2
+                  isFiniteScore(value) && value < (min + max) / 2
                     ? 'text-white'
                     : 'text-[var(--text-primary)]'
                 return (
                   <div
-                    key={`${model}-${kind}`}
+                    key={`${yVal}-${xVal}`}
                     className={cn(
                       'px-3 py-2 text-right font-mono text-[12px]',
                       textClass,
@@ -172,11 +202,11 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
                     style={{ backgroundColor: background }}
                     title={
                       cell
-                        ? `avg_score=${formatScore(avgScore)}, n=${cell.n}`
+                        ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}`
                         : 'No data'
                     }
                   >
-                    {formatScore(avgScore)}
+                    {formatMeasure(value, colorMeasure)}
                   </div>
                 )
               })}

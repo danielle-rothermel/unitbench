@@ -8,6 +8,14 @@ import {
   type SortMeasure,
 } from '@/lib/aggregate-config'
 import {
+  BUDGET_DIMENSION_SQL,
+  HEATMAP_FILTER_COLUMNS,
+  HEATMAP_MAX_ROWS,
+  isHeatmapAxis,
+  type HeatmapAxis,
+} from '@/lib/heatmap-config'
+import type { HeatmapState } from '@/lib/heatmap-params'
+import {
   MissingDatabaseUrlError,
   neonSql,
   type SqlClient,
@@ -117,6 +125,138 @@ function validateFilterColumn(column: string): GroupByColumn {
   return column
 }
 
+const MEASURE_EXPRESSIONS = [
+  'count(*)::int AS n',
+  'avg(score) AS avg_score',
+  'stddev(score) AS stddev_score',
+  'count(*) FILTER (WHERE result_state = \'passed\')::float / nullif(count(*), 0) AS pass_rate',
+  'avg(provider_cost) AS avg_cost',
+].join(', ')
+
+function validateHeatmapAxis(column: string): HeatmapAxis {
+  if (!isHeatmapAxis(column)) {
+    throw new InvalidAggregateQueryError(`Disallowed heatmap axis: ${column}`)
+  }
+  return column
+}
+
+function validateHeatmapFilterColumn(column: string): HeatmapAxis {
+  return validateHeatmapAxis(column)
+}
+
+function heatmapFilterExpression(column: HeatmapAxis): string {
+  if (column === 'model') return modelFilterSql()
+  if (column === 'budget') return BUDGET_DIMENSION_SQL
+  return quoteIdentifier(column)
+}
+
+function heatmapDimensionSelect(column: HeatmapAxis): string {
+  if (column === 'model') return modelGroupBySelectSql()
+  if (column === 'budget') {
+    return `${BUDGET_DIMENSION_SQL} AS ${quoteIdentifier('budget')}`
+  }
+  return quoteIdentifier(column)
+}
+
+function heatmapDimensionGroupBy(column: HeatmapAxis): string {
+  if (column === 'model') return modelGroupBySql()
+  if (column === 'budget') return BUDGET_DIMENSION_SQL
+  return quoteIdentifier(column)
+}
+
+function buildHeatmapWhere(filters: AggregateFilters): SqlQuery {
+  const conditions: string[] = []
+  const params: unknown[] = []
+
+  for (const [rawColumn, values] of Object.entries(filters.filterIn)) {
+    if (values.length === 0) continue
+    const column = validateHeatmapFilterColumn(rawColumn)
+    params.push(values)
+    conditions.push(
+      `${heatmapFilterExpression(column)} = ANY($${params.length}::text[])`,
+    )
+  }
+
+  for (const [rawColumn, values] of Object.entries(filters.filterOut)) {
+    if (values.length === 0) continue
+    const column = validateHeatmapFilterColumn(rawColumn)
+    params.push(values)
+    conditions.push(
+      `(${heatmapFilterExpression(column)} IS NULL OR ${heatmapFilterExpression(column)} <> ALL($${params.length}::text[]))`,
+    )
+  }
+
+  const text = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
+  return { text, params }
+}
+
+function heatmapResultColumnList(axes: HeatmapAxis[]): string {
+  const dimensions = axes.map(column => quoteIdentifier(column))
+  const measures = SORT_MEASURES.map(column => quoteIdentifier(column))
+  return [...dimensions, ...measures].join(', ')
+}
+
+function buildHeatmapClusteredOrderQuery(
+  groupBy: HeatmapAxis[],
+  sort: SortMeasure,
+  dir: 'asc' | 'desc',
+  innerQuery: string,
+  limitClause: string,
+): string {
+  const primary = quoteIdentifier(groupBy[0])
+  const clusterAgg = dir === 'asc' ? 'MIN' : 'MAX'
+  const sortCol = quoteIdentifier(sort)
+  const clusterDirection = dir === 'asc' ? 'ASC' : 'DESC'
+  const columns = heatmapResultColumnList(groupBy)
+  const innerOrder = groupBy
+    .slice(1)
+    .map(column => `ranked.${quoteIdentifier(column)} ASC`)
+    .join(', ')
+  const orderBy = innerOrder
+    ? `ranked._cluster_sort ${clusterDirection}, ${innerOrder}`
+    : `ranked._cluster_sort ${clusterDirection}`
+
+  return [
+    `SELECT ${columns} FROM (`,
+    `SELECT grouped.*, ${clusterAgg}(grouped.${sortCol}) OVER (PARTITION BY grouped.${primary}) AS _cluster_sort`,
+    `FROM (${innerQuery}) AS grouped`,
+    `) AS ranked`,
+    `ORDER BY ${orderBy}`,
+    limitClause,
+  ].join(' ')
+}
+
+export function buildHeatmapQuerySql(state: HeatmapState): SqlQuery {
+  const yAxis = validateHeatmapAxis(state.y)
+  const xAxis = validateHeatmapAxis(state.x)
+  if (yAxis === xAxis) {
+    throw new InvalidAggregateQueryError('Heatmap x and y axes must differ')
+  }
+  validateSort(state.color)
+  const groupBy: HeatmapAxis[] = [yAxis, xAxis]
+  const where = buildHeatmapWhere(state)
+  const table = qualifiedTableName(AGGREGATE_TABLE)
+  const limitIndex = where.params.length + 1
+  const offsetIndex = where.params.length + 2
+  const limitClause = `LIMIT $${limitIndex} OFFSET $${offsetIndex}`
+  const innerQuery = [
+    `SELECT ${groupBy.map(heatmapDimensionSelect).join(', ')}, ${MEASURE_EXPRESSIONS}`,
+    `FROM ${table}${where.text}`,
+    `GROUP BY ${groupBy.map(heatmapDimensionGroupBy).join(', ')}`,
+  ].join(' ')
+  const text = buildHeatmapClusteredOrderQuery(
+    groupBy,
+    state.color,
+    'asc',
+    innerQuery,
+    limitClause,
+  )
+  return {
+    text,
+    params: [...where.params, HEATMAP_MAX_ROWS, 0],
+  }
+}
+
 function filterExpression(column: GroupByColumn): string {
   if (column === 'model') return modelFilterSql()
   return quoteIdentifier(column)
@@ -160,14 +300,7 @@ function dimensionGroupBy(column: GroupByColumn): string {
 
 function selectExpressions(groupBy: GroupByColumn[]): string {
   const dimensions = groupBy.map(dimensionSelect).join(', ')
-  const measures = [
-    'count(*)::int AS n',
-    'avg(score) AS avg_score',
-    'stddev(score) AS stddev_score',
-    'count(*) FILTER (WHERE result_state = \'passed\')::float / nullif(count(*), 0) AS pass_rate',
-    'avg(provider_cost) AS avg_cost',
-  ].join(', ')
-  return dimensions ? `${dimensions}, ${measures}` : measures
+  return dimensions ? `${dimensions}, ${MEASURE_EXPRESSIONS}` : MEASURE_EXPRESSIONS
 }
 
 function groupByClause(groupBy: GroupByColumn[]): string {
@@ -315,18 +448,41 @@ export async function getAggregateFacets(): Promise<AggregateFacets> {
   return Object.fromEntries(entries)
 }
 
-export async function getHeatmapRows(
-  filters: AggregateFilters,
-): Promise<TableRow[]> {
-  const heatmapState: AggregateState = {
-    ...filters,
-    groupBy: ['model', 'experiment_kind'],
-    sort: 'avg_score',
-    dir: 'asc',
-    page: 1,
-    pageSize: 100,
-  }
-  const query = buildAggregateQuery(heatmapState)
+export async function getHeatmapFacets(): Promise<AggregateFacets> {
+  const sql = neonSql()
+  const table = qualifiedTableName(AGGREGATE_TABLE)
+  const entries = await Promise.all(
+    HEATMAP_FILTER_COLUMNS.map(async key => {
+      if (key === 'model') {
+        const rows = await queryWithParams<{ value: unknown }>(
+          sql,
+          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table} WHERE ${quoteIdentifier('model')} IS NOT NULL ORDER BY value ASC`,
+          [],
+        )
+        return [key, rows.map(row => String(row.value))] as const
+      }
+      if (key === 'budget') {
+        const rows = await queryWithParams<{ value: unknown }>(
+          sql,
+          `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table} ORDER BY value ASC`,
+          [],
+        )
+        return [key, rows.map(row => String(row.value))] as const
+      }
+      const id = quoteIdentifier(key)
+      const rows = await queryWithParams<{ value: unknown }>(
+        sql,
+        `SELECT DISTINCT ${id} AS value FROM ${table} WHERE ${id} IS NOT NULL ORDER BY ${id} ASC`,
+        [],
+      )
+      return [key, rows.map(row => String(row.value))] as const
+    }),
+  )
+  return Object.fromEntries(entries)
+}
+
+export async function getHeatmapRows(state: HeatmapState): Promise<TableRow[]> {
+  const query = buildHeatmapQuerySql(state)
   const sql = neonSql()
   return queryWithParams(sql, query.text, query.params)
 }

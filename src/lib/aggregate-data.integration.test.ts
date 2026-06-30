@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { getConnectionStatus } from '@/lib/neon'
 import {
   getAggregatePage,
-  getAggregateFacets,
+  getHeatmapFacets,
   getHeatmapRows,
 } from '@/lib/aggregate-data'
 import { parseAggregateState } from '@/lib/aggregate-params'
@@ -53,11 +53,12 @@ describe.skipIf(!hasDatabaseUrl)('aggregate db integration', () => {
     ).toBe(false)
   })
 
-  it('loads facets for filters', async () => {
-    const facets = await getAggregateFacets()
+  it('loads heatmap facets including budget', async () => {
+    const facets = await getHeatmapFacets()
     expect(facets.model?.length).toBeGreaterThan(0)
-    expect(facets.experiment_kind).toEqual(
-      expect.arrayContaining(['humaneval_direct', 'humaneval_encdec']),
+    expect(facets.task_id?.length).toBeGreaterThan(0)
+    expect(facets.budget).toEqual(
+      expect.arrayContaining(['(none)', '0.5', '1.0']),
     )
   })
 })
