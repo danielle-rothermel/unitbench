@@ -5,6 +5,7 @@ import {
   InvalidAggregateQueryError,
 } from '@/lib/aggregate-data'
 import type { AggregateState } from '@/lib/aggregate-data'
+import { CANONICAL_MODEL_SQL } from '@/lib/canonical-model'
 
 const baseState: AggregateState = {
   groupBy: ['model', 'experiment_kind'],
@@ -17,36 +18,37 @@ const baseState: AggregateState = {
 }
 
 describe('aggregate query builders', () => {
-  it('builds an unfiltered group-by query with default sort', () => {
-    expect(buildAggregateCountQuery(baseState)).toEqual({
-      text: 'SELECT count(*)::int AS total FROM (SELECT 1 FROM "published_predictions" GROUP BY "model", "experiment_kind") AS grouped',
-      params: [],
-    })
+  it('builds an unfiltered group-by query with canonical model', () => {
+    const count = buildAggregateCountQuery(baseState)
+    expect(count.text).toContain(CANONICAL_MODEL_SQL)
+    expect(count.text).toContain('GROUP BY')
+    expect(count.text).toContain('"experiment_kind"')
+    expect(count.params).toEqual([])
+
     const select = buildAggregateQuery(baseState)
-    expect(select.text).toContain(
-      'SELECT "model", "experiment_kind", count(*)::int AS n, avg(score) AS avg_score',
-    )
-    expect(select.text).toContain('GROUP BY "model", "experiment_kind"')
+    expect(select.text).toContain(CANONICAL_MODEL_SQL)
+    expect(select.text).toContain('AS "model"')
+    expect(select.text).toContain('"experiment_kind"')
     expect(select.text).toContain('ORDER BY "avg_score" ASC')
     expect(select.text).toContain('LIMIT $1 OFFSET $2')
     expect(select.params).toEqual([100, 0])
   })
 
-  it('builds filter-in and filter-out conditions with parameter offsets', () => {
+  it('builds canonical model filter conditions with parameter offsets', () => {
     const state: AggregateState = {
       ...baseState,
       page: 2,
       filterIn: { model: ['openai/test'] },
       filterOut: { experiment_kind: ['humaneval_direct'] },
     }
-    const where =
-      'WHERE "model" = ANY($1::text[]) AND ("experiment_kind" IS NULL OR "experiment_kind" <> ALL($2::text[]))'
-    expect(buildAggregateCountQuery(state)).toEqual({
-      text: `SELECT count(*)::int AS total FROM (SELECT 1 FROM "published_predictions" ${where} GROUP BY "model", "experiment_kind") AS grouped`,
-      params: [['openai/test'], ['humaneval_direct']],
-    })
+    const count = buildAggregateCountQuery(state)
+    expect(count.text).toContain(`${CANONICAL_MODEL_SQL} = ANY($1::text[])`)
+    expect(count.text).toContain(
+      '("experiment_kind" IS NULL OR "experiment_kind" <> ALL($2::text[]))',
+    )
+    expect(count.params).toEqual([['openai/test'], ['humaneval_direct']])
+
     const select = buildAggregateQuery(state)
-    expect(select.text).toContain(where)
     expect(select.text).toContain('LIMIT $3 OFFSET $4')
     expect(select.params).toEqual([
       ['openai/test'],
@@ -54,6 +56,16 @@ describe('aggregate query builders', () => {
       100,
       100,
     ])
+  })
+
+  it('uses raw model column when model is not in group-by', () => {
+    const state: AggregateState = {
+      ...baseState,
+      groupBy: ['experiment_kind'],
+    }
+    const select = buildAggregateQuery(state)
+    expect(select.text).toContain('SELECT "experiment_kind"')
+    expect(select.text).not.toContain('AS "model"')
   })
 
   it('rejects disallowed group-by columns', () => {

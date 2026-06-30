@@ -17,6 +17,11 @@ import {
   quoteIdentifier,
 } from '@/lib/sql-identifiers'
 import type { AggregateFilters } from '@/lib/aggregate-filters'
+import {
+  modelFilterSql,
+  modelGroupBySelectSql,
+  modelGroupBySql,
+} from '@/lib/canonical-model'
 import type { TableRow } from '@/lib/table-data'
 
 export type { AggregateFilters } from '@/lib/aggregate-filters'
@@ -110,6 +115,11 @@ function validateFilterColumn(column: string): GroupByColumn {
   return column
 }
 
+function filterExpression(column: GroupByColumn): string {
+  if (column === 'model') return modelFilterSql()
+  return quoteIdentifier(column)
+}
+
 function buildWhere(filters: AggregateFilters): SqlQuery {
   const conditions: string[] = []
   const params: unknown[] = []
@@ -118,7 +128,9 @@ function buildWhere(filters: AggregateFilters): SqlQuery {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
     params.push(values)
-    conditions.push(`${quoteIdentifier(column)} = ANY($${params.length}::text[])`)
+    conditions.push(
+      `${filterExpression(column)} = ANY($${params.length}::text[])`,
+    )
   }
 
   for (const [rawColumn, values] of Object.entries(filters.filterOut)) {
@@ -126,7 +138,7 @@ function buildWhere(filters: AggregateFilters): SqlQuery {
     const column = validateFilterColumn(rawColumn)
     params.push(values)
     conditions.push(
-      `(${quoteIdentifier(column)} IS NULL OR ${quoteIdentifier(column)} <> ALL($${params.length}::text[]))`,
+      `(${filterExpression(column)} IS NULL OR ${filterExpression(column)} <> ALL($${params.length}::text[]))`,
     )
   }
 
@@ -134,8 +146,18 @@ function buildWhere(filters: AggregateFilters): SqlQuery {
   return { text, params }
 }
 
+function dimensionSelect(column: GroupByColumn): string {
+  if (column === 'model') return modelGroupBySelectSql()
+  return quoteIdentifier(column)
+}
+
+function dimensionGroupBy(column: GroupByColumn): string {
+  if (column === 'model') return modelGroupBySql()
+  return quoteIdentifier(column)
+}
+
 function selectExpressions(groupBy: GroupByColumn[]): string {
-  const dimensions = groupBy.map(column => quoteIdentifier(column)).join(', ')
+  const dimensions = groupBy.map(dimensionSelect).join(', ')
   const measures = [
     'count(*)::int AS n',
     'avg(score) AS avg_score',
@@ -147,7 +169,7 @@ function selectExpressions(groupBy: GroupByColumn[]): string {
 }
 
 function groupByClause(groupBy: GroupByColumn[]): string {
-  return groupBy.map(column => quoteIdentifier(column)).join(', ')
+  return groupBy.map(dimensionGroupBy).join(', ')
 }
 
 export function buildAggregateCountQuery(state: AggregateState): SqlQuery {
@@ -222,6 +244,14 @@ export async function getAggregateFacets(): Promise<AggregateFacets> {
   const keys = ['model', 'experiment_kind'] as const
   const entries = await Promise.all(
     keys.map(async key => {
+      if (key === 'model') {
+        const rows = await queryWithParams<{ value: unknown }>(
+          sql,
+          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table} WHERE ${quoteIdentifier('model')} IS NOT NULL ORDER BY value ASC`,
+          [],
+        )
+        return [key, rows.map(row => String(row.value))] as const
+      }
       const id = quoteIdentifier(key)
       const rows = await queryWithParams<{ value: unknown }>(
         sql,

@@ -29,17 +29,28 @@ describe.skipIf(!hasDatabaseUrl)('aggregate db integration', () => {
     expect(Number(worst.avg_score)).toBeLessThan(0.2)
   })
 
-  it('loads heatmap rows for model x experiment_kind', async () => {
+  it('loads heatmap rows with canonical model labels', async () => {
     const filters = parseHeatmapState({})
     const rows = await getHeatmapRows(filters)
     expect(rows.length).toBeGreaterThan(0)
+    expect(rows.length).toBeLessThan(40)
     const nanoDirect = rows.find(
       row =>
         String(row.model) === 'openai/gpt-5.4-nano' &&
         row.experiment_kind === 'humaneval_direct',
     )
+    const nanoEncdec = rows.find(
+      row =>
+        String(row.model) === 'openai/gpt-5.4-nano' &&
+        row.experiment_kind === 'humaneval_encdec',
+    )
     expect(nanoDirect).toBeDefined()
+    expect(nanoEncdec).toBeDefined()
     expect(Number(nanoDirect?.avg_score)).toBeCloseTo(0.147, 2)
+    expect(Number(nanoEncdec?.avg_score)).toBeCloseTo(0.0, 2)
+    expect(
+      rows.some(row => String(row.model).includes(' -> ')),
+    ).toBe(false)
   })
 
   it('loads facets for filters', async () => {

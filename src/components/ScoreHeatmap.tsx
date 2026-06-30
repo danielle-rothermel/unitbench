@@ -101,7 +101,11 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
             Model × experiment kind
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Average score by model and experiment kind. Lower scores appear more red.
+            Average score by model and experiment kind. Enc-dec labels like
+            {" "}
+            <code className="font-mono text-[12px]">model -&gt; model</code>
+            {" "}
+            are collapsed to the same row as direct runs. Lower scores appear more red.
           </p>
         </div>
         <div className="hidden items-center gap-2 text-[11px] text-[var(--text-muted)] sm:flex">
