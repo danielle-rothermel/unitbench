@@ -185,6 +185,35 @@ Three unlocks relevant to the aspirations:
   does not exist. → The "interpret prompt-optimization flows" part of #4 is blocked
   on upstream `dr-dspy` work, not viewer work.
 
+### What is actually in Neon today (verified 2026-06-30)
+
+The `published_*` tables **do exist in Neon** (they are published artifacts, even
+though no `published_*` table is defined in `dr-dspy` _code_). Tables present:
+
+- `published_experiments` (18 rows) — per-experiment rollups: `pass_rate`,
+  `pass/fail/pending/error` counts, `total_provider_cost`, timestamps.
+- `published_predictions` (**74,032 rows**, one per sample) — the workhorse for
+  aggregation. Groupable: `model` (39), `task_id` (164), `experiment_kind` (2:
+  `humaneval_direct` / `humaneval_encdec`), `result_state` (4). Measurable: `score`
+  (~64.7k non-null), `provider_cost` (~64.7k non-null).
+- `published_prediction_details` (74,032 rows) — the wide per-prediction detail
+  (prompt_text, code_text, raw_generation, request/response/validation JSON).
+- **`published_pool_samples` (403,007 rows)** — a much richer, previously-unnoticed
+  table. Extra axes of variation ideal for **faceted heatmaps / variance work (#2)**:
+  `task_family`, `task_split`, `difficulty`, `provider`, `budget_label`,
+  `prompt_template_id`, `llm_config_id`, encoder/decoder template columns, plus
+  `passed`, `validation_pass_rate`, `failure_category`, and `usage_json` / `cost_json`
+  (latency/cost). **Not yet used by the app** — flagged as a high-value source for
+  later faceted/variance plots.
+- `published_pool_summaries` (9 rows) — per-pool summary metadata.
+
+**Motivating finding confirmed in the data:** `openai/gpt-5.4-nano` scores
+`avg=0.147` direct and `avg=0.000` enc-dec, while most models sit at 0.75–0.93 — the
+"fails across the board, both flows → smells like a parsing/eval bug" pattern. A
+second suspicious outlier: `qwen/qwen3-coder-flash` at `0.34` direct / `0.52`
+enc-dec. These are exactly the cases the aggregation view (Plan 01) is meant to
+surface at a glance.
+
 ### `dr-dspy` planning context (from `dr-dspy/docs/`)
 
 - North-star design: `docs/append-only-eval-records-design.md` (2026-06-29) — the v1
