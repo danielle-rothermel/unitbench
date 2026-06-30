@@ -15,8 +15,19 @@ function formatScore(value: number | null): string {
   return value.toFixed(3)
 }
 
+function isFiniteScore(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function parseScore(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function scoreColor(value: number | null, min: number, max: number): string {
-  if (value === null || Number.isNaN(value)) {
+  if (!isFiniteScore(value)) {
     return 'var(--bg-secondary)'
   }
   if (max <= min) {
@@ -42,13 +53,7 @@ function pivotRows(rows: TableRow[]): {
     const kind = String(row.experiment_kind ?? '')
     if (!model || !kind) continue
     kindSet.add(kind)
-    const avgRaw = row.avg_score
-    const avgScore =
-      typeof avgRaw === 'number'
-        ? avgRaw
-        : avgRaw === null || avgRaw === undefined
-          ? null
-          : Number(avgRaw)
+    const avgScore = parseScore(row.avg_score)
     const nRaw = row.n
     const n =
       typeof nRaw === 'number'
@@ -62,10 +67,10 @@ function pivotRows(rows: TableRow[]): {
   const models = [...cellMap.keys()].sort((left, right) => {
     const leftScores = kinds
       .map(kind => cellMap.get(left)?.get(kind)?.avgScore)
-      .filter((value): value is number => value !== null && !Number.isNaN(value))
+      .filter((value): value is number => isFiniteScore(value))
     const rightScores = kinds
       .map(kind => cellMap.get(right)?.get(kind)?.avgScore)
-      .filter((value): value is number => value !== null && !Number.isNaN(value))
+      .filter((value): value is number => isFiniteScore(value))
     const leftMin = leftScores.length > 0 ? Math.min(...leftScores) : Number.POSITIVE_INFINITY
     const rightMin = rightScores.length > 0 ? Math.min(...rightScores) : Number.POSITIVE_INFINITY
     if (leftMin !== rightMin) return leftMin - rightMin
@@ -88,7 +93,7 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
   const scores = models.flatMap(model =>
     kinds
       .map(kind => cells.get(model)?.get(kind)?.avgScore)
-      .filter((value): value is number => value !== null && !Number.isNaN(value)),
+      .filter(isFiniteScore),
   )
   const min = scores.length > 0 ? Math.min(...scores) : 0
   const max = scores.length > 0 ? Math.max(...scores) : 1
@@ -106,6 +111,7 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
             <code className="font-mono text-[12px]">model -&gt; model</code>
             {" "}
             are collapsed to the same row as direct runs. Lower scores appear more red.
+            All columns share the same color scale.
           </p>
         </div>
         <div className="hidden items-center gap-2 text-[11px] text-[var(--text-muted)] sm:flex">
@@ -153,7 +159,7 @@ export function ScoreHeatmap({ rows }: ScoreHeatmapProps) {
                 const avgScore = cell?.avgScore ?? null
                 const background = scoreColor(avgScore, min, max)
                 const textClass =
-                  avgScore !== null && avgScore < (min + max) / 2
+                  isFiniteScore(avgScore) && avgScore < (min + max) / 2
                     ? 'text-white'
                     : 'text-[var(--text-primary)]'
                 return (

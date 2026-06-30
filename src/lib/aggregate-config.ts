@@ -80,7 +80,7 @@ export function buildAggregateTableConfig(
     key,
     label: MEASURE_LABELS[key],
     kind: 'number' as const,
-    sortable: true,
+    sortable: false,
   }))
 
   return {
