@@ -14,7 +14,7 @@ import {
 } from '@tanstack/react-table'
 import { ResultBadge } from '@/components/primitives'
 import { cn } from '@/lib/cn'
-import { formatCellValue, shortDate } from '@/lib/format'
+import { formatCellValue, formatNumber, shortDate } from '@/lib/format'
 import type { TableColumn, TableConfig } from '@/lib/table-config'
 import type { TableRow } from '@/lib/table-data'
 import { buildTableQuery, tableHref, type TableState } from '@/lib/table-params'
@@ -25,6 +25,7 @@ type GenericTableProps = {
   rows: TableRow[]
   total: number
   totalPages: number
+  hrefBuilder?: (state: TableState) => string
 }
 
 function predictionDetailHref(
@@ -41,6 +42,7 @@ function cellContent(value: unknown, column: TableColumn): ReactNode {
     return <ResultBadge state={formatCellValue(value)} size="sm" />
   }
   if (column.kind === 'date') return shortDate(formatCellValue(value))
+  if (column.kind === 'number') return formatNumber(value)
   if (column.kind === 'json') {
     return (
       <code className="font-mono text-[12px] text-[var(--text-secondary)]">
@@ -63,6 +65,7 @@ export function GenericTable({
   rows,
   total,
   totalPages,
+  hrefBuilder,
 }: GenericTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -108,8 +111,10 @@ export function GenericTable({
     pageSize: state.pageSize,
   }
 
+  const buildHref = hrefBuilder ?? ((next: TableState) => tableHref(config.id, next))
+
   const pushState = (next: TableState) => {
-    startTransition(() => router.push(tableHref(config.id, next)))
+    startTransition(() => router.push(buildHref(next)))
   }
 
   const onSortingChange: OnChangeFn<SortingState> = updater => {
@@ -166,6 +171,8 @@ export function GenericTable({
           <thead>
             <tr>
               {headers.map(header => {
+                const column = columnByKey.get(header.id)
+                const isNumber = column?.kind === 'number'
                 const sortable = header.column.getCanSort()
                 const sorted = header.column.getIsSorted()
                 const label = flexRender(
@@ -175,13 +182,19 @@ export function GenericTable({
                 return (
                   <th
                     key={header.id}
-                    className="sticky top-0 z-[1] border-b border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-2.5 text-left align-middle font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+                    className={cn(
+                      'sticky top-0 z-[1] border-b border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-4 py-2.5 align-middle font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase last:border-r-0',
+                      isNumber ? 'text-right' : 'text-left',
+                    )}
                   >
                     {sortable ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="group inline-flex items-center gap-1 uppercase transition-colors hover:text-[var(--text-primary)]"
+                        className={cn(
+                          'group inline-flex items-center gap-1 uppercase transition-colors hover:text-[var(--text-primary)]',
+                          isNumber && 'w-full justify-end',
+                        )}
                       >
                         {label}
                         <span
@@ -228,9 +241,9 @@ export function GenericTable({
                     <td
                       key={cell.id}
                       className={cn(
-                        'border-b border-[var(--border-subtle)] px-4 py-2.5 align-middle text-[13px] text-[var(--text-secondary)]',
+                        'border-b border-r border-[var(--border-subtle)] px-4 py-2.5 align-middle text-[13px] text-[var(--text-secondary)] last:border-r-0',
                         column?.kind === 'mono' && 'font-mono',
-                        column?.kind === 'number' && 'font-mono text-right',
+                        column?.kind === 'number' && 'font-mono text-right tabular-nums',
                         column?.truncate && 'max-w-[260px] truncate',
                       )}
                       title={formatCellValue(cell.getValue())}
