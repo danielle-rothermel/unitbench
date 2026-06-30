@@ -1,4 +1,4 @@
-# Plan 01 — Aggregation view + model×kind heatmap
+# [DONE] Plan 01 — Aggregation view + model×kind heatmap
 
 **Target repo:** `unitbench` (this repo). Self-contained; **no `dr-dspy` changes**.
 **Status:** ready to execute.
