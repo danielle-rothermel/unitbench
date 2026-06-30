@@ -7,6 +7,29 @@ import { FILTER_COLUMNS } from '@/lib/aggregate-config'
 import type { AggregateFilters } from '@/lib/aggregate-filters'
 import type { AggregateFacets } from '@/lib/aggregate-data'
 
+export const CHECKBOX_FILTER_MAX_FACETS = 12
+
+export function applyCheckboxIncludeFilter(
+  filters: AggregateFilters,
+  column: string,
+  checkedValues: string[],
+): AggregateFilters {
+  const nextFilterIn = { ...filters.filterIn }
+  const nextFilterOut = { ...filters.filterOut }
+
+  if (checkedValues.length === 0) {
+    delete nextFilterIn[column]
+  } else {
+    nextFilterIn[column] = checkedValues
+  }
+  delete nextFilterOut[column]
+
+  return {
+    filterIn: nextFilterIn,
+    filterOut: nextFilterOut,
+  }
+}
+
 type AggregateFilterFieldsProps = {
   filters: AggregateFilters
   facets: AggregateFacets
@@ -51,6 +74,110 @@ function FilterChips({
           <span aria-hidden="true">×</span>
         </button>
       ))}
+    </div>
+  )
+}
+
+function CheckboxFilterColumn({
+  column,
+  label,
+  values,
+  selected,
+  filters,
+  onChange,
+}: {
+  column: string
+  label: string
+  values: string[]
+  selected: string[]
+  filters: AggregateFilters
+  onChange: (next: AggregateFilters) => void
+}) {
+  const toggleValue = (value: string, checked: boolean) => {
+    const nextSelected = checked
+      ? [...selected, value]
+      : selected.filter(item => item !== value)
+    onChange(applyCheckboxIncludeFilter(filters, column, nextSelected))
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={SECTION_LABEL}>{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {values.map(value => {
+          const checked = selected.includes(value)
+          return (
+            <label
+              key={value}
+              className={cn(
+                'inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-[13px]',
+                checked
+                  ? 'border-[var(--accent)] bg-[var(--accent-bg)] text-[var(--accent)]'
+                  : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={event => toggleValue(value, event.target.checked)}
+                className="accent-[var(--accent)]"
+              />
+              {value}
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function SelectorFilterColumn({
+  label,
+  mode,
+  facets,
+  values,
+  draft,
+  onDraftChange,
+  onAdd,
+  onRemove,
+}: {
+  label: string
+  mode: 'in' | 'out'
+  facets: string[]
+  values: string[]
+  draft: string
+  onDraftChange: (value: string) => void
+  onAdd: () => void
+  onRemove: (value: string) => void
+}) {
+  const chipLabel = mode === 'in' ? 'Included' : 'Excluded'
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex flex-col gap-1">
+        <span className={SECTION_LABEL}>{label}</span>
+        <div className="flex items-center gap-2">
+          <select
+            value={draft}
+            onChange={event => onDraftChange(event.target.value)}
+            className={cn(CONTROL_CLASS, 'min-w-[220px] font-mono')}
+          >
+            <option value="">Select value…</option>
+            {facets.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          >
+            Add
+          </button>
+        </div>
+      </label>
+      <FilterChips label={chipLabel} values={values} onRemove={onRemove} />
     </div>
   )
 }
@@ -106,89 +233,54 @@ export function AggregateFilterFields({
 
   return (
     <div className={cn('flex flex-wrap items-end gap-4', isPending && 'opacity-60')}>
-      {filterColumns.map(column => (
-        <div key={column} className="flex flex-col gap-2">
-          <label className="flex flex-col gap-1">
-            <span className={SECTION_LABEL}>
-              Include {filterLabels[column] ?? column}
-            </span>
-            <div className="flex items-center gap-2">
-              <select
-                value={includeDraft[column] ?? ''}
-                onChange={event =>
-                  setIncludeDraft(prev => ({
-                    ...prev,
-                    [column]: event.target.value,
-                  }))
-                }
-                className={cn(CONTROL_CLASS, 'min-w-[220px] font-mono')}
-              >
-                <option value="">Select value…</option>
-                {(facets[column] ?? []).map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => addFilter('in', column, includeDraft[column] ?? '')}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-              >
-                Add
-              </button>
-            </div>
-          </label>
-          <FilterChips
-            label="Included"
-            values={filters.filterIn[column] ?? []}
-            onRemove={value => removeFilter('in', column, value)}
-          />
-        </div>
-      ))}
+      {filterColumns.map(column => {
+        const columnValues = facets[column] ?? []
+        const useCheckbox = columnValues.length <= CHECKBOX_FILTER_MAX_FACETS
+        const columnLabel = filterLabels[column] ?? column
 
-      {filterColumns.map(column => (
-        <div key={`exclude-${column}`} className="flex flex-col gap-2">
-          <label className="flex flex-col gap-1">
-            <span className={SECTION_LABEL}>
-              Exclude {filterLabels[column] ?? column}
-            </span>
-            <div className="flex items-center gap-2">
-              <select
-                value={excludeDraft[column] ?? ''}
-                onChange={event =>
-                  setExcludeDraft(prev => ({
-                    ...prev,
-                    [column]: event.target.value,
-                  }))
-                }
-                className={cn(CONTROL_CLASS, 'min-w-[220px] font-mono')}
-              >
-                <option value="">Select value…</option>
-                {(facets[column] ?? []).map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() =>
-                  addFilter('out', column, excludeDraft[column] ?? '')
-                }
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-              >
-                Add
-              </button>
-            </div>
-          </label>
-          <FilterChips
-            label="Excluded"
-            values={filters.filterOut[column] ?? []}
-            onRemove={value => removeFilter('out', column, value)}
-          />
-        </div>
-      ))}
+        if (useCheckbox) {
+          return (
+            <CheckboxFilterColumn
+              key={column}
+              column={column}
+              label={columnLabel}
+              values={columnValues}
+              selected={filters.filterIn[column] ?? []}
+              filters={filters}
+              onChange={onChange}
+            />
+          )
+        }
+
+        return (
+          <div key={column} className="flex flex-col gap-4">
+            <SelectorFilterColumn
+              label={`Include ${columnLabel}`}
+              mode="in"
+              facets={columnValues}
+              values={filters.filterIn[column] ?? []}
+              draft={includeDraft[column] ?? ''}
+              onDraftChange={value =>
+                setIncludeDraft(prev => ({ ...prev, [column]: value }))
+              }
+              onAdd={() => addFilter('in', column, includeDraft[column] ?? '')}
+              onRemove={value => removeFilter('in', column, value)}
+            />
+            <SelectorFilterColumn
+              label={`Exclude ${columnLabel}`}
+              mode="out"
+              facets={columnValues}
+              values={filters.filterOut[column] ?? []}
+              draft={excludeDraft[column] ?? ''}
+              onDraftChange={value =>
+                setExcludeDraft(prev => ({ ...prev, [column]: value }))
+              }
+              onAdd={() => addFilter('out', column, excludeDraft[column] ?? '')}
+              onRemove={value => removeFilter('out', column, value)}
+            />
+          </div>
+        )
+      })}
 
       {hasActiveFilters && (
         <button
