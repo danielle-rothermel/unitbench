@@ -36,11 +36,23 @@ export function HeatmapFilters({ state, facets }: HeatmapFiltersProps) {
   const setAxis = (axis: 'x' | 'y', value: HeatmapAxis) => {
     if (axis === 'x') {
       const y = value === state.y ? otherHeatmapAxis(state.y, value) : state.y
-      commit({ ...state, x: value, y })
+      commit({
+        ...state,
+        x: value,
+        y,
+        rowOrder: undefined,
+        colOrder: undefined,
+      })
       return
     }
     const x = value === state.x ? otherHeatmapAxis(state.x, value) : state.x
-    commit({ ...state, y: value, x })
+    commit({
+      ...state,
+      y: value,
+      x,
+      rowOrder: undefined,
+      colOrder: undefined,
+    })
   }
 
   return (

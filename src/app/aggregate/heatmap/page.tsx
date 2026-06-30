@@ -58,12 +58,7 @@ export default async function Page({ searchParams }: PageProps) {
       {status === 'ok' && (
         <>
           <HeatmapFilters state={state} facets={facets} />
-          <ScoreHeatmap
-            rows={heatmapRows}
-            xAxis={state.x}
-            yAxis={state.y}
-            colorMeasure={state.color}
-          />
+          <ScoreHeatmap rows={heatmapRows} state={state} />
         </>
       )}
     </AggregatePageShell>

@@ -1,24 +1,45 @@
+'use client'
+
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useRouter } from 'next/navigation'
+import { useMemo, useTransition } from 'react'
 import { cn } from '@/lib/cn'
 import { measureLabel } from '@/lib/aggregate-config'
 import { formatNumber } from '@/lib/format'
 import {
   heatmapAxisLabel,
   heatmapTitle,
-  type HeatmapAxis,
   type SortMeasure,
 } from '@/lib/heatmap-config'
+import {
+  buildHeatmapPivot,
+  manualOrderOrUndefined,
+  moveItem,
+  resolveAxisOrders,
+  type HeatmapCell,
+} from '@/lib/heatmap-order'
+import { heatmapHref, type HeatmapState } from '@/lib/heatmap-params'
 import type { TableRow } from '@/lib/table-data'
 
 type ScoreHeatmapProps = {
   rows: TableRow[]
-  xAxis: HeatmapAxis
-  yAxis: HeatmapAxis
-  colorMeasure: SortMeasure
-}
-
-type HeatmapCell = {
-  value: number | null
-  n: number
+  state: HeatmapState
 }
 
 function formatMeasure(value: number | null, measure: SortMeasure): string {
@@ -30,13 +51,6 @@ function formatMeasure(value: number | null, measure: SortMeasure): string {
 
 function isFiniteScore(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
-}
-
-function parseScore(value: unknown): number | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
 }
 
 function scoreColor(value: number | null, min: number, max: number): string {
@@ -53,65 +67,212 @@ function scoreColor(value: number | null, min: number, max: number): string {
   return `rgb(${red}, ${green}, ${blue})`
 }
 
-function pivotRows(
-  rows: TableRow[],
-  yAxis: HeatmapAxis,
-  xAxis: HeatmapAxis,
-  colorMeasure: SortMeasure,
-): {
-  yValues: string[]
-  xValues: string[]
-  cells: Map<string, Map<string, HeatmapCell>>
-} {
-  const xSet = new Set<string>()
-  const cellMap = new Map<string, Map<string, HeatmapCell>>()
-
-  for (const row of rows) {
-    const yVal = String(row[yAxis] ?? '')
-    const xVal = String(row[xAxis] ?? '')
-    if (!yVal || !xVal) continue
-    xSet.add(xVal)
-    const value = parseScore(row[colorMeasure])
-    const nRaw = row.n
-    const n =
-      typeof nRaw === 'number'
-        ? nRaw
-        : Number.parseInt(String(nRaw ?? '0'), 10) || 0
-    if (!cellMap.has(yVal)) cellMap.set(yVal, new Map())
-    cellMap.get(yVal)?.set(xVal, { value, n })
-  }
-
-  const xValues = [...xSet].sort()
-  const yValues = [...cellMap.keys()].sort((left, right) => {
-    const leftValues = xValues
-      .map(xVal => cellMap.get(left)?.get(xVal)?.value)
-      .filter(isFiniteScore)
-    const rightValues = xValues
-      .map(xVal => cellMap.get(right)?.get(xVal)?.value)
-      .filter(isFiniteScore)
-    const leftMin =
-      leftValues.length > 0 ? Math.min(...leftValues) : Number.POSITIVE_INFINITY
-    const rightMin =
-      rightValues.length > 0 ? Math.min(...rightValues) : Number.POSITIVE_INFINITY
-    if (leftMin !== rightMin) return leftMin - rightMin
-    return left.localeCompare(right)
-  })
-
-  return { yValues, xValues, cells: cellMap }
+function colDndId(xVal: string): string {
+  return `col:${xVal}`
 }
 
-export function ScoreHeatmap({
-  rows,
-  xAxis,
-  yAxis,
-  colorMeasure,
-}: ScoreHeatmapProps) {
-  const { yValues, xValues, cells } = pivotRows(
-    rows,
-    yAxis,
-    xAxis,
-    colorMeasure,
+function rowDndId(yVal: string): string {
+  return `row:${yVal}`
+}
+
+function DragHandle() {
+  return (
+    <span
+      className="mr-1.5 inline-block cursor-grab text-[var(--text-muted)] active:cursor-grabbing"
+      aria-hidden
+    >
+      ⠿
+    </span>
   )
+}
+
+type SortableColumnHeaderProps = {
+  xVal: string
+}
+
+function SortableColumnHeader({ xVal }: SortableColumnHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: colDndId(xVal) })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+    >
+      <button
+        type="button"
+        className="inline-flex max-w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        {...attributes}
+        {...listeners}
+        aria-label={`Drag column ${xVal}`}
+      >
+        <DragHandle />
+        <span className="truncate">{xVal}</span>
+      </button>
+    </div>
+  )
+}
+
+type SortableHeatmapRowProps = {
+  yVal: string
+  xValues: string[]
+  cells: Map<string, Map<string, HeatmapCell>>
+  colorMeasure: SortMeasure
+  min: number
+  max: number
+  gridTemplateColumns: string
+}
+
+function SortableHeatmapRow({
+  yVal,
+  xValues,
+  cells,
+  colorMeasure,
+  min,
+  max,
+  gridTemplateColumns,
+}: SortableHeatmapRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: rowDndId(yVal) })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        gridTemplateColumns,
+      }}
+      className="col-span-full grid gap-px bg-[var(--border)]"
+    >
+      <div
+        className="bg-[var(--bg-primary)] px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]"
+        title={yVal}
+      >
+        <button
+          type="button"
+          className="inline-flex max-w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag row ${yVal}`}
+        >
+          <DragHandle />
+          <span className="truncate">{yVal}</span>
+        </button>
+      </div>
+      {xValues.map(xVal => {
+        const cell = cells.get(yVal)?.get(xVal)
+        const value = cell?.value ?? null
+        const background = scoreColor(value, min, max)
+        const textClass =
+          isFiniteScore(value) && value < (min + max) / 2
+            ? 'text-white'
+            : 'text-[var(--text-primary)]'
+        return (
+          <div
+            key={`${yVal}-${xVal}`}
+            className={cn(
+              'bg-[var(--bg-primary)] px-3 py-2 text-right font-mono text-[12px]',
+              textClass,
+            )}
+            style={{ backgroundColor: background }}
+            title={
+              cell
+                ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}`
+                : 'No data'
+            }
+          >
+            {formatMeasure(value, colorMeasure)}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const { x: xAxis, y: yAxis, color: colorMeasure } = state
+
+  const pivot = useMemo(
+    () => buildHeatmapPivot(rows, yAxis, xAxis, colorMeasure),
+    [rows, yAxis, xAxis, colorMeasure],
+  )
+
+  const { yValues, xValues, cells } = useMemo(
+    () => resolveAxisOrders(pivot, state.rowOrder, state.colOrder),
+    [pivot, state.rowOrder, state.colOrder],
+  )
+
+  const gridTemplateColumns = `minmax(220px, 1.4fr) repeat(${xValues.length}, minmax(120px, 1fr))`
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  const commit = (next: HeatmapState) => {
+    startTransition(() => router.push(heatmapHref(next)))
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    if (activeId.startsWith('col:') && overId.startsWith('col:')) {
+      const activeKey = activeId.slice(4)
+      const overKey = overId.slice(4)
+      const oldIndex = xValues.indexOf(activeKey)
+      const newIndex = xValues.indexOf(overKey)
+      if (oldIndex < 0 || newIndex < 0) return
+      const nextOrder = moveItem(xValues, oldIndex, newIndex)
+      commit({
+        ...state,
+        colOrder: manualOrderOrUndefined(nextOrder, pivot.naturalColOrder),
+      })
+      return
+    }
+
+    if (activeId.startsWith('row:') && overId.startsWith('row:')) {
+      const activeKey = activeId.slice(4)
+      const overKey = overId.slice(4)
+      const oldIndex = yValues.indexOf(activeKey)
+      const newIndex = yValues.indexOf(overKey)
+      if (oldIndex < 0 || newIndex < 0) return
+      const nextOrder = moveItem(yValues, oldIndex, newIndex)
+      commit({
+        ...state,
+        rowOrder: manualOrderOrUndefined(nextOrder, pivot.naturalRowOrder),
+      })
+    }
+  }
+
+  const hasManualOrder = Boolean(state.rowOrder?.length || state.colOrder?.length)
+
   if (yValues.length === 0 || xValues.length === 0) {
     return (
       <div className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
@@ -130,18 +291,36 @@ export function ScoreHeatmap({
   const colorLabel = measureLabel(colorMeasure)
 
   return (
-    <section className="mb-8">
+    <section className={cn('mb-8', isPending && 'opacity-60')}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
-            {heatmapTitle(xAxis, yAxis)}
-          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+              {heatmapTitle(xAxis, yAxis)}
+            </h2>
+            {hasManualOrder && (
+              <button
+                type="button"
+                onClick={() =>
+                  commit({
+                    ...state,
+                    rowOrder: undefined,
+                    colOrder: undefined,
+                  })
+                }
+                className="text-[12px] text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                Reset order
+              </button>
+            )}
+          </div>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             {colorLabel} by {heatmapAxisLabel(yAxis).toLowerCase()} and{' '}
-            {heatmapAxisLabel(xAxis).toLowerCase()}. Enc-dec model labels like{' '}
+            {heatmapAxisLabel(xAxis).toLowerCase()}. Drag row or column headers to
+            reorder. Enc-dec model labels like{' '}
             <code className="font-mono text-[12px]">model -&gt; model</code> are
-            collapsed to the same row as direct runs when model is on an axis.
-            Lower values appear more red. All cells share the same color scale.
+            collapsed to the same row as direct runs when model is on an axis. Lower
+            values appear more red. All cells share the same color scale.
           </p>
         </div>
         <div className="hidden items-center gap-2 text-[11px] text-[var(--text-muted)] sm:flex">
@@ -157,63 +336,48 @@ export function ScoreHeatmap({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-        <div
-          className="grid min-w-max gap-px bg-[var(--border)] p-px"
-          style={{
-            gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${xValues.length}, minmax(120px, 1fr))`,
-          }}
-        >
-          <div className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
-            {heatmapAxisLabel(yAxis)}
-          </div>
-          {xValues.map(xVal => (
-            <div
-              key={xVal}
-              className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+          <div
+            className="grid min-w-max gap-px bg-[var(--border)] p-px"
+            style={{ gridTemplateColumns }}
+          >
+            <div className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
+              {heatmapAxisLabel(yAxis)}
+            </div>
+            <SortableContext
+              items={xValues.map(colDndId)}
+              strategy={horizontalListSortingStrategy}
             >
-              {xVal}
-            </div>
-          ))}
+              {xValues.map(xVal => (
+                <SortableColumnHeader key={xVal} xVal={xVal} />
+              ))}
+            </SortableContext>
 
-          {yValues.map(yVal => (
-            <div key={yVal} className="contents">
-              <div
-                className="bg-[var(--bg-primary)] px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]"
-                title={yVal}
-              >
-                <span className="block truncate">{yVal}</span>
-              </div>
-              {xValues.map(xVal => {
-                const cell = cells.get(yVal)?.get(xVal)
-                const value = cell?.value ?? null
-                const background = scoreColor(value, min, max)
-                const textClass =
-                  isFiniteScore(value) && value < (min + max) / 2
-                    ? 'text-white'
-                    : 'text-[var(--text-primary)]'
-                return (
-                  <div
-                    key={`${yVal}-${xVal}`}
-                    className={cn(
-                      'px-3 py-2 text-right font-mono text-[12px]',
-                      textClass,
-                    )}
-                    style={{ backgroundColor: background }}
-                    title={
-                      cell
-                        ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}`
-                        : 'No data'
-                    }
-                  >
-                    {formatMeasure(value, colorMeasure)}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+            <SortableContext
+              items={yValues.map(rowDndId)}
+              strategy={verticalListSortingStrategy}
+            >
+              {yValues.map(yVal => (
+                <SortableHeatmapRow
+                  key={yVal}
+                  yVal={yVal}
+                  xValues={xValues}
+                  cells={cells}
+                  colorMeasure={colorMeasure}
+                  min={min}
+                  max={max}
+                  gridTemplateColumns={gridTemplateColumns}
+                />
+              ))}
+            </SortableContext>
+          </div>
         </div>
-      </div>
+      </DndContext>
     </section>
   )
 }

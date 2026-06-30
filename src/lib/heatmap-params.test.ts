@@ -98,4 +98,38 @@ describe('heatmap params', () => {
     expect(href).toContain('model=openai%2Fgpt-5.4-nano')
     expect(href).toContain('exclude.experiment_kind=humaneval_encdec')
   })
+
+  it('parses rowOrder and colOrder with encoded slashes', () => {
+    expect(
+      parseHeatmapState({
+        rowOrder: 'openai/gpt-5.4-nano,openai/gpt-5-nano',
+        colOrder: 'humaneval_encdec,humaneval_direct',
+      }),
+    ).toEqual({
+      filterIn: {},
+      filterOut: {},
+      x: DEFAULT_HEATMAP_X,
+      y: DEFAULT_HEATMAP_Y,
+      color: DEFAULT_HEATMAP_COLOR,
+      rowOrder: ['openai/gpt-5.4-nano', 'openai/gpt-5-nano'],
+      colOrder: ['humaneval_encdec', 'humaneval_direct'],
+    })
+  })
+
+  it('round-trips rowOrder and colOrder through URL serialization', () => {
+    const state = parseHeatmapState({
+      rowOrder: 'openai/gpt-5.4-nano,openai/gpt-5-nano',
+      colOrder: 'humaneval_encdec,humaneval_direct',
+    })
+    const roundTripped = parseHeatmapState(
+      Object.fromEntries(buildHeatmapQuery(state)),
+    )
+    expect(roundTripped).toEqual(state)
+  })
+
+  it('omits rowOrder and colOrder from default serialized URLs', () => {
+    const query = buildHeatmapQuery(parseHeatmapState({})).toString()
+    expect(query).not.toContain('rowOrder')
+    expect(query).not.toContain('colOrder')
+  })
 })
