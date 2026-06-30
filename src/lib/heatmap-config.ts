@@ -32,6 +32,23 @@ export const BUDGET_DIMENSION_SQL = `COALESCE(${quoteIdentifier('summary_json')}
 
 export const HEATMAP_MAX_ROWS = 10_000
 
+/** Semantic category order for budget axis; (none) = unbounded direct runs, last. */
+export const BUDGET_VALUE_ORDER = [
+  '0.25',
+  '0.5',
+  '0.75',
+  '1.0',
+  '1.5',
+  '2.0',
+  '(none)',
+] as const
+
+export const AXIS_VALUE_ORDERS: Partial<
+  Record<HeatmapAxis, readonly string[]>
+> = {
+  budget: BUDGET_VALUE_ORDER,
+}
+
 export function isHeatmapAxis(value: string): value is HeatmapAxis {
   return (HEATMAP_AXES as readonly string[]).includes(value)
 }

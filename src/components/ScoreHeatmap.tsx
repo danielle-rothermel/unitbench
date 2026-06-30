@@ -218,9 +218,27 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
     [rows, yAxis, xAxis, colorMeasure],
   )
 
-  const { yValues, xValues, cells } = useMemo(
-    () => resolveAxisOrders(pivot, state.rowOrder, state.colOrder),
-    [pivot, state.rowOrder, state.colOrder],
+  const { yValues, xValues, yBaseline, xBaseline, cells } = useMemo(
+    () =>
+      resolveAxisOrders(pivot, {
+        yAxis,
+        xAxis,
+        colorMeasure,
+        rowSort: state.rowSort,
+        colSort: state.colSort,
+        rowOrder: state.rowOrder,
+        colOrder: state.colOrder,
+      }),
+    [
+      pivot,
+      yAxis,
+      xAxis,
+      colorMeasure,
+      state.rowSort,
+      state.colSort,
+      state.rowOrder,
+      state.colOrder,
+    ],
   )
 
   const gridTemplateColumns = `minmax(220px, 1.4fr) repeat(${xValues.length}, minmax(120px, 1fr))`
@@ -252,7 +270,7 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
       const nextOrder = moveItem(xValues, oldIndex, newIndex)
       commit({
         ...state,
-        colOrder: manualOrderOrUndefined(nextOrder, pivot.naturalColOrder),
+        colOrder: manualOrderOrUndefined(nextOrder, xBaseline),
       })
       return
     }
@@ -266,12 +284,17 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
       const nextOrder = moveItem(yValues, oldIndex, newIndex)
       commit({
         ...state,
-        rowOrder: manualOrderOrUndefined(nextOrder, pivot.naturalRowOrder),
+        rowOrder: manualOrderOrUndefined(nextOrder, yBaseline),
       })
     }
   }
 
-  const hasManualOrder = Boolean(state.rowOrder?.length || state.colOrder?.length)
+  const hasCustomOrder = Boolean(
+    state.rowOrder?.length ||
+      state.colOrder?.length ||
+      state.rowSort ||
+      state.colSort,
+  )
 
   if (yValues.length === 0 || xValues.length === 0) {
     return (
@@ -298,7 +321,7 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
             <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
               {heatmapTitle(xAxis, yAxis)}
             </h2>
-            {hasManualOrder && (
+            {hasCustomOrder && (
               <button
                 type="button"
                 onClick={() =>
@@ -306,6 +329,8 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
                     ...state,
                     rowOrder: undefined,
                     colOrder: undefined,
+                    rowSort: undefined,
+                    colSort: undefined,
                   })
                 }
                 className="text-[12px] text-[var(--accent)] underline-offset-2 hover:underline"
@@ -316,8 +341,9 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
           </div>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             {colorLabel} by {heatmapAxisLabel(yAxis).toLowerCase()} and{' '}
-            {heatmapAxisLabel(xAxis).toLowerCase()}. Drag row or column headers to
-            reorder. Enc-dec model labels like{' '}
+            {heatmapAxisLabel(xAxis).toLowerCase()}. Use axis order controls to sort
+            or group; drag headers to tweak. Applying a new sort overwrites manual
+            drag order. Enc-dec model labels like{' '}
             <code className="font-mono text-[12px]">model -&gt; model</code> are
             collapsed to the same row as direct runs when model is on an axis. Lower
             values appear more red. All cells share the same color scale.

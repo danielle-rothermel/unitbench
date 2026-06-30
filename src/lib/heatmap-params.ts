@@ -15,6 +15,15 @@ import {
   type SortMeasure,
 } from '@/lib/heatmap-config'
 
+export type AxisOrderSpec =
+  | { kind: 'measure'; direction: 'asc' | 'desc' }
+  | { kind: 'value' }
+  | {
+      kind: 'group'
+      groupBy: 'provider' | 'experiment_kind'
+      direction: 'asc' | 'desc'
+    }
+
 export type HeatmapState = AggregateFilters & {
   x: HeatmapAxis
   y: HeatmapAxis
@@ -23,6 +32,10 @@ export type HeatmapState = AggregateFilters & {
   rowOrder?: string[]
   /** X-axis category keys; category keys must not contain literal commas. */
   colOrder?: string[]
+  /** Rule-based Y-axis order (e.g. measure:desc, value, group:provider). */
+  rowSort?: AxisOrderSpec
+  /** Rule-based X-axis order. */
+  colSort?: AxisOrderSpec
 }
 
 export const HEATMAP_RESERVED_PARAMS = new Set([
@@ -31,12 +44,62 @@ export const HEATMAP_RESERVED_PARAMS = new Set([
   'color',
   'rowOrder',
   'colOrder',
+  'rowSort',
+  'colSort',
   'groupBy',
   'sort',
   'dir',
   'page',
   'pageSize',
 ])
+
+const GROUP_BY_VALUES = new Set(['provider', 'experiment_kind'])
+
+export function parseAxisOrderSpec(
+  raw: string | string[] | undefined,
+): AxisOrderSpec | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (!value) return undefined
+
+  if (value === 'value') return { kind: 'value' }
+
+  if (value === 'measure' || value === 'measure:asc') {
+    return { kind: 'measure', direction: 'asc' }
+  }
+  if (value === 'measure:desc') {
+    return { kind: 'measure', direction: 'desc' }
+  }
+
+  if (value.startsWith('group:')) {
+    const parts = value.split(':')
+    const groupBy = parts[1]
+    if (!groupBy || !GROUP_BY_VALUES.has(groupBy)) return undefined
+    const direction = parts[2] === 'desc' ? 'desc' : 'asc'
+    return {
+      kind: 'group',
+      groupBy: groupBy as 'provider' | 'experiment_kind',
+      direction,
+    }
+  }
+
+  return undefined
+}
+
+export function serializeAxisOrderSpec(
+  spec: AxisOrderSpec | undefined,
+): string | undefined {
+  if (!spec) return undefined
+  switch (spec.kind) {
+    case 'value':
+      return 'value'
+    case 'measure':
+      return spec.direction === 'desc' ? 'measure:desc' : 'measure:asc'
+    case 'group':
+      return spec.direction === 'desc'
+        ? `group:${spec.groupBy}:desc`
+        : `group:${spec.groupBy}`
+  }
+}
 
 function parseAxis(
   raw: string | string[] | undefined,
@@ -90,12 +153,16 @@ export function parseHeatmapState(input: SearchParamsRecord): HeatmapState {
   const axes = normalizeAxes(x, y)
   const rowOrder = parseOrderParam(input.rowOrder)
   const colOrder = parseOrderParam(input.colOrder)
+  const rowSort = parseAxisOrderSpec(input.rowSort)
+  const colSort = parseAxisOrderSpec(input.colSort)
   return {
     ...filters,
     ...axes,
     color: parseColor(input.color),
     ...(rowOrder ? { rowOrder } : {}),
     ...(colOrder ? { colOrder } : {}),
+    ...(rowSort ? { rowSort } : {}),
+    ...(colSort ? { colSort } : {}),
   }
 }
 
@@ -108,6 +175,10 @@ export function buildHeatmapQuery(state: HeatmapState): URLSearchParams {
   if (rowOrder) params.set('rowOrder', rowOrder)
   const colOrder = serializeOrderParam(state.colOrder)
   if (colOrder) params.set('colOrder', colOrder)
+  const rowSort = serializeAxisOrderSpec(state.rowSort)
+  if (rowSort) params.set('rowSort', rowSort)
+  const colSort = serializeAxisOrderSpec(state.colSort)
+  if (colSort) params.set('colSort', colSort)
   return params
 }
 

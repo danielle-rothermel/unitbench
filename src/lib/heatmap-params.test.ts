@@ -131,5 +131,68 @@ describe('heatmap params', () => {
     const query = buildHeatmapQuery(parseHeatmapState({})).toString()
     expect(query).not.toContain('rowOrder')
     expect(query).not.toContain('colOrder')
+    expect(query).not.toContain('rowSort')
+    expect(query).not.toContain('colSort')
+  })
+
+  it('parses rowSort and colSort specs', () => {
+    expect(
+      parseHeatmapState({
+        rowSort: 'measure:desc',
+        colSort: 'value',
+      }),
+    ).toEqual({
+      filterIn: {},
+      filterOut: {},
+      x: DEFAULT_HEATMAP_X,
+      y: DEFAULT_HEATMAP_Y,
+      color: DEFAULT_HEATMAP_COLOR,
+      rowSort: { kind: 'measure', direction: 'desc' },
+      colSort: { kind: 'value' },
+    })
+  })
+
+  it('parses group sort specs with optional direction', () => {
+    expect(parseHeatmapState({ rowSort: 'group:provider' })).toEqual({
+      filterIn: {},
+      filterOut: {},
+      x: DEFAULT_HEATMAP_X,
+      y: DEFAULT_HEATMAP_Y,
+      color: DEFAULT_HEATMAP_COLOR,
+      rowSort: { kind: 'group', groupBy: 'provider', direction: 'asc' },
+    })
+    expect(parseHeatmapState({ colSort: 'group:experiment_kind:desc' })).toEqual({
+      filterIn: {},
+      filterOut: {},
+      x: DEFAULT_HEATMAP_X,
+      y: DEFAULT_HEATMAP_Y,
+      color: DEFAULT_HEATMAP_COLOR,
+      colSort: {
+        kind: 'group',
+        groupBy: 'experiment_kind',
+        direction: 'desc',
+      },
+    })
+  })
+
+  it('round-trips rowSort and colSort through URL serialization', () => {
+    const state = parseHeatmapState({
+      rowSort: 'measure:desc',
+      colSort: 'group:provider',
+    })
+    const roundTripped = parseHeatmapState(
+      Object.fromEntries(buildHeatmapQuery(state)),
+    )
+    expect(roundTripped).toEqual(state)
+  })
+
+  it('ignores invalid rowSort values', () => {
+    expect(parseHeatmapState({ rowSort: 'invalid:foo' })).toEqual({
+      filterIn: {},
+      filterOut: {},
+      x: DEFAULT_HEATMAP_X,
+      y: DEFAULT_HEATMAP_Y,
+      color: DEFAULT_HEATMAP_COLOR,
+    })
   })
 })

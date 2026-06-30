@@ -115,4 +115,46 @@ describe('ScoreHeatmap', () => {
       'openai/gpt-5.4-nano',
     ])
   })
+
+  it('applies measure sort from rowSort state', () => {
+    const { container } = render(
+      <ScoreHeatmap
+        state={{
+          ...defaultState,
+          rowSort: { kind: 'measure', direction: 'desc' },
+        }}
+        rows={[
+          {
+            model: 'openai/gpt-5.4-nano',
+            experiment_kind: 'humaneval_direct',
+            n: 987,
+            avg_score: 0.147,
+          },
+          {
+            model: 'openai/gpt-5.4-nano',
+            experiment_kind: 'humaneval_encdec',
+            n: 3451,
+            avg_score: 0,
+          },
+          {
+            model: 'openai/gpt-5-nano',
+            experiment_kind: 'humaneval_direct',
+            n: 987,
+            avg_score: 0.75,
+          },
+          {
+            model: 'openai/gpt-5-nano',
+            experiment_kind: 'humaneval_encdec',
+            n: 3451,
+            avg_score: 0.9,
+          },
+        ]}
+      />,
+    )
+
+    const rowLabels = [...container.querySelectorAll('button[aria-label^="Drag row"]')]
+      .map(button => button.textContent?.replace('⠿', '').trim())
+    expect(rowLabels[0]).toBe('openai/gpt-5-nano')
+    expect(rowLabels[1]).toBe('openai/gpt-5.4-nano')
+  })
 })
