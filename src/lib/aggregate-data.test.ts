@@ -29,7 +29,7 @@ describe('aggregate query builders', () => {
     expect(select.text).toContain(CANONICAL_MODEL_SQL)
     expect(select.text).toContain('AS "model"')
     expect(select.text).toContain('"experiment_kind"')
-    expect(select.text).toContain('ORDER BY "avg_score" ASC')
+    expect(select.text).toContain('_cluster_sort')
     expect(select.text).toContain('LIMIT $1 OFFSET $2')
     expect(select.params).toEqual([100, 0])
   })
@@ -58,14 +58,24 @@ describe('aggregate query builders', () => {
     ])
   })
 
-  it('uses raw model column when model is not in group-by', () => {
+  it('uses clustered ordering when multiple group-by columns are selected', () => {
+    const select = buildAggregateQuery(baseState)
+    expect(select.text).toContain('_cluster_sort')
+    expect(select.text).toContain('PARTITION BY grouped."model"')
+    expect(select.text).toContain(
+      'ORDER BY ranked._cluster_sort ASC, ranked."experiment_kind" ASC',
+    )
+  })
+
+  it('uses measure ordering when only one group-by column is selected', () => {
     const state: AggregateState = {
       ...baseState,
       groupBy: ['experiment_kind'],
     }
     const select = buildAggregateQuery(state)
     expect(select.text).toContain('SELECT "experiment_kind"')
-    expect(select.text).not.toContain('AS "model"')
+    expect(select.text).toContain('ORDER BY "avg_score" ASC')
+    expect(select.text).not.toContain('_cluster_sort')
   })
 
   it('rejects disallowed group-by columns', () => {

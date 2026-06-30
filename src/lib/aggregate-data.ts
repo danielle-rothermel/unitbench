@@ -3,7 +3,9 @@ import {
   buildAggregateTableConfig,
   isGroupByColumn,
   isSortMeasure,
+  SORT_MEASURES,
   type GroupByColumn,
+  type SortMeasure,
 } from '@/lib/aggregate-config'
 import {
   MissingDatabaseUrlError,
@@ -172,6 +174,42 @@ function groupByClause(groupBy: GroupByColumn[]): string {
   return groupBy.map(dimensionGroupBy).join(', ')
 }
 
+function resultColumnList(groupBy: GroupByColumn[]): string {
+  const dimensions = groupBy.map(column => quoteIdentifier(column))
+  const measures = SORT_MEASURES.map(column => quoteIdentifier(column))
+  return [...dimensions, ...measures].join(', ')
+}
+
+function buildClusteredOrderQuery(
+  groupBy: GroupByColumn[],
+  sort: SortMeasure,
+  dir: 'asc' | 'desc',
+  innerQuery: string,
+  limitClause: string,
+): string {
+  const primary = quoteIdentifier(groupBy[0])
+  const clusterAgg = dir === 'asc' ? 'MIN' : 'MAX'
+  const sortCol = quoteIdentifier(sort)
+  const clusterDirection = dir === 'asc' ? 'ASC' : 'DESC'
+  const columns = resultColumnList(groupBy)
+  const innerOrder = groupBy
+    .slice(1)
+    .map(column => `ranked.${quoteIdentifier(column)} ASC`)
+    .join(', ')
+  const orderBy = innerOrder
+    ? `ranked._cluster_sort ${clusterDirection}, ${innerOrder}`
+    : `ranked._cluster_sort ${clusterDirection}`
+
+  return [
+    `SELECT ${columns} FROM (`,
+    `SELECT grouped.*, ${clusterAgg}(grouped.${sortCol}) OVER (PARTITION BY grouped.${primary}) AS _cluster_sort`,
+    `FROM (${innerQuery}) AS grouped`,
+    `) AS ranked`,
+    `ORDER BY ${orderBy}`,
+    limitClause,
+  ].join(' ')
+}
+
 export function buildAggregateCountQuery(state: AggregateState): SqlQuery {
   const groupBy = validateGroupBy(state.groupBy)
   const where = buildWhere(state)
@@ -191,13 +229,26 @@ export function buildAggregateQuery(state: AggregateState): SqlQuery {
   const limitIndex = where.params.length + 1
   const offsetIndex = where.params.length + 2
   const offset = (state.page - 1) * state.pageSize
-  const text = [
+  const limitClause = `LIMIT $${limitIndex} OFFSET $${offsetIndex}`
+  const innerQuery = [
     `SELECT ${selectExpressions(groupBy)}`,
     `FROM ${table}${where.text}`,
     `GROUP BY ${groupByClause(groupBy)}`,
-    `ORDER BY ${orderByForSort(state.sort, state.dir)}`,
-    `LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
   ].join(' ')
+  const text =
+    groupBy.length > 1
+      ? buildClusteredOrderQuery(
+          groupBy,
+          state.sort as SortMeasure,
+          state.dir,
+          innerQuery,
+          limitClause,
+        )
+      : [
+          innerQuery,
+          `ORDER BY ${orderByForSort(state.sort, state.dir)}`,
+          limitClause,
+        ].join(' ')
   return {
     text,
     params: [...where.params, state.pageSize, offset],
