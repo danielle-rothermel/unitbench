@@ -116,6 +116,9 @@ export function aggregateStateToTableState(state: AggregateState) {
     sort: state.sort,
     dir: state.dir,
     filters: {},
+    filterIn: {},
+    filterOut: {},
+    ranges: {},
   }
 }
 

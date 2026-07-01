@@ -15,7 +15,12 @@ import {
 import { ResultBadge } from '@/components/primitives'
 import { cn } from '@/lib/cn'
 import { formatCellValue, formatNumber, shortDate } from '@/lib/format'
-import type { TableColumn, TableConfig } from '@/lib/table-config'
+import { experimentPredictionsHref } from '@/lib/predictions-nav'
+import {
+  allTableColumns,
+  type TableColumn,
+  type TableConfig,
+} from '@/lib/table-config'
 import type { TableRow } from '@/lib/table-data'
 import { buildTableQuery, tableHref, type TableState } from '@/lib/table-params'
 
@@ -26,6 +31,7 @@ type GenericTableProps = {
   total: number
   totalPages: number
   hrefBuilder?: (state: TableState) => string
+  getCellHref?: (row: TableRow, columnKey: string) => string | null
 }
 
 function predictionDetailHref(
@@ -66,26 +72,29 @@ export function GenericTable({
   total,
   totalPages,
   hrefBuilder,
+  getCellHref,
 }: GenericTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  const visibleColumns = useMemo(() => allTableColumns(config), [config])
   const returnQuery = useMemo(() => buildTableQuery(state).toString(), [state])
   const columnByKey = useMemo(
-    () => new Map(config.columns.map(column => [column.key, column])),
-    [config],
+    () => new Map(visibleColumns.map(column => [column.key, column])),
+    [visibleColumns],
   )
 
   const linkToDetail = config.detailRoute === 'prediction'
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () =>
-      config.columns.map(column => ({
+      visibleColumns.map(column => ({
         id: column.key,
         accessorKey: column.key,
         header: column.label,
         enableSorting: Boolean(column.sortable),
         cell: info => {
           const value = info.getValue()
+          const row = info.row.original
           if (linkToDetail && column.key === config.primaryKey) {
             const id = formatCellValue(value)
             return (
@@ -97,10 +106,37 @@ export function GenericTable({
               </Link>
             )
           }
+          const drillHref = getCellHref?.(row, column.key)
+          if (drillHref) {
+            return (
+              <Link
+                href={drillHref}
+                className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
+                title="View matching predictions"
+              >
+                {cellContent(value, column)}
+              </Link>
+            )
+          }
+          if (
+            config.id === 'published-experiments' &&
+            column.key === 'experiment_id'
+          ) {
+            const id = formatCellValue(value)
+            return (
+              <Link
+                href={experimentPredictionsHref(id)}
+                className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
+                title="View predictions for this experiment"
+              >
+                {id}
+              </Link>
+            )
+          }
           return cellContent(value, column)
         },
       })),
-    [config, linkToDetail, returnQuery],
+    [config, getCellHref, linkToDetail, returnQuery, visibleColumns],
   )
 
   const sorting: SortingState = state.sort
@@ -221,7 +257,7 @@ export function GenericTable({
             {bodyRows.length === 0 && (
               <tr>
                 <td
-                  colSpan={config.columns.length}
+                  colSpan={visibleColumns.length}
                   className="px-4 py-12 text-center align-middle"
                 >
                   <p className="text-sm font-medium text-[var(--text-secondary)]">

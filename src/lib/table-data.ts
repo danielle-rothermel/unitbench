@@ -1,20 +1,24 @@
+import { modelFilterSql, modelFilterSqlQualified } from '@/lib/canonical-model'
+import {
+  buildFacetWhereParts,
+} from '@/lib/facet-filters'
 import {
   MissingDatabaseUrlError,
   neonSql,
   type SqlClient,
 } from '@/lib/neon'
+import { BUDGET_DIMENSION_SQL, BUDGET_URL_PARAM } from '@/lib/heatmap-config'
 import { totalPages } from '@/lib/pagination'
 import {
+  allTableColumns,
   facetColumnKeys,
   getTableConfig,
+  isJoinedColumn,
+  tableFromClause,
   type TableConfig,
 } from '@/lib/table-config'
 import {
-  orderByForSort,
-  orderBySql,
-  qualifiedTableName,
   quoteIdentifier,
-  selectedColumnSql,
 } from '@/lib/sql-identifiers'
 import {
   parseTableState,
@@ -69,27 +73,99 @@ function countFromRows(rows: TableRow[]): number {
   return 0
 }
 
+function filterExpression(config: TableConfig, column: string): string {
+  if (column === BUDGET_URL_PARAM) return BUDGET_DIMENSION_SQL
+  if (column === 'model') {
+    if (config.join) return modelFilterSqlQualified(config.join.alias)
+    return modelFilterSql()
+  }
+  if (isJoinedColumn(config, column)) {
+    return `${quoteIdentifier(config.join!.alias)}.${quoteIdentifier(column)}`
+  }
+  if (config.localAlias) {
+    return `${quoteIdentifier(config.localAlias)}.${quoteIdentifier(column)}`
+  }
+  return quoteIdentifier(column)
+}
+
+function columnExpression(config: TableConfig, key: string): string {
+  return filterExpression(config, key)
+}
+
+function selectedColumnSql(config: TableConfig): string {
+  return allTableColumns(config)
+    .map(column => {
+      if (isJoinedColumn(config, column.key)) {
+        const alias = config.join!.alias
+        if (column.key === 'model') {
+          return `${modelFilterSqlQualified(alias)} AS ${quoteIdentifier(column.key)}`
+        }
+        return `${quoteIdentifier(alias)}.${quoteIdentifier(column.key)} AS ${quoteIdentifier(column.key)}`
+      }
+      if (config.localAlias) {
+        return `${quoteIdentifier(config.localAlias)}.${quoteIdentifier(column.key)} AS ${quoteIdentifier(column.key)}`
+      }
+      return quoteIdentifier(column.key)
+    })
+    .join(', ')
+}
+
+function facetAllowlist(config: TableConfig): string[] {
+  return [...facetColumnKeys(config), BUDGET_URL_PARAM]
+}
+
 function buildWhere(config: TableConfig, state: TableState): SqlQuery {
   const conditions: string[] = []
   const params: unknown[] = []
-  const byKey = new Map(config.columns.map(column => [column.key, column]))
+  const byKey = new Map(allTableColumns(config).map(column => [column.key, column]))
+
   for (const [key, value] of Object.entries(state.filters)) {
-    const column = byKey.get(key)
-    if (!column?.filter) continue
-    if (column.filter === 'text') {
-      params.push(`%${value}%`)
-      conditions.push(`${quoteIdentifier(key)} ILIKE $${params.length}`)
-    } else {
+    if (key === BUDGET_URL_PARAM) {
       params.push(value)
-      conditions.push(`${quoteIdentifier(key)} = $${params.length}`)
+      conditions.push(`${BUDGET_DIMENSION_SQL} = $${params.length}`)
+      continue
+    }
+    const column = byKey.get(key)
+    if (!column || column.filter !== 'text') continue
+    params.push(`%${value}%`)
+    conditions.push(`${filterExpression(config, key)} ILIKE $${params.length}`)
+  }
+
+  const facetParts = buildFacetWhereParts(
+    { filterIn: state.filterIn, filterOut: state.filterOut },
+    facetAllowlist(config),
+    column => filterExpression(config, column),
+    params.length,
+  )
+  conditions.push(...facetParts.conditions)
+  params.push(...facetParts.params)
+
+  for (const [key, range] of Object.entries(state.ranges)) {
+    const column = byKey.get(key)
+    if (!column || column.filter !== 'range') continue
+    const expression = filterExpression(config, key)
+    if (range.min !== undefined) {
+      params.push(range.min)
+      conditions.push(`${expression} >= $${params.length}`)
+    }
+    if (range.max !== undefined) {
+      params.push(range.max)
+      conditions.push(`${expression} <= $${params.length}`)
     }
   }
+
   const text = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
   return { text, params }
 }
 
 function orderByClause(config: TableConfig, state: TableState): string {
-  return state.sort ? orderByForSort(state.sort, state.dir) : orderBySql(config)
+  const direction = state.dir === 'asc' ? 'ASC' : 'DESC'
+  if (!state.sort) {
+    return `${columnExpression(config, config.defaultSort.column)} ${
+      config.defaultSort.direction === 'asc' ? 'ASC' : 'DESC'
+    }`
+  }
+  return `${columnExpression(config, state.sort)} ${direction}`
 }
 
 export function buildCountQuery(
@@ -98,7 +174,7 @@ export function buildCountQuery(
 ): SqlQuery {
   const where = buildWhere(config, state)
   return {
-    text: `SELECT count(*)::int AS total FROM ${qualifiedTableName(config.table)}${where.text}`,
+    text: `SELECT count(*)::int AS total FROM ${tableFromClause(config)}${where.text}`,
     params: where.params,
   }
 }
@@ -113,7 +189,7 @@ export function buildSelectQuery(
   const offset = (state.page - 1) * state.pageSize
   const text = [
     `SELECT ${selectedColumnSql(config)}`,
-    `FROM ${qualifiedTableName(config.table)}${where.text}`,
+    `FROM ${tableFromClause(config)}${where.text}`,
     `ORDER BY ${orderByClause(config, state)}`,
     `LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
   ].join(' ')
@@ -156,19 +232,27 @@ export async function getTablePage(
   }
 }
 
+function facetSelectExpression(config: TableConfig, key: string): string {
+  if (key === 'model' && config.join) {
+    return modelFilterSqlQualified(config.join.alias)
+  }
+  if (key === 'model') return modelFilterSql()
+  return filterExpression(config, key)
+}
+
 export async function getTableFacets(
   config: TableConfig,
 ): Promise<TableFacets> {
   const keys = facetColumnKeys(config)
   if (keys.length === 0) return {}
   const sql = neonSql()
-  const table = qualifiedTableName(config.table)
+  const fromClause = tableFromClause(config)
   const entries = await Promise.all(
     keys.map(async key => {
-      const id = quoteIdentifier(key)
+      const expression = facetSelectExpression(config, key)
       const rows = await queryWithParams<{ value: unknown }>(
         sql,
-        `SELECT DISTINCT ${id} AS value FROM ${table} WHERE ${id} IS NOT NULL ORDER BY ${id} ASC`,
+        `SELECT DISTINCT ${expression} AS value FROM ${fromClause} WHERE ${expression} IS NOT NULL ORDER BY value ASC`,
         [],
       )
       return [key, rows.map(row => String(row.value))] as const

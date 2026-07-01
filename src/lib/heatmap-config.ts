@@ -30,6 +30,9 @@ export const HEATMAP_AXIS_LABELS: Record<HeatmapAxis, string> = {
 /** Enc-dec budget ratio from summary_json; direct rows bucket as "(none)". */
 export const BUDGET_DIMENSION_SQL = `COALESCE(${quoteIdentifier('summary_json')}->>'budget_ratio', '(none)')`
 
+/** URL param for predictions-table budget drill-down (not a physical column). */
+export const BUDGET_URL_PARAM = 'budget'
+
 export const HEATMAP_MAX_ROWS = 10_000
 
 /** Semantic category order for budget axis; (none) = unbounded direct runs, last. */

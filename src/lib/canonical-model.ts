@@ -1,4 +1,4 @@
-import { quoteIdentifier } from '@/lib/sql-identifiers'
+import { quoteIdentifier, validateSqlIdentifier } from '@/lib/sql-identifiers'
 
 const ENCDEC_ARROW = ' -> '
 
@@ -34,4 +34,16 @@ export function modelGroupBySql(): string {
 
 export function modelFilterSql(): string {
   return CANONICAL_MODEL_SQL
+}
+
+export function modelFilterSqlQualified(alias: string): string {
+  validateSqlIdentifier(alias)
+  const col = `${quoteIdentifier(alias)}.${quoteIdentifier('model')}`
+  return `CASE
+  WHEN position('${ENCDEC_ARROW}' in ${col}) > 0
+    AND split_part(${col}, '${ENCDEC_ARROW}', 1)
+      = split_part(${col}, '${ENCDEC_ARROW}', 2)
+  THEN split_part(${col}, '${ENCDEC_ARROW}', 1)
+  ELSE ${col}
+END`
 }

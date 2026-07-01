@@ -17,6 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useTransition } from 'react'
 import { cn } from '@/lib/cn'
@@ -35,6 +36,7 @@ import {
   type HeatmapCell,
 } from '@/lib/heatmap-order'
 import { heatmapHref, type HeatmapState } from '@/lib/heatmap-params'
+import { heatmapCellPredictionsHref } from '@/lib/predictions-nav'
 import type { TableRow } from '@/lib/table-data'
 
 type ScoreHeatmapProps = {
@@ -132,6 +134,7 @@ type SortableHeatmapRowProps = {
   min: number
   max: number
   gridTemplateColumns: string
+  state: HeatmapState
 }
 
 function SortableHeatmapRow({
@@ -142,6 +145,7 @@ function SortableHeatmapRow({
   min,
   max,
   gridTemplateColumns,
+  state,
 }: SortableHeatmapRowProps) {
   const {
     attributes,
@@ -186,22 +190,23 @@ function SortableHeatmapRow({
           isFiniteScore(value) && value < (min + max) / 2
             ? 'text-white'
             : 'text-[var(--text-primary)]'
+        const cellHref = heatmapCellPredictionsHref(state, yVal, xVal)
+        const title = cell
+          ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}. View matching predictions →`
+          : 'No data'
         return (
-          <div
+          <Link
             key={`${yVal}-${xVal}`}
+            href={cellHref}
             className={cn(
-              'bg-[var(--bg-primary)] px-3 py-2 text-right font-mono text-[12px]',
+              'bg-[var(--bg-primary)] px-3 py-2 text-right font-mono text-[12px] hover:ring-2 hover:ring-[var(--accent)] hover:ring-inset',
               textClass,
             )}
             style={{ backgroundColor: background }}
-            title={
-              cell
-                ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}`
-                : 'No data'
-            }
+            title={title}
           >
             {formatMeasure(value, colorMeasure)}
-          </div>
+          </Link>
         )
       })}
     </div>
@@ -398,6 +403,7 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
                   min={min}
                   max={max}
                   gridTemplateColumns={gridTemplateColumns}
+                  state={state}
                 />
               ))}
             </SortableContext>
