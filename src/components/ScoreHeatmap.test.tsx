@@ -17,6 +17,7 @@ const defaultState = {
   x: DEFAULT_HEATMAP_X,
   y: DEFAULT_HEATMAP_Y,
   color: DEFAULT_HEATMAP_COLOR,
+  hideTestExperiments: true,
 }
 
 describe('ScoreHeatmap', () => {

@@ -3,6 +3,9 @@ import { aggregateHref, parseAggregateState } from '@/lib/aggregate-params'
 import type { AggregateState } from '@/lib/aggregate-data'
 import { BUDGET_URL_PARAM, type HeatmapAxis } from '@/lib/heatmap-config'
 import type { HeatmapState } from '@/lib/heatmap-params'
+import {
+  INCLUDE_TEST_EXPS_PARAM,
+} from '@/lib/test-experiment-filter'
 import { getTableConfig } from '@/lib/table-config'
 import {
   buildTableQuery,
@@ -17,6 +20,7 @@ export type PredictionsTableHrefOptions = {
   exclude?: Record<string, string[]>
   textFilters?: Record<string, string>
   page?: number
+  hideTestExperiments?: boolean
 }
 
 function appendExcludeParams(
@@ -53,6 +57,9 @@ export function predictionsTableHref(
       page: 1,
     }
   }
+  if (options?.hideTestExperiments !== undefined) {
+    state = { ...state, hideTestExperiments: options.hideTestExperiments }
+  }
 
   const params = buildTableQuery(state)
   if (options?.exclude) appendExcludeParams(params, options.exclude)
@@ -86,6 +93,7 @@ export function aggregateRowPredictionsHref(
   return predictionsTableHref(filters, {
     sort: { column: 'score', dir: 'asc' },
     exclude: aggregateState.filterOut,
+    hideTestExperiments: aggregateState.hideTestExperiments,
   })
 }
 
@@ -107,11 +115,18 @@ export function heatmapCellPredictionsHref(
   return predictionsTableHref(filters, {
     sort: { column: 'score', dir: 'asc' },
     exclude: state.filterOut,
+    hideTestExperiments: state.hideTestExperiments,
   })
 }
 
 export function experimentPredictionsHref(experimentId: string): string {
-  return predictionsTableHref({}, { textFilters: { experiment_id: experimentId } })
+  return predictionsTableHref(
+    {},
+    {
+      textFilters: { experiment_id: experimentId },
+      hideTestExperiments: false,
+    },
+  )
 }
 
 export function hasActiveTableFilters(state: TableState): boolean {
@@ -142,6 +157,9 @@ export function predictionsExploreAggregateHref(state: TableState): string {
       else if (Array.isArray(existing)) existing.push(value)
       else params[paramKey] = [existing, value]
     }
+  }
+  if (!state.hideTestExperiments) {
+    params[INCLUDE_TEST_EXPS_PARAM] = '1'
   }
 
   return aggregateHref(parseAggregateState(params))

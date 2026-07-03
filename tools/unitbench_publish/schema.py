@@ -6,6 +6,10 @@ PUBLISHED_EXPERIMENTS_TABLE = "published_experiments"
 PUBLISHED_PREDICTIONS_TABLE = "published_predictions"
 PUBLISHED_PREDICTION_DETAILS_TABLE = "published_prediction_details"
 
+PUBLISHED_V1_EXPERIMENTS_TABLE = "published_v1_experiments"
+PUBLISHED_V1_PREDICTIONS_TABLE = "published_v1_predictions"
+PUBLISHED_V1_PREDICTION_DETAILS_TABLE = "published_v1_prediction_details"
+
 PUBLISHED_EXPERIMENT_COLUMNS: tuple[str, ...] = (
     "experiment_id",
     "source",
@@ -120,6 +124,13 @@ CREATE_TABLE_SQL: tuple[str, ...] = (
     """,
 )
 
+CREATE_TABLE_SQL_V1: tuple[str, ...] = tuple(
+    statement.replace("published_experiments", PUBLISHED_V1_EXPERIMENTS_TABLE)
+    .replace("published_predictions", PUBLISHED_V1_PREDICTIONS_TABLE)
+    .replace("published_prediction_details", PUBLISHED_V1_PREDICTION_DETAILS_TABLE)
+    for statement in CREATE_TABLE_SQL
+)
+
 CREATE_INDEX_SQL: tuple[str, ...] = (
     """
     CREATE INDEX IF NOT EXISTS idx_published_experiments_updated
@@ -141,6 +152,14 @@ CREATE_INDEX_SQL: tuple[str, ...] = (
     CREATE INDEX IF NOT EXISTS idx_published_predictions_model
     ON published_predictions(model)
     """,
+)
+
+CREATE_INDEX_SQL_V1: tuple[str, ...] = tuple(
+    statement.replace("published_experiments", PUBLISHED_V1_EXPERIMENTS_TABLE)
+    .replace("published_predictions", PUBLISHED_V1_PREDICTIONS_TABLE)
+    .replace("published_prediction_details", PUBLISHED_V1_PREDICTION_DETAILS_TABLE)
+    .replace("idx_published_", "idx_published_v1_")
+    for statement in CREATE_INDEX_SQL
 )
 
 

@@ -15,6 +15,7 @@ describe('aggregate params', () => {
       pageSize: 100,
       filterIn: {},
       filterOut: {},
+      hideTestExperiments: true,
     })
   })
 
@@ -37,6 +38,7 @@ describe('aggregate params', () => {
       pageSize: 50,
       filterIn: { model: ['openai/test', 'openai/other'] },
       filterOut: { experiment_kind: ['humaneval_direct'] },
+      hideTestExperiments: true,
     })
   })
 

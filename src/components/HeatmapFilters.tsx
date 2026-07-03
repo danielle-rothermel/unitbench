@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { AggregateFilterFields } from '@/components/AggregateFilterFields'
+import { HideTestExperimentsToggle } from '@/components/HideTestExperimentsToggle'
 import { SECTION_LABEL } from '@/components/primitives'
 import { cn } from '@/lib/cn'
 import { measureLabel } from '@/lib/aggregate-config'
@@ -195,6 +196,16 @@ export function HeatmapFilters({ state, facets }: HeatmapFiltersProps) {
 
   return (
     <div className={cn('mb-5 space-y-4', isPending && 'opacity-60')}>
+      <HideTestExperimentsToggle
+        hideTestExperiments={state.hideTestExperiments}
+        current={state}
+        buildHref={heatmapHref}
+        applyToggle={(current, hide) => ({
+          ...current,
+          hideTestExperiments: hide,
+        })}
+        isPending={isPending}
+      />
       <div className="flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1">
           <span className={SECTION_LABEL}>X axis</span>

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { AggregateFilterFields } from '@/components/AggregateFilterFields'
+import { HideTestExperimentsToggle } from '@/components/HideTestExperimentsToggle'
 import { SECTION_LABEL } from '@/components/primitives'
 import { cn } from '@/lib/cn'
 import { GROUP_BY_COLUMNS, type GroupByColumn } from '@/lib/aggregate-config'
@@ -44,6 +45,17 @@ export function AggregateControls({ state, facets }: AggregateControlsProps) {
 
   return (
     <div className={cn('mb-5 space-y-4', isPending && 'opacity-60')}>
+      <HideTestExperimentsToggle
+        hideTestExperiments={state.hideTestExperiments}
+        current={state}
+        buildHref={aggregateHref}
+        applyToggle={(current, hide) => ({
+          ...current,
+          page: 1,
+          hideTestExperiments: hide,
+        })}
+        isPending={isPending}
+      />
       <div>
         <span className={SECTION_LABEL}>Group by</span>
         <div className="mt-2 flex flex-wrap gap-2">

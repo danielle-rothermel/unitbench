@@ -30,6 +30,10 @@ GENERATION_ERROR_STATUSES = frozenset(
 )
 SCORING_ERROR_STATUSES = frozenset({"score_error", "score_recoverable_error"})
 
+V1_GENERATION_ERROR_STATUSES = frozenset({"error", "blocked"})
+V1_SCORE_ERROR_STATUSES = frozenset({"error"})
+V1_GENERATED_CODE_PASSED = "passed"
+
 
 def result_state_for_prediction(
     *,
@@ -45,6 +49,28 @@ def result_state_for_prediction(
         if score is None:
             return ResultState.ERROR
         return ResultState.PASSED if score >= 1.0 else ResultState.FAILED
+    return ResultState.PENDING
+
+
+def result_state_for_v1_prediction(
+    *,
+    generation_status: str,
+    scoring_status: str | None,
+    score: float | None,
+    generated_code_outcome: str | None = None,
+) -> ResultState:
+    if generation_status in V1_GENERATION_ERROR_STATUSES:
+        return ResultState.ERROR
+    if scoring_status in V1_SCORE_ERROR_STATUSES:
+        return ResultState.ERROR
+    if scoring_status == "success":
+        if generated_code_outcome == V1_GENERATED_CODE_PASSED:
+            return ResultState.PASSED
+        if score is not None and score >= 1.0:
+            return ResultState.PASSED
+        if score is not None:
+            return ResultState.FAILED
+        return ResultState.ERROR
     return ResultState.PENDING
 
 

@@ -42,11 +42,11 @@ describe('PredictionDetailPage', () => {
     expect(
       screen.getAllByText('dr-dspy/direct/prediction/abc'),
     ).toHaveLength(2)
-    expect(screen.getByText('passed')).toBeInTheDocument()
+    expect(screen.getAllByText('passed').length).toBeGreaterThan(0)
     expect(screen.getAllByText('dr-dspy')).toHaveLength(2)
     expect(screen.getAllByText('humaneval_direct')).toHaveLength(2)
     expect(screen.getByText('openai/gpt-test')).toBeInTheDocument()
-    expect(screen.getByText('$0.0012')).toBeInTheDocument()
+    expect(screen.getByText('$0.00120')).toBeInTheDocument()
     expect(screen.getByText('Provenance')).toBeInTheDocument()
     expect(screen.getByText('Generation · prompt → output')).toBeInTheDocument()
     expect(screen.getByText('Debug payloads')).toBeInTheDocument()
@@ -59,9 +59,49 @@ describe('PredictionDetailPage', () => {
       'href',
       '/tables/published-experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
     )
-    // Empty JSON payloads are omitted rather than shown as empty panels.
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
     expect(screen.queryByText('Raw generation')).not.toBeInTheDocument()
+    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument()
+  })
+
+  it('shows diagnostics, run config, and reference sections when data is present', () => {
+    render(
+      <PredictionDetailPage
+        detail={makeDetail({
+          summary_json: {
+            temperature: 0.2,
+            repetition_seed: 3,
+          },
+          validation_json: {
+            extraction_candidate_count: 1,
+            selected_candidate_index: 0,
+            raw_compile_ok: true,
+            extracted_compile_ok: true,
+          },
+          metrics_json: {
+            evaluation_total_cases: 1,
+            evaluation_failure_count: 0,
+          },
+          request_json: {
+            canonical_solution: 'def add(a, b): return a + b',
+            test: 'assert add(1, 2) == 3',
+            entry_point: 'add',
+          },
+        })}
+        backHref="/tables/x"
+      />,
+    )
+
+    expect(screen.getByText('Diagnostics')).toBeInTheDocument()
+    expect(screen.getByText('Generation')).toBeInTheDocument()
+    expect(screen.getByText('Evaluation')).toBeInTheDocument()
+    expect(screen.getByText('Temperature')).toBeInTheDocument()
+    expect(screen.getByText('0.20')).toBeInTheDocument()
+    expect(screen.getByText('Reference')).toBeInTheDocument()
+    expect(screen.getByText('Canonical solution')).toBeInTheDocument()
+    expect(screen.getByText('Test harness')).toBeInTheDocument()
+    expect(screen.getByText('Entry point')).toBeInTheDocument()
+    expect(screen.getAllByText('add').length).toBeGreaterThan(0)
   })
 
   it('shows the error banner for an errored encoder-decoder prediction', () => {
@@ -73,12 +113,67 @@ describe('PredictionDetailPage', () => {
       generation_status: 'generation_error',
       scoring_status: 'score_pending',
       score: null,
+      validation_json: {
+        generation_exception_message: 'Provider timeout',
+      },
     })
     render(<PredictionDetailPage detail={detail} backHref="/tables/x" />)
 
     expect(screen.getByText('Prediction errored')).toBeInTheDocument()
+    expect(screen.getAllByText(/Provider timeout/).length).toBeGreaterThan(0)
     expect(
       screen.getByText('openai/encoder -> openai/decoder'),
     ).toBeInTheDocument()
+  })
+
+  it('shows a failed banner and enc-dec pipeline for a failed enc-dec prediction', () => {
+    render(
+      <PredictionDetailPage
+        detail={makeDetail({
+          prediction_id: 'dr-dspy/encdec/prediction/xyz',
+          experiment_kind: 'humaneval_encdec',
+          model: 'openai/encoder -> openai/decoder',
+          result_state: 'failed',
+          score: 0,
+          input_kind: 'humaneval_prompt',
+          output_kind: 'decoded_generation',
+          output_text: 'def sub(a, b): return a - b',
+          summary_json: {
+            encoder_model: 'openai/encoder',
+            decoder_model: 'openai/decoder',
+            budget_ratio: 0.5,
+          },
+          validation_json: {
+            extraction_candidate_count: 1,
+            selected_candidate_index: 0,
+            raw_compile_ok: true,
+            extracted_compile_ok: true,
+          },
+          metrics_json: {
+            evaluation_total_cases: 1,
+            evaluation_failure_count: 1,
+          },
+          request_json: {
+            encoded_description: 'Subtract b from a.',
+            canonical_solution: 'def sub(a, b): return a - b',
+            test: 'assert sub(3, 2) == 1',
+            entry_point: 'sub',
+          },
+          response_json: {
+            encoder_provider_cost: 0.002,
+            decoder_provider_cost: 0.003,
+          },
+        })}
+        backHref="/tables/x"
+      />,
+    )
+
+    expect(screen.getByText('Prediction failed')).toBeInTheDocument()
+    expect(screen.getAllByText('1/1 evaluation cases failed').length).toBeGreaterThan(0)
+    expect(screen.getByText('Encoder-decoder pipeline')).toBeInTheDocument()
+    expect(screen.getByText('Encoded description')).toBeInTheDocument()
+    expect(screen.getByText('Subtract b from a.')).toBeInTheDocument()
+    expect(screen.getByText('Budget ratio')).toBeInTheDocument()
+    expect(screen.queryByText('humaneval_prompt')).not.toBeInTheDocument()
   })
 })

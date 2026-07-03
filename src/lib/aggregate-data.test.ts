@@ -9,6 +9,9 @@ import type { AggregateState } from '@/lib/aggregate-data'
 import { CANONICAL_MODEL_SQL } from '@/lib/canonical-model'
 import { BUDGET_DIMENSION_SQL } from '@/lib/heatmap-config'
 import { parseHeatmapState } from '@/lib/heatmap-params'
+import { testExperimentPatterns } from '@/lib/test-experiment-filter'
+
+const patterns = testExperimentPatterns()
 
 const baseState: AggregateState = {
   groupBy: ['model', 'experiment_kind'],
@@ -18,23 +21,26 @@ const baseState: AggregateState = {
   pageSize: 100,
   filterIn: {},
   filterOut: {},
+  hideTestExperiments: true,
 }
 
 describe('aggregate query builders', () => {
   it('builds an unfiltered group-by query with canonical model', () => {
     const count = buildAggregateCountQuery(baseState)
     expect(count.text).toContain(CANONICAL_MODEL_SQL)
+    expect(count.text).toContain('NOT ("experiment_id" ILIKE ANY(')
     expect(count.text).toContain('GROUP BY')
     expect(count.text).toContain('"experiment_kind"')
-    expect(count.params).toEqual([])
+    expect(count.params).toEqual([patterns])
 
     const select = buildAggregateQuery(baseState)
+    expect(select.params).toEqual([patterns, 100, 0])
     expect(select.text).toContain(CANONICAL_MODEL_SQL)
     expect(select.text).toContain('AS "model"')
     expect(select.text).toContain('"experiment_kind"')
     expect(select.text).toContain('_cluster_sort')
-    expect(select.text).toContain('LIMIT $1 OFFSET $2')
-    expect(select.params).toEqual([100, 0])
+    expect(select.text).toContain('LIMIT $2 OFFSET $3')
+    expect(select.params).toEqual([patterns, 100, 0])
   })
 
   it('builds canonical model filter conditions with parameter offsets', () => {
@@ -49,13 +55,19 @@ describe('aggregate query builders', () => {
     expect(count.text).toContain(
       '("experiment_kind" IS NULL OR "experiment_kind" <> ALL($2::text[]))',
     )
-    expect(count.params).toEqual([['openai/test'], ['humaneval_direct']])
+    expect(count.text).toContain('NOT ("experiment_id" ILIKE ANY($3::text[]))')
+    expect(count.params).toEqual([
+      ['openai/test'],
+      ['humaneval_direct'],
+      expect.any(Array),
+    ])
 
     const select = buildAggregateQuery(state)
-    expect(select.text).toContain('LIMIT $3 OFFSET $4')
+    expect(select.text).toContain('LIMIT $4 OFFSET $5')
     expect(select.params).toEqual([
       ['openai/test'],
       ['humaneval_direct'],
+      expect.any(Array),
       100,
       100,
     ])
@@ -111,7 +123,13 @@ describe('aggregate query builders', () => {
     expect(query.text).toContain(BUDGET_DIMENSION_SQL)
     expect(query.text).toContain('_cluster_sort')
     expect(query.text).toContain('"pass_rate"')
-    expect(query.params).toEqual([['0.5'], 10_000, 0])
+    expect(query.params).toEqual([['0.5'], expect.any(Array), 10_000, 0])
+  })
+
+  it('omits test experiment filter when includeTestExps=1', () => {
+    const state = parseHeatmapState({ includeTestExps: '1' })
+    const query = buildHeatmapQuerySql(state)
+    expect(query.text).not.toContain('NOT ("experiment_id" ILIKE ANY(')
   })
 
   it('rejects matching heatmap axes', () => {

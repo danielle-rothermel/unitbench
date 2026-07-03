@@ -29,7 +29,12 @@ def connect(database_url: str) -> Connection[DictRow]:
 
 
 def init_published_schema(connection: Connection[Any]) -> None:
-    for statement in (*schema.CREATE_TABLE_SQL, *schema.CREATE_INDEX_SQL):
+    for statement in (
+        *schema.CREATE_TABLE_SQL,
+        *schema.CREATE_INDEX_SQL,
+        *schema.CREATE_TABLE_SQL_V1,
+        *schema.CREATE_INDEX_SQL_V1,
+    ):
         connection.execute(statement)
     connection.commit()
 
@@ -53,6 +58,15 @@ def published_counts(connection: Connection[Any]) -> dict[str, int]:
         ),
         schema.PUBLISHED_PREDICTION_DETAILS_TABLE: count_table(
             connection, schema.PUBLISHED_PREDICTION_DETAILS_TABLE
+        ),
+        schema.PUBLISHED_V1_EXPERIMENTS_TABLE: count_table(
+            connection, schema.PUBLISHED_V1_EXPERIMENTS_TABLE
+        ),
+        schema.PUBLISHED_V1_PREDICTIONS_TABLE: count_table(
+            connection, schema.PUBLISHED_V1_PREDICTIONS_TABLE
+        ),
+        schema.PUBLISHED_V1_PREDICTION_DETAILS_TABLE: count_table(
+            connection, schema.PUBLISHED_V1_PREDICTION_DETAILS_TABLE
         ),
     }
 

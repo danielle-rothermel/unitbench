@@ -14,6 +14,10 @@ import {
 } from '@/lib/aggregate-filters'
 import type { AggregateState } from '@/lib/aggregate-data'
 import {
+  appendIncludeTestExpsParam,
+  parseHideTestExperiments,
+} from '@/lib/test-experiment-filter'
+import {
   DEFAULT_PAGE,
   MAX_PAGE_SIZE,
   parsePagination,
@@ -83,6 +87,7 @@ export function parseAggregateState(
     page,
     pageSize,
     ...filters,
+    hideTestExperiments: parseHideTestExperiments(input),
   }
 }
 
@@ -101,6 +106,7 @@ export function buildAggregateQueryParams(
   }
   if (state.sort !== DEFAULT_SORT) params.set(SORT_PARAM, state.sort)
   if (state.dir !== DEFAULT_SORT_DIR) params.set(DIR_PARAM, state.dir)
+  appendIncludeTestExpsParam(params, state.hideTestExperiments)
   return params
 }
 
@@ -119,6 +125,7 @@ export function aggregateStateToTableState(state: AggregateState) {
     filterIn: {},
     filterOut: {},
     ranges: {},
+    hideTestExperiments: state.hideTestExperiments,
   }
 }
 

@@ -2,6 +2,12 @@ import { notFound } from 'next/navigation'
 import { ErrorSection } from '@/components/panels/ErrorSection'
 import { PredictionDetailPage } from '@/components/PredictionDetailPage'
 import { getPredictionDetail } from '@/lib/prediction-detail'
+import {
+  DEFAULT_PREDICTIONS_TABLE_ID,
+  getTableConfig,
+  PUBLISHED_PREDICTION_DETAIL_TABLES,
+  UnknownTableError,
+} from '@/lib/table-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,11 +16,19 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-const PREDICTIONS_TABLE_PATH = '/tables/published-predictions'
+function tableIdFrom(searchParams: Record<string, string | string[] | undefined>): string {
+  const raw = searchParams.table
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value || DEFAULT_PREDICTIONS_TABLE_ID
+}
 
-function backHrefFrom(returnParam: string | string[] | undefined): string {
+function backHrefFrom(
+  tableId: string,
+  returnParam: string | string[] | undefined,
+): string {
   const raw = Array.isArray(returnParam) ? returnParam[0] : returnParam
-  return raw ? `${PREDICTIONS_TABLE_PATH}?${raw}` : PREDICTIONS_TABLE_PATH
+  const base = `/tables/${tableId}`
+  return raw ? `${base}?${raw}` : base
 }
 
 export default async function Page({ params, searchParams }: PageProps) {
@@ -23,11 +37,21 @@ export default async function Page({ params, searchParams }: PageProps) {
     searchParams,
   ])
   const id = predictionId.map(decodeURIComponent).join('/')
-  const result = await getPredictionDetail(id)
+  const tableId = tableIdFrom(resolvedSearchParams)
+
+  let detailTables = PUBLISHED_PREDICTION_DETAIL_TABLES
+  try {
+    const tableConfig = getTableConfig(tableId)
+    detailTables = tableConfig.detailTables ?? PUBLISHED_PREDICTION_DETAIL_TABLES
+  } catch (error) {
+    if (!(error instanceof UnknownTableError)) throw error
+  }
+
+  const result = await getPredictionDetail(id, detailTables)
 
   if (result.status === 'not-found') notFound()
 
-  const backHref = backHrefFrom(resolvedSearchParams.return)
+  const backHref = backHrefFrom(tableId, resolvedSearchParams.return)
 
   if (result.status === 'missing-url') {
     return (

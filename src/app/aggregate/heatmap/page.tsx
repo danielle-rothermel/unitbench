@@ -23,7 +23,7 @@ export default async function Page({ searchParams }: PageProps) {
   let errorMessage = ''
 
   try {
-    facets = await getHeatmapFacets()
+    facets = await getHeatmapFacets(state)
     heatmapRows = await getHeatmapRows(state)
   } catch (error) {
     if (error instanceof MissingDatabaseUrlError) {

@@ -8,6 +8,9 @@ import {
 } from '@/lib/sql-identifiers'
 import { buildCountQuery, buildSelectQuery } from '@/lib/table-data'
 import { parseTableState } from '@/lib/table-params'
+import { testExperimentPatterns } from '@/lib/test-experiment-filter'
+
+const patterns = testExperimentPatterns()
 
 describe('SQL identifier helpers', () => {
   it('quotes valid identifiers', () => {
@@ -33,11 +36,12 @@ describe('SQL identifier helpers', () => {
     const config = getTableConfig('published-experiments')
     const state = parseTableState(config, {})
     expect(buildCountQuery(config, state)).toEqual({
-      text: 'SELECT count(*)::int AS total FROM "published_experiments"',
-      params: [],
+      text:
+        'SELECT count(*)::int AS total FROM "published_experiments" WHERE NOT ("experiment_id" ILIKE ANY($1::text[]) OR "display_name" ILIKE ANY($1::text[]))',
+      params: [patterns],
     })
     const select = buildSelectQuery(config, state)
-    expect(select.text).toContain('LIMIT $1 OFFSET $2')
-    expect(select.params).toEqual([25, 0])
+    expect(select.text).toContain('LIMIT $2 OFFSET $3')
+    expect(select.params).toEqual([patterns, 25, 0])
   })
 })

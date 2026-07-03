@@ -21,6 +21,9 @@ import {
   quoteIdentifier,
 } from '@/lib/sql-identifiers'
 import {
+  buildTestExperimentWhereParts,
+} from '@/lib/test-experiment-filter'
+import {
   parseTableState,
   type SearchParamsRecord,
   type TableState,
@@ -114,6 +117,33 @@ function facetAllowlist(config: TableConfig): string[] {
   return [...facetColumnKeys(config), BUDGET_URL_PARAM]
 }
 
+function testExperimentWhereParts(
+  config: TableConfig,
+  hide: boolean,
+  paramOffset: number,
+) {
+  if (config.id === 'published-experiments') {
+    return buildTestExperimentWhereParts({
+      hide,
+      paramOffset,
+      experimentIdExpr: quoteIdentifier('experiment_id'),
+      displayNameExpr: quoteIdentifier('display_name'),
+    })
+  }
+  if (config.localAlias) {
+    return buildTestExperimentWhereParts({
+      hide,
+      paramOffset,
+      experimentIdExpr: `${quoteIdentifier(config.localAlias)}.${quoteIdentifier('experiment_id')}`,
+    })
+  }
+  return buildTestExperimentWhereParts({
+    hide,
+    paramOffset,
+    experimentIdExpr: quoteIdentifier('experiment_id'),
+  })
+}
+
 function buildWhere(config: TableConfig, state: TableState): SqlQuery {
   const conditions: string[] = []
   const params: unknown[] = []
@@ -153,6 +183,14 @@ function buildWhere(config: TableConfig, state: TableState): SqlQuery {
       conditions.push(`${expression} <= $${params.length}`)
     }
   }
+
+  const testParts = testExperimentWhereParts(
+    config,
+    state.hideTestExperiments,
+    params.length,
+  )
+  conditions.push(...testParts.conditions)
+  params.push(...testParts.params)
 
   const text = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
   return { text, params }
@@ -242,6 +280,7 @@ function facetSelectExpression(config: TableConfig, key: string): string {
 
 export async function getTableFacets(
   config: TableConfig,
+  state: TableState,
 ): Promise<TableFacets> {
   const keys = facetColumnKeys(config)
   if (keys.length === 0) return {}
@@ -250,10 +289,17 @@ export async function getTableFacets(
   const entries = await Promise.all(
     keys.map(async key => {
       const expression = facetSelectExpression(config, key)
+      const testParts = testExperimentWhereParts(
+        config,
+        state.hideTestExperiments,
+        0,
+      )
+      const conditions = [`${expression} IS NOT NULL`, ...testParts.conditions]
+      const where = ` WHERE ${conditions.join(' AND ')}`
       const rows = await queryWithParams<{ value: unknown }>(
         sql,
-        `SELECT DISTINCT ${expression} AS value FROM ${fromClause} WHERE ${expression} IS NOT NULL ORDER BY value ASC`,
-        [],
+        `SELECT DISTINCT ${expression} AS value FROM ${fromClause}${where} ORDER BY value ASC`,
+        testParts.params,
       )
       return [key, rows.map(row => String(row.value))] as const
     }),

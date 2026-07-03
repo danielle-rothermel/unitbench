@@ -1,4 +1,5 @@
 import { FILTER_COLUMNS } from '@/lib/aggregate-config'
+import { INCLUDE_TEST_EXPS_PARAM } from '@/lib/test-experiment-filter'
 
 export type AggregateFilters = {
   filterIn: Record<string, string[]>
@@ -15,6 +16,7 @@ export const AGGREGATE_RESERVED_PARAMS = new Set([
   'dir',
   'page',
   'pageSize',
+  INCLUDE_TEST_EXPS_PARAM,
 ])
 
 function allValues(value: string | string[] | undefined): string[] {

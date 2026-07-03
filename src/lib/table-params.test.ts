@@ -15,6 +15,7 @@ describe('parseTableState', () => {
       filterIn: {},
       filterOut: {},
       ranges: {},
+      hideTestExperiments: true,
     })
   })
 
@@ -36,6 +37,7 @@ describe('parseTableState', () => {
       filterIn: { model: ['openai/test'] },
       filterOut: {},
       ranges: {},
+      hideTestExperiments: true,
     })
   })
 
@@ -76,7 +78,9 @@ describe('buildTableQuery', () => {
     )
   })
 
-  it('produces an empty query for default state', () => {
-    expect(buildTableQuery(parseTableState(config, {})).toString()).toBe('')
+  it('includes includeTestExps when showing test experiments', () => {
+    const state = parseTableState(config, { includeTestExps: '1' })
+    expect(state.hideTestExperiments).toBe(false)
+    expect(buildTableQuery(state).toString()).toBe('includeTestExps=1')
   })
 })

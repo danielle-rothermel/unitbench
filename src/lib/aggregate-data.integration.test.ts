@@ -54,7 +54,7 @@ describe.skipIf(!hasDatabaseUrl)('aggregate db integration', () => {
   })
 
   it('loads heatmap facets including budget', async () => {
-    const facets = await getHeatmapFacets()
+    const facets = await getHeatmapFacets(parseHeatmapState({}))
     expect(facets.model?.length).toBeGreaterThan(0)
     expect(facets.task_id?.length).toBeGreaterThan(0)
     expect(facets.budget).toEqual(

@@ -33,6 +33,7 @@ import {
   modelGroupBySql,
 } from '@/lib/canonical-model'
 import type { TableRow } from '@/lib/table-data'
+import { buildTestExperimentWhereParts } from '@/lib/test-experiment-filter'
 
 export type { AggregateFilters } from '@/lib/aggregate-filters'
 
@@ -51,6 +52,7 @@ export type AggregateState = {
   pageSize: number
   filterIn: Record<string, string[]>
   filterOut: Record<string, string[]>
+  hideTestExperiments: boolean
 }
 
 export type AggregatePage =
@@ -164,11 +166,31 @@ function heatmapDimensionGroupBy(column: HeatmapAxis): string {
   return quoteIdentifier(column)
 }
 
-function buildHeatmapWhere(filters: AggregateFilters): SqlQuery {
+type TestExperimentFilterState = {
+  filterIn: Record<string, string[]>
+  filterOut: Record<string, string[]>
+  hideTestExperiments: boolean
+}
+
+function appendPredictionsTestExperimentFilter(
+  conditions: string[],
+  params: unknown[],
+  hide: boolean,
+): void {
+  const testParts = buildTestExperimentWhereParts({
+    hide,
+    paramOffset: params.length,
+    experimentIdExpr: quoteIdentifier('experiment_id'),
+  })
+  conditions.push(...testParts.conditions)
+  params.push(...testParts.params)
+}
+
+function buildHeatmapWhere(state: TestExperimentFilterState): SqlQuery {
   const conditions: string[] = []
   const params: unknown[] = []
 
-  for (const [rawColumn, values] of Object.entries(filters.filterIn)) {
+  for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
     params.push(values)
@@ -177,7 +199,7 @@ function buildHeatmapWhere(filters: AggregateFilters): SqlQuery {
     )
   }
 
-  for (const [rawColumn, values] of Object.entries(filters.filterOut)) {
+  for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
     params.push(values)
@@ -185,6 +207,12 @@ function buildHeatmapWhere(filters: AggregateFilters): SqlQuery {
       `(${heatmapFilterExpression(column)} IS NULL OR ${heatmapFilterExpression(column)} <> ALL($${params.length}::text[]))`,
     )
   }
+
+  appendPredictionsTestExperimentFilter(
+    conditions,
+    params,
+    state.hideTestExperiments,
+  )
 
   const text = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
   return { text, params }
@@ -262,11 +290,11 @@ function filterExpression(column: GroupByColumn): string {
   return quoteIdentifier(column)
 }
 
-function buildWhere(filters: AggregateFilters): SqlQuery {
+function buildWhere(state: TestExperimentFilterState): SqlQuery {
   const conditions: string[] = []
   const params: unknown[] = []
 
-  for (const [rawColumn, values] of Object.entries(filters.filterIn)) {
+  for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
     params.push(values)
@@ -275,7 +303,7 @@ function buildWhere(filters: AggregateFilters): SqlQuery {
     )
   }
 
-  for (const [rawColumn, values] of Object.entries(filters.filterOut)) {
+  for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
     params.push(values)
@@ -283,6 +311,12 @@ function buildWhere(filters: AggregateFilters): SqlQuery {
       `(${filterExpression(column)} IS NULL OR ${filterExpression(column)} <> ALL($${params.length}::text[]))`,
     )
   }
+
+  appendPredictionsTestExperimentFilter(
+    conditions,
+    params,
+    state.hideTestExperiments,
+  )
 
   const text = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
   return { text, params }
@@ -422,25 +456,51 @@ export async function getAggregatePage(
   }
 }
 
-export async function getAggregateFacets(): Promise<AggregateFacets> {
+function predictionsFacetWhere(
+  hide: boolean,
+  extraCondition?: string,
+): { where: string; params: unknown[] } {
+  const testParts = buildTestExperimentWhereParts({
+    hide,
+    paramOffset: 0,
+    experimentIdExpr: quoteIdentifier('experiment_id'),
+  })
+  const conditions = extraCondition
+    ? [extraCondition, ...testParts.conditions]
+    : [...testParts.conditions]
+  return {
+    where: conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '',
+    params: testParts.params,
+  }
+}
+
+export async function getAggregateFacets(
+  state: Pick<AggregateState, 'hideTestExperiments'>,
+): Promise<AggregateFacets> {
   const sql = neonSql()
   const table = qualifiedTableName(AGGREGATE_TABLE)
   const keys = ['model', 'experiment_kind'] as const
   const entries = await Promise.all(
     keys.map(async key => {
+      const { where, params } = predictionsFacetWhere(
+        state.hideTestExperiments,
+        key === 'model'
+          ? `${quoteIdentifier('model')} IS NOT NULL`
+          : `${quoteIdentifier(key)} IS NOT NULL`,
+      )
       if (key === 'model') {
         const rows = await queryWithParams<{ value: unknown }>(
           sql,
-          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table} WHERE ${quoteIdentifier('model')} IS NOT NULL ORDER BY value ASC`,
-          [],
+          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
+          params,
         )
         return [key, rows.map(row => String(row.value))] as const
       }
       const id = quoteIdentifier(key)
       const rows = await queryWithParams<{ value: unknown }>(
         sql,
-        `SELECT DISTINCT ${id} AS value FROM ${table} WHERE ${id} IS NOT NULL ORDER BY ${id} ASC`,
-        [],
+        `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
+        params,
       )
       return [key, rows.map(row => String(row.value))] as const
     }),
@@ -448,32 +508,43 @@ export async function getAggregateFacets(): Promise<AggregateFacets> {
   return Object.fromEntries(entries)
 }
 
-export async function getHeatmapFacets(): Promise<AggregateFacets> {
+export async function getHeatmapFacets(
+  state: Pick<HeatmapState, 'hideTestExperiments'>,
+): Promise<AggregateFacets> {
   const sql = neonSql()
   const table = qualifiedTableName(AGGREGATE_TABLE)
   const entries = await Promise.all(
     HEATMAP_FILTER_COLUMNS.map(async key => {
       if (key === 'model') {
+        const { where, params } = predictionsFacetWhere(
+          state.hideTestExperiments,
+          `${quoteIdentifier('model')} IS NOT NULL`,
+        )
         const rows = await queryWithParams<{ value: unknown }>(
           sql,
-          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table} WHERE ${quoteIdentifier('model')} IS NOT NULL ORDER BY value ASC`,
-          [],
+          `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
+          params,
         )
         return [key, rows.map(row => String(row.value))] as const
       }
       if (key === 'budget') {
+        const { where, params } = predictionsFacetWhere(state.hideTestExperiments)
         const rows = await queryWithParams<{ value: unknown }>(
           sql,
-          `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table} ORDER BY value ASC`,
-          [],
+          `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table}${where} ORDER BY value ASC`,
+          params,
         )
         return [key, rows.map(row => String(row.value))] as const
       }
       const id = quoteIdentifier(key)
+      const { where, params } = predictionsFacetWhere(
+        state.hideTestExperiments,
+        `${id} IS NOT NULL`,
+      )
       const rows = await queryWithParams<{ value: unknown }>(
         sql,
-        `SELECT DISTINCT ${id} AS value FROM ${table} WHERE ${id} IS NOT NULL ORDER BY ${id} ASC`,
-        [],
+        `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
+        params,
       )
       return [key, rows.map(row => String(row.value))] as const
     }),

@@ -5,13 +5,18 @@ import {
   type AggregateFilters,
 } from '@/lib/aggregate-filters'
 import {
+  BUDGET_URL_PARAM,
+} from '@/lib/heatmap-config'
+import {
   DEFAULT_PAGE,
   DEFAULT_PAGE_SIZE,
   parsePagination,
 } from '@/lib/pagination'
 import {
-  BUDGET_URL_PARAM,
-} from '@/lib/heatmap-config'
+  appendIncludeTestExpsParam,
+  INCLUDE_TEST_EXPS_PARAM,
+  parseHideTestExperiments,
+} from '@/lib/test-experiment-filter'
 import {
   filterColumns,
   sortableColumnKeys,
@@ -35,6 +40,7 @@ export type TableState = {
   filterIn: Record<string, string[]>
   filterOut: Record<string, string[]>
   ranges: Record<string, RangeFilter>
+  hideTestExperiments: boolean
 }
 
 export type SearchParamsRecord = Record<string, string | string[] | undefined>
@@ -50,6 +56,7 @@ const TABLE_RESERVED_PARAMS = new Set([
   PAGE_SIZE_PARAM,
   SORT_PARAM,
   DIR_PARAM,
+  INCLUDE_TEST_EXPS_PARAM,
 ])
 
 function firstValue(value: string | string[] | undefined): string | undefined {
@@ -148,6 +155,7 @@ export function parseTableState(
     filterIn: facetFilters.filterIn,
     filterOut: facetFilters.filterOut,
     ranges: parseRangeFilters(config, input),
+    hideTestExperiments: parseHideTestExperiments(input),
   }
 }
 
@@ -171,6 +179,7 @@ export function buildTableQuery(state: TableState): URLSearchParams {
     if (range.min !== undefined) params.set(`${key}_min`, String(range.min))
     if (range.max !== undefined) params.set(`${key}_max`, String(range.max))
   }
+  appendIncludeTestExpsParam(params, state.hideTestExperiments)
   return params
 }
 

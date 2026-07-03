@@ -32,7 +32,7 @@ describe('predictionsTableHref', () => {
 
   it('supports experiment text filter drill-down', () => {
     expect(experimentPredictionsHref('dr-dspy/direct/sweep-1')).toBe(
-      '/tables/published-predictions?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
+      '/tables/published-predictions?experiment_id=dr-dspy%2Fdirect%2Fsweep-1&includeTestExps=1',
     )
   })
 })
@@ -48,6 +48,7 @@ describe('aggregateRowPredictionsHref', () => {
         pageSize: 100,
         filterIn: { model: ['openai/test'] },
         filterOut: {},
+        hideTestExperiments: true,
       },
       { model: 'openai/test', experiment_kind: 'humaneval_encdec', n: 42 },
     )
@@ -88,5 +89,41 @@ describe('parseTableState budget param', () => {
     expect(parseTableState(config, { budget: '(none)' }).filters.budget).toBe(
       '(none)',
     )
+  })
+})
+
+describe('hideTestExperiments propagation', () => {
+  it('preserves hide setting in aggregate drill-down href', () => {
+    const href = aggregateRowPredictionsHref(
+      {
+        groupBy: ['model'],
+        sort: 'avg_score',
+        dir: 'asc',
+        page: 1,
+        pageSize: 100,
+        filterIn: {},
+        filterOut: {},
+        hideTestExperiments: true,
+      },
+      { model: 'openai/test' },
+    )
+    expect(href).not.toContain('includeTestExps=1')
+  })
+
+  it('includes includeTestExps when drill-down source shows test experiments', () => {
+    const href = aggregateRowPredictionsHref(
+      {
+        groupBy: ['model'],
+        sort: 'avg_score',
+        dir: 'asc',
+        page: 1,
+        pageSize: 100,
+        filterIn: {},
+        filterOut: {},
+        hideTestExperiments: false,
+      },
+      { model: 'openai/test' },
+    )
+    expect(href).toContain('includeTestExps=1')
   })
 })

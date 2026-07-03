@@ -14,10 +14,16 @@ import {
 } from '@tanstack/react-table'
 import { ResultBadge } from '@/components/primitives'
 import { cn } from '@/lib/cn'
-import { formatCellValue, formatNumber, shortDate } from '@/lib/format'
+import {
+  formatCellValue,
+  formatCostCell,
+  formatNumber,
+  shortDate,
+} from '@/lib/format'
 import { experimentPredictionsHref } from '@/lib/predictions-nav'
 import {
   allTableColumns,
+  DEFAULT_PREDICTIONS_TABLE_ID,
   type TableColumn,
   type TableConfig,
 } from '@/lib/table-config'
@@ -37,10 +43,22 @@ type GenericTableProps = {
 function predictionDetailHref(
   predictionId: string,
   returnQuery: string,
+  tableId: string,
 ): string {
   const encoded = predictionId.split('/').map(encodeURIComponent).join('/')
+  const params = new URLSearchParams()
+  if (returnQuery) params.set('return', returnQuery)
+  if (tableId !== DEFAULT_PREDICTIONS_TABLE_ID) params.set('table', tableId)
+  const query = params.toString()
   const base = `/predictions/${encoded}`
-  return returnQuery ? `${base}?return=${encodeURIComponent(returnQuery)}` : base
+  return query ? `${base}?${query}` : base
+}
+
+function experimentPredictionsTableId(config: TableConfig): string {
+  if (config.id === 'published-v1-experiments') {
+    return 'published-v1-predictions'
+  }
+  return DEFAULT_PREDICTIONS_TABLE_ID
 }
 
 function cellContent(value: unknown, column: TableColumn): ReactNode {
@@ -48,6 +66,7 @@ function cellContent(value: unknown, column: TableColumn): ReactNode {
     return <ResultBadge state={formatCellValue(value)} size="sm" />
   }
   if (column.kind === 'date') return shortDate(formatCellValue(value))
+  if (column.kind === 'cost') return formatCostCell(value)
   if (column.kind === 'number') return formatNumber(value)
   if (column.kind === 'json') {
     return (
@@ -99,7 +118,7 @@ export function GenericTable({
             const id = formatCellValue(value)
             return (
               <Link
-                href={predictionDetailHref(id, returnQuery)}
+                href={predictionDetailHref(id, returnQuery, config.id)}
                 className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
               >
                 {id}
@@ -119,13 +138,19 @@ export function GenericTable({
             )
           }
           if (
-            config.id === 'published-experiments' &&
+            (config.id === 'published-experiments' ||
+              config.id === 'published-v1-experiments') &&
             column.key === 'experiment_id'
           ) {
             const id = formatCellValue(value)
+            const predictionsTableId = experimentPredictionsTableId(config)
+            const href =
+              predictionsTableId === DEFAULT_PREDICTIONS_TABLE_ID
+                ? experimentPredictionsHref(id)
+                : `/tables/${predictionsTableId}?experiment_id=${encodeURIComponent(id)}`
             return (
               <Link
-                href={experimentPredictionsHref(id)}
+                href={href}
                 className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
                 title="View predictions for this experiment"
               >

@@ -6,6 +6,11 @@ import {
 } from '@/lib/aggregate-filters'
 import { isSortMeasure } from '@/lib/aggregate-config'
 import {
+  appendIncludeTestExpsParam,
+  INCLUDE_TEST_EXPS_PARAM,
+  parseHideTestExperiments,
+} from '@/lib/test-experiment-filter'
+import {
   DEFAULT_HEATMAP_COLOR,
   DEFAULT_HEATMAP_X,
   DEFAULT_HEATMAP_Y,
@@ -28,6 +33,7 @@ export type HeatmapState = AggregateFilters & {
   x: HeatmapAxis
   y: HeatmapAxis
   color: SortMeasure
+  hideTestExperiments: boolean
   /** Y-axis category keys; category keys must not contain literal commas. */
   rowOrder?: string[]
   /** X-axis category keys; category keys must not contain literal commas. */
@@ -51,6 +57,7 @@ export const HEATMAP_RESERVED_PARAMS = new Set([
   'dir',
   'page',
   'pageSize',
+  INCLUDE_TEST_EXPS_PARAM,
 ])
 
 const GROUP_BY_VALUES = new Set(['provider', 'experiment_kind'])
@@ -159,6 +166,7 @@ export function parseHeatmapState(input: SearchParamsRecord): HeatmapState {
     ...filters,
     ...axes,
     color: parseColor(input.color),
+    hideTestExperiments: parseHideTestExperiments(input),
     ...(rowOrder ? { rowOrder } : {}),
     ...(colOrder ? { colOrder } : {}),
     ...(rowSort ? { rowSort } : {}),
@@ -179,6 +187,7 @@ export function buildHeatmapQuery(state: HeatmapState): URLSearchParams {
   if (rowSort) params.set('rowSort', rowSort)
   const colSort = serializeAxisOrderSpec(state.colSort)
   if (colSort) params.set('colSort', colSort)
+  appendIncludeTestExpsParam(params, state.hideTestExperiments)
   return params
 }
 

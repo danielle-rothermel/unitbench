@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useTransition } from 'react'
 import { cn } from '@/lib/cn'
 import { measureLabel } from '@/lib/aggregate-config'
-import { formatNumber } from '@/lib/format'
+import { formatCostCell, formatNumber } from '@/lib/format'
 import {
   heatmapAxisLabel,
   heatmapTitle,
@@ -47,7 +47,7 @@ type ScoreHeatmapProps = {
 function formatMeasure(value: number | null, measure: SortMeasure): string {
   if (value === null || Number.isNaN(value)) return '—'
   if (measure === 'n') return formatNumber(value)
-  if (measure === 'avg_cost') return formatNumber(value)
+  if (measure === 'avg_cost') return formatCostCell(value)
   return value.toFixed(3)
 }
 

@@ -17,7 +17,7 @@ export default async function Page({ searchParams }: PageProps) {
   const aggregatePage = await getAggregatePage(state)
 
   const facets =
-    aggregatePage.status === 'ok' ? await getAggregateFacets() : {}
+    aggregatePage.status === 'ok' ? await getAggregateFacets(aggregatePage.state) : {}
 
   return (
     <AggregatePageShell

@@ -10,6 +10,8 @@ import {
   DEFAULT_HEATMAP_Y,
 } from '@/lib/heatmap-config'
 
+const defaultHide = { hideTestExperiments: true }
+
 describe('heatmap params', () => {
   it('parses defaults for axes, color, and filters', () => {
     expect(parseHeatmapState({})).toEqual({
@@ -18,6 +20,7 @@ describe('heatmap params', () => {
       x: DEFAULT_HEATMAP_X,
       y: DEFAULT_HEATMAP_Y,
       color: DEFAULT_HEATMAP_COLOR,
+      ...defaultHide,
     })
   })
 
@@ -33,6 +36,7 @@ describe('heatmap params', () => {
       x: DEFAULT_HEATMAP_X,
       y: DEFAULT_HEATMAP_Y,
       color: DEFAULT_HEATMAP_COLOR,
+      ...defaultHide,
     })
   })
 
@@ -51,6 +55,7 @@ describe('heatmap params', () => {
       x: 'budget',
       y: 'model',
       color: 'pass_rate',
+      ...defaultHide,
     })
   })
 
@@ -74,6 +79,7 @@ describe('heatmap params', () => {
       x: DEFAULT_HEATMAP_X,
       y: DEFAULT_HEATMAP_Y,
       color: DEFAULT_HEATMAP_COLOR,
+      ...defaultHide,
     })
   })
 
@@ -113,6 +119,7 @@ describe('heatmap params', () => {
       color: DEFAULT_HEATMAP_COLOR,
       rowOrder: ['openai/gpt-5.4-nano', 'openai/gpt-5-nano'],
       colOrder: ['humaneval_encdec', 'humaneval_direct'],
+      ...defaultHide,
     })
   })
 
@@ -149,6 +156,7 @@ describe('heatmap params', () => {
       color: DEFAULT_HEATMAP_COLOR,
       rowSort: { kind: 'measure', direction: 'desc' },
       colSort: { kind: 'value' },
+      ...defaultHide,
     })
   })
 
@@ -160,6 +168,7 @@ describe('heatmap params', () => {
       y: DEFAULT_HEATMAP_Y,
       color: DEFAULT_HEATMAP_COLOR,
       rowSort: { kind: 'group', groupBy: 'provider', direction: 'asc' },
+      ...defaultHide,
     })
     expect(parseHeatmapState({ colSort: 'group:experiment_kind:desc' })).toEqual({
       filterIn: {},
@@ -172,6 +181,7 @@ describe('heatmap params', () => {
         groupBy: 'experiment_kind',
         direction: 'desc',
       },
+      ...defaultHide,
     })
   })
 
@@ -193,6 +203,7 @@ describe('heatmap params', () => {
       x: DEFAULT_HEATMAP_X,
       y: DEFAULT_HEATMAP_Y,
       color: DEFAULT_HEATMAP_COLOR,
+      ...defaultHide,
     })
   })
 })
