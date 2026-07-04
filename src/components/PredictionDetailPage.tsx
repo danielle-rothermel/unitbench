@@ -58,7 +58,7 @@ export function PredictionDetailPage({
           href={backHref}
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
-          <span aria-hidden="true">&lt;-</span> Back to predictions
+          <span aria-hidden="true">←</span> Back to predictions
         </Link>
       </div>
 

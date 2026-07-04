@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 export const SECTION_LABEL =
-  'font-display text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase'
+  'text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase'
 
 const STATE_BADGE: Record<string, string> = {
   passed: 'bg-[var(--green-bg)] text-[var(--green)]',

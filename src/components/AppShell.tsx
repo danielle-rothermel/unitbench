@@ -71,16 +71,16 @@ export default function AppShell({ children, tables }: AppShellProps) {
       <nav className="z-10 flex flex-col border-b border-[var(--border)] bg-[var(--bg-secondary)] py-5 md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-r md:border-b-0">
         <div className="mb-4 border-b border-[var(--border)] px-5 pb-5">
           <Link href="/" className="inline-block">
-            <h1 className="font-display text-xl font-bold text-[var(--accent)]">
+            <span className="block font-display text-xl font-bold text-[var(--accent)]">
               Unitbench
-            </h1>
-            <span className="ml-0.5 font-display text-[11px] font-medium tracking-[0.12em] text-[var(--text-muted)] uppercase">
+            </span>
+            <span className="ml-0.5 text-[11px] font-medium tracking-[0.12em] text-[var(--text-muted)] uppercase">
               experiment viewer
             </span>
           </Link>
         </div>
         <div className="px-3">
-          <span className="mb-1.5 block px-2 font-display text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase">
+          <span className="mb-1.5 block px-2 text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase">
             Tables
           </span>
           {tables.map(table => {
@@ -103,7 +103,7 @@ export default function AppShell({ children, tables }: AppShellProps) {
           })}
         </div>
         <div className="mt-5 px-3">
-          <span className="mb-1.5 block px-2 font-display text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase">
+          <span className="mb-1.5 block px-2 text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase">
             Analysis
           </span>
           <Link

@@ -22,7 +22,7 @@ export function AggregatePageShell({
           href="/"
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
-          <span aria-hidden="true">&lt;-</span> Back to tables
+          <span aria-hidden="true">←</span> Back to tables
         </Link>
       </div>
 
@@ -35,7 +35,9 @@ export function AggregatePageShell({
         <h1 className="font-display text-[28px] leading-tight font-bold text-[var(--text-primary)]">
           {title}
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p>
+        <p className="mt-1 max-w-[72ch] text-sm text-[var(--text-secondary)]">
+          {description}
+        </p>
         {crossLink && (
           <p className="mt-2 text-[13px]">
             <Link

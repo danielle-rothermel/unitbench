@@ -77,7 +77,7 @@ function PaneHeaderContent({
         )}
         aria-hidden="true"
       />
-      <h3 className="font-display text-[12px] font-semibold tracking-[0.04em] text-[var(--text-primary)] uppercase">
+      <h3 className="text-[12px] font-semibold tracking-[0.04em] text-[var(--text-primary)] uppercase">
         {label}
       </h3>
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">

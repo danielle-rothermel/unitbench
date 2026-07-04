@@ -51,7 +51,7 @@ export default async function Page() {
         <h1 className="font-display text-[30px] leading-tight font-bold text-[var(--text-primary)]">
           Unitbench
         </h1>
-        <p className="mt-1.5 max-w-[680px] text-[15px] text-[var(--text-secondary)]">
+        <p className="mt-1.5 max-w-[72ch] text-[15px] text-[var(--text-secondary)]">
           A lightweight viewer for published benchmark and experiment result
           tables. V1 reads allowlisted Neon tables from server-side Next.js code.
         </p>

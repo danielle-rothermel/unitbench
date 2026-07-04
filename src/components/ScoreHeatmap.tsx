@@ -148,7 +148,7 @@ function ColumnHeaderCell({ xVal, drag }: ColumnHeaderCellProps) {
       style={drag?.style}
       role="columnheader"
       aria-label={xVal}
-      className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+      className="bg-[var(--bg-secondary)] px-3 py-2 text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
     >
       <button
         type="button"
@@ -272,7 +272,7 @@ function HeaderRow({
       <div
         role="columnheader"
         aria-label={heatmapAxisLabel(yAxis)}
-        className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+        className="bg-[var(--bg-secondary)] px-3 py-2 text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
       >
         {heatmapAxisLabel(yAxis)}
       </div>

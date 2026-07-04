@@ -4,7 +4,7 @@
 
 | stage | state | notes |
 |-------|-------|-------|
-| 0 critique fixes | in_progress | 0.1 diagnostics (P0), 0.2 heatmap rebuild (P1×2), 0.3 disclosure (P2) done; typography, power layer pending |
+| 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
 | 1 IA + design system | pending | |
 | 2 parser playground | pending | gate met: dr-code migration stage done |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
@@ -103,9 +103,47 @@
 - Verified: typecheck ✓ lint ✓ unit 137 ✓ build ✓ e2e 4/4 ✓ detector
   `[]`.
 
+### 2026-07-04 — iteration 1 (cont.): stages 0.4 typography + 0.5 power layer → stage 0 done
+
+- 0.4 typography/consistency:
+  - `font-display` (Space Grotesk) removed from label/body duty:
+    SECTION_LABEL, GenericTable `th`, heatmap axis header cells,
+    CodePane `h3`, AppShell nav group labels + wordmark subtitle.
+    Display font remains on page `h1`s, section `h2`s, and the brand
+    wordmark only.
+  - AppShell brand `h1` → `span` — exactly one `h1` per page now.
+  - Prose capped at `max-w-[72ch]`: home hero, table page description,
+    aggregate shell description (heatmap explainer done in 0.2).
+  - `StatCell` missing value `unknown` → `—` (matches heatmap).
+  - ASCII `<-` back-glyphs → `←` (3 files).
+  - Filter rows `items-end` → `items-start` in TableFilters +
+    AggregateFilterFields — labels top-align, "Include model" no
+    longer floats mid-air.
+- 0.5 power layer:
+  - New `useTableShortcuts` hook wired into GenericTable: `/` focuses
+    the first text filter (`data-shortcut-filter`), `j`/`k` move focus
+    down/up rows (first link/button per row, `data-row`/`tabIndex=-1`
+    fallback), guarded against typing contexts and modifier keys.
+    Hint `"/ filter · j/k rows"` shown in the table chrome bar.
+  - "12 visible columns" → "12 columns" (dropped the implied
+    column-management claim; count itself is honest and useful).
+- Tests: `e2e/table-shortcuts.spec.ts` proves `/` focuses filter,
+  typing `j` in the filter types (no row nav), and `j`/`j`/`k` walks
+  row focus 0→1→0.
+- Verified: typecheck ✓ lint ✓ unit 137 ✓ build ✓ e2e 5/5 ✓ detector
+  `[]` on all changed tsx.
+- **Stage 0 acceptance checklist — all met:** pnpm gates green;
+  heatmap zero console errors + role=grid + accessible cell names +
+  ≥4.5:1 in-page contrast (e2e); failures>total never renders without
+  marker (fixture component test); failed prediction's scoring stage
+  reads "scored" not "Passed"; payloads collapsed by default (e2e);
+  `/` and `j/k` work (e2e); detector clean.
+
 ### Next iteration
 
-Stage 0.4 typography/consistency (Space Grotesk to display only, ≤72ch
-prose, filter grid alignment, `unknown` vs `—` unification, real arrow
-glyph, single h1 per page) and 0.5 power layer (`/` focuses filter,
-`j/k` row nav, wire or drop the "12 visible columns" label).
+Stage 1 — IA restructure + design system: lane navigation
+(Data/Replay/Playgrounds/Design + `/lab` route group) with existing
+pages reachable (redirects fine); extract component inventory to
+`DESIGN.md`; choose chart library + token-mapped chart theme with demo
+scatter in `/lab`; shared inspector component (payload + provenance +
+copy + code panes) used by the prediction detail page.

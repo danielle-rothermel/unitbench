@@ -99,8 +99,8 @@ export function TableFilters({ config, state, facets }: TableFiltersProps) {
   return (
     <div className={cn('mb-5 space-y-4', isPending && 'opacity-60')}>
       {(textColumns.length > 0 || rangeColumns.length > 0) && (
-        <div className="flex flex-wrap items-end gap-3">
-          {textColumns.map(column => {
+        <div className="flex flex-wrap items-start gap-3">
+          {textColumns.map((column, index) => {
             const current = state.filters[column.key] ?? ''
             return (
               <label key={column.key} className="flex flex-col gap-1">
@@ -113,6 +113,7 @@ export function TableFilters({ config, state, facets }: TableFiltersProps) {
                   onKeyDown={onTextKeyDown(column.key)}
                   onBlur={event => setTextFilter(column.key, event.currentTarget.value)}
                   className={cn(CONTROL_CLASS, 'w-[180px] font-mono')}
+                  {...(index === 0 ? { 'data-shortcut-filter': '' } : {})}
                 />
               </label>
             )
