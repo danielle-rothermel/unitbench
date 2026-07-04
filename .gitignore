@@ -217,3 +217,11 @@ coverage/
 
 # Local scratch / exploratory files (not committed)
 .scratch/
+
+# Claude Code local state
+.claude/ralph-loop.local.md
+.claude/settings.local.json
+
+# Playwright
+/test-results/
+/playwright-report/

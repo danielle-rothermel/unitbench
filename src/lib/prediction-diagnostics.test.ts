@@ -68,9 +68,55 @@ describe('buildPredictionDiagnostics', () => {
       'passed',
       'passed',
       'passed',
-      'passed',
+      'completed',
     ])
     expect(shouldShowDiagnostics(diagnostics, makeDetail())).toBe(true)
+  })
+
+  it('renders scoring as neutral "scored" instead of passed on a failed prediction', () => {
+    const diagnostics = buildPredictionDiagnostics(
+      makeDetail({
+        result_state: 'failed',
+        score: 0,
+        metrics_json: {
+          evaluation_total_cases: 2,
+          evaluation_failure_count: 2,
+        },
+      }),
+    )
+
+    const scoring = diagnostics.pipelineStages.find(stage => stage.id === 'scoring')
+    expect(scoring).toMatchObject({
+      status: 'completed',
+      statusLabel: 'scored',
+      detail: 'score 0.00',
+    })
+    expect(scoring?.status).not.toBe('passed')
+  })
+
+  it('flags inconsistent evaluation data when failures exceed total cases', () => {
+    const diagnostics = buildPredictionDiagnostics(
+      makeDetail({
+        result_state: 'failed',
+        score: 0,
+        metrics_json: {
+          evaluation_total_cases: 1100,
+          evaluation_failure_count: 1578,
+        },
+      }),
+    )
+
+    const marker = '1578 failures reported for 1100 evaluation cases — inconsistent data'
+    const evaluation = diagnostics.pipelineStages.find(
+      stage => stage.id === 'evaluation',
+    )
+    expect(evaluation).toMatchObject({
+      status: 'inconsistent',
+      statusLabel: 'inconsistent data',
+      detail: marker,
+    })
+    expect(diagnostics.testSummary).toBe(marker)
+    expect(diagnostics.primaryFailureReason).toBe(marker)
   })
 
   it('derives failed evaluation for an enc-dec prediction with test failures', () => {

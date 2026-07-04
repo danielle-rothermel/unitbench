@@ -14,6 +14,8 @@ const STAGE_STATUS_CLASS: Record<StageStatus, string> = {
   pending: 'bg-[var(--yellow-bg)] text-[var(--yellow)]',
   skipped: 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]',
   unknown: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
+  completed: 'bg-[var(--blue-bg)] text-[var(--blue)]',
+  inconsistent: 'bg-[var(--yellow-bg)] text-[var(--yellow)]',
 }
 
 type PredictionDiagnosticsPanelProps = {
@@ -42,7 +44,7 @@ function StagePill({ stage }: { stage: PipelineStageInfo }) {
           {stage.label}
         </span>
         <span className="text-[11px] text-[var(--text-muted)] capitalize">
-          {stage.status}
+          {stage.statusLabel ?? stage.status}
         </span>
       </div>
       {stage.detail && (
