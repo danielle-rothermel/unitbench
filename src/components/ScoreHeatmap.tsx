@@ -19,7 +19,14 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useTransition } from 'react'
+import {
+  useMemo,
+  useSyncExternalStore,
+  useTransition,
+  type CSSProperties,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react'
 import { cn } from '@/lib/cn'
 import { measureLabel } from '@/lib/aggregate-config'
 import { formatCostCell, formatNumber } from '@/lib/format'
@@ -28,6 +35,13 @@ import {
   heatmapTitle,
   type SortMeasure,
 } from '@/lib/heatmap-config'
+import {
+  HEAT_HIGH,
+  HEAT_LOW,
+  HEAT_TEXT_DARK_CSS,
+  mixHeat,
+  rgbCss,
+} from '@/lib/heatmap-color'
 import {
   buildHeatmapPivot,
   manualOrderOrUndefined,
@@ -42,6 +56,22 @@ import type { TableRow } from '@/lib/table-data'
 type ScoreHeatmapProps = {
   rows: TableRow[]
   state: HeatmapState
+}
+
+const emptySubscribe = () => () => {}
+
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  )
+}
+
+type DragBinding = {
+  setNodeRef: (element: HTMLElement | null) => void
+  style: CSSProperties
+  handleProps: HTMLAttributes<HTMLButtonElement>
 }
 
 function formatMeasure(value: number | null, measure: SortMeasure): string {
@@ -60,13 +90,10 @@ function scoreColor(value: number | null, min: number, max: number): string {
     return 'var(--bg-secondary)'
   }
   if (max <= min) {
-    return 'rgb(220, 38, 38)'
+    return rgbCss(mixHeat(0.5))
   }
-  const t = Math.max(0, Math.min(1, (value - min) / (max - min)))
-  const red = Math.round(220 - t * 150)
-  const green = Math.round(40 + t * 140)
-  const blue = Math.round(38 + t * 60)
-  return `rgb(${red}, ${green}, ${blue})`
+  const t = (value - min) / (max - min)
+  return rgbCss(mixHeat(t))
 }
 
 function colDndId(xVal: string): string {
@@ -88,11 +115,7 @@ function DragHandle() {
   )
 }
 
-type SortableColumnHeaderProps = {
-  xVal: string
-}
-
-function SortableColumnHeader({ xVal }: SortableColumnHeaderProps) {
+function useDragBinding(id: string): DragBinding {
   const {
     attributes,
     listeners,
@@ -100,23 +123,37 @@ function SortableColumnHeader({ xVal }: SortableColumnHeaderProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: colDndId(xVal) })
+  } = useSortable({ id })
 
+  return {
+    setNodeRef,
+    style: {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    },
+    handleProps: { ...attributes, ...listeners },
+  }
+}
+
+type ColumnHeaderCellProps = {
+  xVal: string
+  drag?: DragBinding
+}
+
+function ColumnHeaderCell({ xVal, drag }: ColumnHeaderCellProps) {
   return (
     <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-      }}
+      ref={drag?.setNodeRef}
+      style={drag?.style}
+      role="columnheader"
+      aria-label={xVal}
       className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
     >
       <button
         type="button"
         className="inline-flex max-w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-        {...attributes}
-        {...listeners}
+        {...(drag?.handleProps ?? {})}
         aria-label={`Drag column ${xVal}`}
       >
         <DragHandle />
@@ -126,7 +163,12 @@ function SortableColumnHeader({ xVal }: SortableColumnHeaderProps) {
   )
 }
 
-type SortableHeatmapRowProps = {
+function SortableColumnHeader({ xVal }: { xVal: string }) {
+  const drag = useDragBinding(colDndId(xVal))
+  return <ColumnHeaderCell xVal={xVal} drag={drag} />
+}
+
+type HeatmapRowProps = {
   yVal: string
   xValues: string[]
   cells: Map<string, Map<string, HeatmapCell>>
@@ -135,9 +177,10 @@ type SortableHeatmapRowProps = {
   max: number
   gridTemplateColumns: string
   state: HeatmapState
+  drag?: DragBinding
 }
 
-function SortableHeatmapRow({
+function HeatmapRow({
   yVal,
   xValues,
   cells,
@@ -146,36 +189,25 @@ function SortableHeatmapRow({
   max,
   gridTemplateColumns,
   state,
-}: SortableHeatmapRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: rowDndId(yVal) })
-
+  drag,
+}: HeatmapRowProps) {
   return (
     <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        gridTemplateColumns,
-      }}
+      ref={drag?.setNodeRef}
+      style={{ ...drag?.style, gridTemplateColumns }}
+      role="row"
       className="col-span-full grid gap-px bg-[var(--border)]"
     >
       <div
+        role="rowheader"
+        aria-label={yVal}
         className="bg-[var(--bg-primary)] px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]"
         title={yVal}
       >
         <button
           type="button"
           className="inline-flex max-w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-          {...attributes}
-          {...listeners}
+          {...(drag?.handleProps ?? {})}
           aria-label={`Drag row ${yVal}`}
         >
           <DragHandle />
@@ -185,30 +217,66 @@ function SortableHeatmapRow({
       {xValues.map(xVal => {
         const cell = cells.get(yVal)?.get(xVal)
         const value = cell?.value ?? null
-        const background = scoreColor(value, min, max)
-        const textClass =
-          isFiniteScore(value) && value < (min + max) / 2
-            ? 'text-white'
-            : 'text-[var(--text-primary)]'
+        const formatted = formatMeasure(value, colorMeasure)
+        const hasValue = isFiniteScore(value)
         const cellHref = heatmapCellPredictionsHref(state, yVal, xVal)
         const title = cell
-          ? `${colorMeasure}=${formatMeasure(value, colorMeasure)}, n=${cell.n}. View matching predictions →`
+          ? `${colorMeasure}=${formatted}, n=${cell.n}. View matching predictions →`
           : 'No data'
         return (
-          <Link
+          <div
             key={`${yVal}-${xVal}`}
-            href={cellHref}
-            className={cn(
-              'bg-[var(--bg-primary)] px-3 py-2 text-right font-mono text-[12px] hover:ring-2 hover:ring-[var(--accent)] hover:ring-inset',
-              textClass,
-            )}
-            style={{ backgroundColor: background }}
-            title={title}
+            role="gridcell"
+            className="min-w-0"
+            style={{ backgroundColor: scoreColor(value, min, max) }}
           >
-            {formatMeasure(value, colorMeasure)}
-          </Link>
+            <Link
+              href={cellHref}
+              aria-label={`${yVal}, ${xVal}: ${formatted}`}
+              className={cn(
+                'block px-3 py-2 text-right font-mono text-[12px] hover:ring-2 hover:ring-[var(--accent)] hover:ring-inset',
+                !hasValue && 'text-[var(--text-muted)]',
+              )}
+              style={hasValue ? { color: HEAT_TEXT_DARK_CSS } : undefined}
+              title={title}
+            >
+              {formatted}
+            </Link>
+          </div>
         )
       })}
+    </div>
+  )
+}
+
+function SortableHeatmapRow(props: Omit<HeatmapRowProps, 'drag'>) {
+  const drag = useDragBinding(rowDndId(props.yVal))
+  return <HeatmapRow {...props} drag={drag} />
+}
+
+function HeaderRow({
+  yAxis,
+  gridTemplateColumns,
+  children,
+}: {
+  yAxis: HeatmapState['y']
+  gridTemplateColumns: string
+  children: ReactNode
+}) {
+  return (
+    <div
+      role="row"
+      className="col-span-full grid gap-px bg-[var(--border)]"
+      style={{ gridTemplateColumns }}
+    >
+      <div
+        role="columnheader"
+        aria-label={heatmapAxisLabel(yAxis)}
+        className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+      >
+        {heatmapAxisLabel(yAxis)}
+      </div>
+      {children}
     </div>
   )
 }
@@ -216,6 +284,10 @@ function SortableHeatmapRow({
 export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  // dnd-kit's DndContext generates client-only aria-describedby ids that
+  // do not exist in the server HTML; mounting it only after hydration
+  // keeps the server and first client render identical.
+  const dndReady = useHydrated()
   const { x: xAxis, y: yAxis, color: colorMeasure } = state
 
   const pivot = useMemo(
@@ -318,6 +390,56 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
   const max = colorValues.length > 0 ? Math.max(...colorValues) : 1
   const colorLabel = measureLabel(colorMeasure)
 
+  const rowProps = {
+    xValues,
+    cells,
+    colorMeasure,
+    min,
+    max,
+    gridTemplateColumns,
+    state,
+  }
+
+  const grid = (
+    <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+      <div
+        role="grid"
+        aria-label={heatmapTitle(xAxis, yAxis)}
+        className="grid min-w-max grid-cols-1 gap-px bg-[var(--border)] p-px"
+      >
+        <HeaderRow yAxis={yAxis} gridTemplateColumns={gridTemplateColumns}>
+          {dndReady ? (
+            <SortableContext
+              items={xValues.map(colDndId)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {xValues.map(xVal => (
+                <SortableColumnHeader key={xVal} xVal={xVal} />
+              ))}
+            </SortableContext>
+          ) : (
+            xValues.map(xVal => <ColumnHeaderCell key={xVal} xVal={xVal} />)
+          )}
+        </HeaderRow>
+
+        {dndReady ? (
+          <SortableContext
+            items={yValues.map(rowDndId)}
+            strategy={verticalListSortingStrategy}
+          >
+            {yValues.map(yVal => (
+              <SortableHeatmapRow key={yVal} yVal={yVal} {...rowProps} />
+            ))}
+          </SortableContext>
+        ) : (
+          yValues.map(yVal => (
+            <HeatmapRow key={yVal} yVal={yVal} {...rowProps} />
+          ))
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <section className={cn('mb-8', isPending && 'opacity-60')}>
       <div className="mb-3 flex items-end justify-between gap-3">
@@ -344,7 +466,7 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
               </button>
             )}
           </div>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          <p className="mt-1 max-w-[72ch] text-sm text-[var(--text-secondary)]">
             {colorLabel} by {heatmapAxisLabel(yAxis).toLowerCase()} and{' '}
             {heatmapAxisLabel(xAxis).toLowerCase()}. Use axis order controls to sort
             or group; drag headers to tweak. Applying a new sort overwrites manual
@@ -359,57 +481,24 @@ export function ScoreHeatmap({ rows, state }: ScoreHeatmapProps) {
           <div
             className="h-3 w-24 rounded-sm border border-[var(--border)]"
             style={{
-              background:
-                'linear-gradient(to right, rgb(220, 38, 38), rgb(70, 180, 98))',
+              background: `linear-gradient(to right, ${rgbCss(HEAT_LOW)}, ${rgbCss(HEAT_HIGH)})`,
             }}
           />
           <span>{formatMeasure(max, colorMeasure)}</span>
         </div>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-          <div
-            className="grid min-w-max gap-px bg-[var(--border)] p-px"
-            style={{ gridTemplateColumns }}
-          >
-            <div className="bg-[var(--bg-secondary)] px-3 py-2 font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
-              {heatmapAxisLabel(yAxis)}
-            </div>
-            <SortableContext
-              items={xValues.map(colDndId)}
-              strategy={horizontalListSortingStrategy}
-            >
-              {xValues.map(xVal => (
-                <SortableColumnHeader key={xVal} xVal={xVal} />
-              ))}
-            </SortableContext>
-
-            <SortableContext
-              items={yValues.map(rowDndId)}
-              strategy={verticalListSortingStrategy}
-            >
-              {yValues.map(yVal => (
-                <SortableHeatmapRow
-                  key={yVal}
-                  yVal={yVal}
-                  xValues={xValues}
-                  cells={cells}
-                  colorMeasure={colorMeasure}
-                  min={min}
-                  max={max}
-                  gridTemplateColumns={gridTemplateColumns}
-                  state={state}
-                />
-              ))}
-            </SortableContext>
-          </div>
-        </div>
-      </DndContext>
+      {dndReady ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {grid}
+        </DndContext>
+      ) : (
+        grid
+      )}
     </section>
   )
 }

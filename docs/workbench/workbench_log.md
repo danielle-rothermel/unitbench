@@ -4,7 +4,7 @@
 
 | stage | state | notes |
 |-------|-------|-------|
-| 0 critique fixes | in_progress | harness bootstrapped; 0.1 diagnostics integrity (P0) done; heatmap, disclosure, typography, power layer pending |
+| 0 critique fixes | in_progress | 0.1 diagnostics (P0) + 0.2 heatmap rebuild (P1×2) done; disclosure, typography, power layer pending |
 | 1 IA + design system | pending | |
 | 2 parser playground | pending | gate met: dr-code migration stage done |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
@@ -55,9 +55,39 @@
 - Noted for later stage-0 work: AppShell brand + page title are both
   `<h1>` (two h1s per page) — fold into typography/consistency pass.
 
+### 2026-07-04 — iteration 1 (cont.): stage 0.2 heatmap rebuild in place (P1×2)
+
+- Landed: `ScoreHeatmap.tsx` rebuilt in place.
+  - ARIA grid semantics: `role="grid"` (aria-label = heatmap title),
+    header `role="row"` with `columnheader` cells (corner = y-axis
+    label), each data row `role="row"` with `rowheader` (aria-label =
+    y value) and `gridcell` cells; cell links carry accessible names
+    `"<y>, <x>: <value>"`. Drag buttons keep their `Drag row/column X`
+    labels but no longer *are* the row's only name.
+  - Contrast: new `src/lib/heatmap-color.ts` — light-luminance ramp
+    (rgb(233,158,150) → rgb(141,211,158)) whose every interpolation
+    holds ≥4.5:1 (worst ≈7.4:1) against `--text-primary`
+    (≈rgb(17,37,43), computed from the OKLCH token); cell text is
+    always dark now (was white-on-mid-olive 3.76:1). Legend gradient
+    uses the same endpoints. Unit test sweeps t∈[0,1] asserting ≥4.5.
+  - Hydration: DndContext + SortableContext render only after
+    hydration via `useSyncExternalStore` gate (`useHydrated`); SSR and
+    first client render are identical static grids, drag upgrades
+    post-mount. (eslint react-hooks/set-state-in-effect forbids the
+    setState-in-effect mount-gate idiom.)
+  - Degenerate all-equal color scale now renders mid-ramp instead of
+    the old solid red (recorded choice; old behavior looked like an
+    all-failed matrix).
+- Tests: new grid-semantics component test; `heatmap-color.test.ts`
+  ramp/contrast sweep; `e2e/heatmap.spec.ts` — accessible grid +
+  zero console errors (regression for the hydration bug) and in-page
+  computed worst-case contrast ≥4.5:1 across all data cells.
+- Verified: typecheck ✓ lint ✓ unit 136 ✓ build ✓ e2e 3/3 ✓ detector
+  `[]` on ScoreHeatmap files.
+
 ### Next iteration
 
-Stage 0.2: heatmap rebuild in place (`ScoreHeatmap.tsx`) — role="grid"
-semantics, axis headers, accessible cell names, contrast-computed cell
-text, client-only DndContext mount gate; e2e proving zero console
-errors + grid semantics + ≥4.5:1 computed contrast.
+Stage 0.3: detail-page disclosure (P2) — five debug JSON payloads
+collapsed by default with line-count summaries (prompt/code/
+raw-generation stay open); deduplicate triple-rendered provenance.
+Then 0.4 typography/consistency, 0.5 power layer.
