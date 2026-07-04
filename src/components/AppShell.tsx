@@ -130,6 +130,30 @@ function CodeIcon() {
   )
 }
 
+function GraphIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      role="presentation"
+      focusable="false"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="3.5" cy="8" r="1.8" />
+      <circle cx="12.5" cy="3.5" r="1.8" />
+      <circle cx="12.5" cy="12.5" r="1.8" />
+      <path d="M5.2 7.2L10.8 4.3" />
+      <path d="M5.2 8.8L10.8 11.7" />
+    </svg>
+  )
+}
+
 function FlaskIcon() {
   return (
     <svg
@@ -207,7 +231,12 @@ export default function AppShell({ children, tables }: AppShellProps) {
             />
           </NavGroup>
           <NavGroup label="Design">
-            <PlannedLane />
+            <NavLink
+              href="/design/graph"
+              active={isActive(pathname, '/design/graph')}
+              icon={<GraphIcon />}
+              label="Graph viewer"
+            />
           </NavGroup>
           <NavGroup label="Lab">
             <NavLink

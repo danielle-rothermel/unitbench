@@ -8,7 +8,7 @@
 | 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
 | 2 parser playground | done | facade (dr-code PR #10) + gen:api client + /playgrounds/parser + e2e vs local facade |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
-| 4 graph viewer | pending | gate met: dr-graph exists |
+| 4 graph viewer | done | /design/graph: schema-validated paste/upload, DAG render, node inspector |
 | 5 projection read layer + dashboard | pending | |
 | 6 replay viewer | pending | |
 
@@ -235,6 +235,32 @@
   e2e drives the page against the local facade with fixture text; no
   external network.
 
+### 2026-07-04 — iteration 3 (cont.): stage 4 graph viewer
+
+- Schema: `pnpm gen:graph-schema` (`scripts/gen-graph-schema.mjs`)
+  exports `GraphSpec.model_json_schema()` from ../dr-graph (read-only;
+  `DR_GRAPH_DIR` override) into committed
+  `src/lib/api/graph-spec-schema.json`. **Upstream note for dr-graph:**
+  its schema declares `input_bindings` values as BindingRef objects
+  only, but the model accepts and serializes `"node.field"` strings
+  (before-validator + serializer) — the regen script widens that one
+  property to `anyOf [string, BindingRef]` to match the real wire
+  format.
+- Fixtures: `src/lib/design/fixtures/{direct,encdec}-graph.json`
+  extracted from dr-graph's golden canonical payloads.
+- `src/lib/graph-spec.ts`: Ajv 2020-12 validation (`parseGraphSpec`
+  with schema-pointer error strings + terminal-node existence check)
+  and `layoutGraphSpec` (dependency-layered columns, externals at
+  depth 0, typed edges). 6 unit tests incl. both fixtures.
+- `/design/graph` (`GraphViewer`): paste / upload / sample buttons →
+  validate → custom SVG DAG from tokens (terminal node accent,
+  externals dashed, edge labels `field → input`); node click opens the
+  full node spec in the Inspector. Design lane now links Graph viewer.
+- Verified: typecheck ✓ lint ✓ unit 143 ✓ build ✓ e2e 12/12 ✓
+  detector `[]`.
+- **Stage 4 acceptance — all met:** renders the repo's fixture specs
+  (direct, enc-dec); invalid spec shows the schema error; e2e green.
+
 ### Next iteration
 
 Stage 3 — provider query page + variance (gate met: dr-providers v0.2
@@ -243,4 +269,5 @@ conformance) on a new `serve` branch; `/playgrounds/provider`
 request builder → wire payload preview → response + conformance
 violations → retry; variance mode (prompt × model × N → JSONL +
 report) on the library's variance/canary machinery, e2e against
-FixtureProvider only, no keys in tests.
+FixtureProvider only, no keys in tests. Then stage 5 (projection read
+layer + dashboard) and stage 6 (replay viewer).
