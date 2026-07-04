@@ -4,7 +4,7 @@
 
 | stage | state | notes |
 |-------|-------|-------|
-| 0 critique fixes | in_progress | 0.1 diagnostics (P0) + 0.2 heatmap rebuild (P1×2) done; disclosure, typography, power layer pending |
+| 0 critique fixes | in_progress | 0.1 diagnostics (P0), 0.2 heatmap rebuild (P1×2), 0.3 disclosure (P2) done; typography, power layer pending |
 | 1 IA + design system | pending | |
 | 2 parser playground | pending | gate met: dr-code migration stage done |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
@@ -85,9 +85,27 @@
 - Verified: typecheck ✓ lint ✓ unit 136 ✓ build ✓ e2e 3/3 ✓ detector
   `[]` on ScoreHeatmap files.
 
+### 2026-07-04 — iteration 1 (cont.): stage 0.3 detail-page disclosure (P2)
+
+- Landed: `CodePane` gained `collapsible`/`defaultOpen` props rendered
+  as native `<details>/<summary>` (header chips with line/char/byte
+  counts double as the collapsed summary; chevron via `group-open`);
+  non-collapsible panes unchanged. The five debug JSON payloads on
+  `PredictionDetailPage` are now `collapsible defaultOpen={false}`;
+  prompt/code/raw-generation panes stay open. Removed the duplicate
+  source/kind chips from the Provenance section (header tags already
+  carry both; ID chips never did).
+- Tests: component test asserting all `<details>` payloads start
+  closed and Prompt/Code are not collapsible; existing dup-count
+  assertions updated (2 → 1). `e2e/prediction-detail.spec.ts` walks
+  table → detail, asserts every payload starts collapsed and one
+  toggles open.
+- Verified: typecheck ✓ lint ✓ unit 137 ✓ build ✓ e2e 4/4 ✓ detector
+  `[]`.
+
 ### Next iteration
 
-Stage 0.3: detail-page disclosure (P2) — five debug JSON payloads
-collapsed by default with line-count summaries (prompt/code/
-raw-generation stay open); deduplicate triple-rendered provenance.
-Then 0.4 typography/consistency, 0.5 power layer.
+Stage 0.4 typography/consistency (Space Grotesk to display only, ≤72ch
+prose, filter grid alignment, `unknown` vs `—` unification, real arrow
+glyph, single h1 per page) and 0.5 power layer (`/` focuses filter,
+`j/k` row nav, wire or drop the "12 visible columns" label).

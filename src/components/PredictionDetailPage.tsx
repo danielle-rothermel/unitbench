@@ -103,14 +103,6 @@ export function PredictionDetailPage({
 
       <section className="mb-8 flex max-w-[1280px] flex-col gap-2.5">
         <span className={SECTION_LABEL}>Provenance</span>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
-            {detail.source}
-          </span>
-          <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
-            {detail.experiment_kind}
-          </span>
-        </div>
         <div className="group flex w-full items-baseline gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-3 py-2 text-left transition-colors hover:border-[var(--border-strong)]">
           <span className="shrink-0 text-[10px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
             Experiment
@@ -215,6 +207,8 @@ export function PredictionDetailPage({
                 value={prettyJson(panel.value)}
                 language="json"
                 badge="json"
+                collapsible
+                defaultOpen={false}
               />
             ))}
           </div>
