@@ -6,7 +6,7 @@
 |-------|-------|-------|
 | 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
 | 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
-| 2 parser playground | pending | gate met: dr-code migration stage done |
+| 2 parser playground | in_progress | 2a facade done (dr-code `serve` branch, PR #10); 2b client gen + page + e2e next |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
 | 4 graph viewer | pending | gate met: dr-graph exists |
 | 5 projection read layer + dashboard | pending | |
@@ -172,10 +172,42 @@
   DESIGN.md exists; themed demo chart renders in /lab; inspector used
   by prediction detail; pnpm + e2e green.
 
+### 2026-07-04 — iteration 2 (cont.): stage 2a dr-code serve facade
+
+- Landed in **dr-code** (branch `serve`, worktree at
+  `../dr-code-serve`, PR
+  https://github.com/danielle-rothermel/dr-code/pull/10 — draft):
+  - `serve` branched from `composable-migration` HEAD e1a9dbd (main
+    lacks the parser nucleus; composable-migration itself untouched).
+  - `[serve]` optional extra (fastapi, uvicorn); httpx added to dev
+    group for TestClient.
+  - `dr_code.serve.explain.explain_extraction(text, profile_id,
+    parser_version, code_field, stages=…)` → `ExtractionExplanation`:
+    unwrap stage (method + metadata), candidate tree
+    (selected/rejected/not_reached + rejection reasons replaying the
+    canonical helper checks), selection rationale, canonical
+    `CodeExtractionResult` (test-asserted equal to
+    `extract_code_with_profile`). Both v1 profiles supported
+    (best-effort + strict field-marker).
+  - FastAPI app: `POST /explain`, `GET /profiles`, `GET /health`.
+    Typer CLI `uv run python -m dr_code.serve serve` binds
+    127.0.0.1 only (host is not an option); `openapi` subcommand dumps
+    the schema for unitbench's `pnpm gen:api`.
+- Verified in dr-code: 12 new tests; full suite 320 passed / 1 skipped;
+  ruff + ty clean; `openapi` smoke shows paths
+  /explain /health /profiles.
+- Remaining for stage 2 (next iteration): `pnpm gen:api`
+  (openapi-typescript client committed in unitbench),
+  `/playgrounds/parser` page (paste text, toggle stages, candidate
+  tree with winner rationale, Inspector for payloads), e2e driving the
+  page against the local facade with fixture text (no external
+  network).
+
 ### Next iteration
 
-Stage 2 — parser playground (gate met: dr-code migration stage done).
-dr-code `[serve]` extra on a new `serve` branch exposing
-`explain(text, profile, stages=...)`; `pnpm gen:api` client;
-`/playgrounds/parser` driven by e2e against the local facade with
-fixture text; facade unit-tested in dr-code; localhost-only binding.
+Stage 2b — unitbench side of the parser playground: add
+`openapi-typescript` + `pnpm gen:api` regen script (reads
+`uv run python -m dr_code.serve openapi` from ../dr-code-serve),
+commit the generated client; build `/playgrounds/parser`; e2e boots
+the facade locally (webServer array or spawn in test) and drives the
+page with fixture text.
