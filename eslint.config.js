@@ -11,7 +11,7 @@ export default defineConfig([
   ...tseslint.configs.recommended,
   reactHooks.configs.flat.recommended,
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,mjs,jsx,ts,tsx}'],
     plugins: {
       '@next/next': nextPlugin,
     },

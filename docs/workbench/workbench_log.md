@@ -6,7 +6,7 @@
 |-------|-------|-------|
 | 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
 | 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
-| 2 parser playground | in_progress | 2a facade done (dr-code `serve` branch, PR #10); 2b client gen + page + e2e next |
+| 2 parser playground | done | facade (dr-code PR #10) + gen:api client + /playgrounds/parser + e2e vs local facade |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
 | 4 graph viewer | pending | gate met: dr-graph exists |
 | 5 projection read layer + dashboard | pending | |
@@ -203,11 +203,44 @@
   page against the local facade with fixture text (no external
   network).
 
+### 2026-07-04 — iteration 3: stage 2b parser playground → stage 2 done
+
+- dr-code serve branch: added localhost-only CORS
+  (`allow_origin_regex` for localhost/127.0.0.1 any port) with
+  allow/reject regression tests — browser at the Next.js origin can
+  call the facade directly, nothing non-local can (pushed, PR #10).
+- unitbench client: `pnpm gen:api` (`scripts/gen-api.mjs`) dumps the
+  schema via `uv --directory ../dr-code-serve run python -m
+  dr_code.serve openapi` (override dir with `DR_CODE_SERVE_DIR`) and
+  runs `openapi-typescript`; committed artifacts
+  `src/lib/api/dr-code-openapi.json` + `dr-code.ts`; typed
+  `openapi-fetch` client in `src/lib/api/dr-code-client.ts`
+  (base URL `NEXT_PUBLIC_DR_CODE_SERVE_URL`, default 127.0.0.1:8321).
+- `/playgrounds/parser`: paste text, profile select (both v1
+  profiles), stage toggle chips (unwrap/candidates/selection/result),
+  Explain → unwrap method+metadata tags, candidate tree
+  (selected/rejected/not_reached cards with rejection reasons,
+  selected pane open), winner rationale, extracted-code pane, raw
+  explanation via `Inspector`. Marked local-only; facade-down renders
+  a setup callout with the start command. Nav: Playgrounds lane now
+  links Parser.
+- Playwright: `webServer` is now an array (Next dev + facade on 8321,
+  both reuse existing locally). e2e drives the page with fixture text
+  only — no external network: full flow (candidate tree + rationale +
+  extracted code) and stage-toggle filtering.
+- eslint: `.mjs` added to the lint file glob (scripts/gen-api.mjs).
+- Verified: typecheck ✓ lint ✓ unit 137 ✓ build ✓ e2e 9/9 ✓ detector
+  `[]`; dr-code suite for CORS change 7/7 app tests, ruff clean.
+- **Stage 2 acceptance — all met:** facade unit-tested in dr-code;
+  e2e drives the page against the local facade with fixture text; no
+  external network.
+
 ### Next iteration
 
-Stage 2b — unitbench side of the parser playground: add
-`openapi-typescript` + `pnpm gen:api` regen script (reads
-`uv run python -m dr_code.serve openapi` from ../dr-code-serve),
-commit the generated client; build `/playgrounds/parser`; e2e boots
-the facade locally (webServer array or spawn in test) and drives the
-page with fixture text.
+Stage 3 — provider query page + variance (gate met: dr-providers v0.2
+done). dr-providers `[serve]` extra (generate/build_payload/
+conformance) on a new `serve` branch; `/playgrounds/provider`
+request builder → wire payload preview → response + conformance
+violations → retry; variance mode (prompt × model × N → JSONL +
+report) on the library's variance/canary machinery, e2e against
+FixtureProvider only, no keys in tests.
