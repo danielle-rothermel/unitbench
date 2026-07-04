@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { IdChip } from '@/components/chips/IdChip'
 import { CodePane } from '@/components/code/CodePane'
+import { Inspector } from '@/components/inspector/Inspector'
 import { PredictionDiagnosticsPanel } from '@/components/prediction/PredictionDiagnosticsPanel'
 import { PredictionEncdecPipeline } from '@/components/prediction/PredictionEncdecPipeline'
 import { PredictionOutcomeBanner } from '@/components/prediction/PredictionOutcomeBanner'
@@ -11,8 +11,7 @@ import { PredictionRunConfigStrip } from '@/components/prediction/PredictionRunC
 import { TextPanel } from '@/components/panels/TextPanel'
 import { Dot, ResultBadge, SECTION_LABEL, Tag } from '@/components/primitives'
 import { StatCell } from '@/components/stats/StatCell'
-import { useCopy } from '@/hooks/useCopy'
-import { formatCost, prettyJson, shortDate } from '@/lib/format'
+import { formatCost, shortDate } from '@/lib/format'
 import type { PredictionDetail } from '@/lib/prediction-detail'
 import {
   buildEncdecPipeline,
@@ -36,7 +35,6 @@ export function PredictionDetailPage({
   detail,
   backHref,
 }: PredictionDetailPageProps) {
-  const [copied, copy] = useCopy()
   const diagnostics = buildPredictionDiagnostics(detail)
   const outcomeBanner = buildOutcomeBanner(detail, diagnostics)
   const runConfigFields = buildRunConfigFields(detail)
@@ -101,65 +99,30 @@ export function PredictionDetailPage({
 
       <PredictionDiagnosticsPanel detail={detail} diagnostics={diagnostics} />
 
-      <section className="mb-8 flex max-w-[1280px] flex-col gap-2.5">
-        <span className={SECTION_LABEL}>Provenance</span>
-        <div className="group flex w-full items-baseline gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-tertiary)] px-3 py-2 text-left transition-colors hover:border-[var(--border-strong)]">
-          <span className="shrink-0 text-[10px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase">
-            Experiment
-          </span>
-          <Link
-            href={experimentHref}
-            className="[overflow-wrap:anywhere] font-mono text-[12.5px] text-[var(--accent)] hover:text-[var(--accent-hover)]"
-          >
-            {detail.experiment_id}
-          </Link>
-        </div>
-        <div className="-ml-1.5 flex flex-wrap items-center gap-x-1 gap-y-1">
-          <IdChip
-            label="prediction"
-            value={detail.prediction_id}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="experiment"
-            value={detail.experiment_id}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="task"
-            value={detail.task_id}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="sample"
-            value={detail.sample_index}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="generation"
-            value={detail.generation_status}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="scoring"
-            value={detail.scoring_status}
-            copied={copied}
-            onCopy={copy}
-          />
-          <IdChip
-            label="updated"
-            value={detail.updated_at}
-            display={shortDate(detail.updated_at)}
-            copied={copied}
-            onCopy={copy}
-          />
-        </div>
-      </section>
+      <div className="mb-8">
+        <Inspector
+          links={[
+            {
+              label: 'Experiment',
+              value: detail.experiment_id,
+              href: experimentHref,
+            },
+          ]}
+          ids={[
+            { label: 'prediction', value: detail.prediction_id },
+            { label: 'experiment', value: detail.experiment_id },
+            { label: 'task', value: detail.task_id },
+            { label: 'sample', value: detail.sample_index },
+            { label: 'generation', value: detail.generation_status },
+            { label: 'scoring', value: detail.scoring_status },
+            {
+              label: 'updated',
+              value: detail.updated_at,
+              display: shortDate(detail.updated_at),
+            },
+          ]}
+        />
+      </div>
 
       <PredictionReferenceSection reference={reference} />
 
@@ -197,22 +160,7 @@ export function PredictionDetailPage({
           </div>
         )}
 
-        <div className="flex flex-col gap-2.5">
-          <span className={SECTION_LABEL}>Debug payloads</span>
-          <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
-            {jsonPanels.map(panel => (
-              <CodePane
-                key={panel.label}
-                label={panel.label}
-                value={prettyJson(panel.value)}
-                language="json"
-                badge="json"
-                collapsible
-                defaultOpen={false}
-              />
-            ))}
-          </div>
-        </div>
+        <Inspector payloadsLabel="Debug payloads" payloads={jsonPanels} />
       </div>
     </div>
   )

@@ -5,7 +5,7 @@
 | stage | state | notes |
 |-------|-------|-------|
 | 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
-| 1 IA + design system | pending | |
+| 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
 | 2 parser playground | pending | gate met: dr-code migration stage done |
 | 3 provider query page | pending | gate met: dr-providers v0.2 done |
 | 4 graph viewer | pending | gate met: dr-graph exists |
@@ -139,11 +139,43 @@
   reads "scored" not "Passed"; payloads collapsed by default (e2e);
   `/` and `j/k` work (e2e); detector clean.
 
+### 2026-07-04 — iteration 2: stage 1 IA restructure + design system
+
+- Lane IA: `AppShell` nav regrouped into lanes — Data (6 tables +
+  Heatmap + Aggregation), Replay/Playgrounds/Design (muted "planned"
+  placeholders until stages 2–6), Lab. Existing URLs unchanged
+  (decision recorded in overall.md: URL state is a feature, lanes are
+  nav groups, no redirects). New `/lab` route group: index page +
+  `/lab/chart-demo`.
+- Chart system: **visx** chosen (decision + rationale in overall.md);
+  `src/lib/chart-theme.ts` maps OKLCH tokens into axis/grid/point/
+  series props (CSS `var(--…)` strings pass straight into SVG);
+  fixture-driven demo scatter (correctness-vs-compression shape) at
+  `/lab/chart-demo` — no DB, no network.
+- `DESIGN.md`: tokens, fonts + typography rules, primitives, component
+  inventory, patterns (URL state, inspect-anything, completion≠outcome,
+  keyboard layer, charts), lane map.
+- Inspector: new `src/components/inspector/Inspector.tsx` — provenance
+  links + copyable id chips + collapsible JSON payload panes; the
+  prediction detail page now composes it for both its provenance block
+  and its Debug payloads section (two calls preserve the page's
+  reading order; both sections are optional by design).
+- Test hardening: playwright expect timeout 15s (dev-server on-demand
+  compiles under parallel workers); shortcut e2e retries `/` press
+  until the post-hydration listener is live (`toPass`).
+- Tests: `e2e/lab-and-lanes.spec.ts` — lanes visible, heatmap/tables/
+  lab reachable through the nav; chart demo renders ≥9 circles with
+  `var(--…)` fills.
+- Verified: typecheck ✓ lint ✓ unit 137 ✓ build ✓ e2e 7/7 twice ✓
+  detector `[]`.
+- **Stage 1 acceptance — all met:** pages reachable under new IA;
+  DESIGN.md exists; themed demo chart renders in /lab; inspector used
+  by prediction detail; pnpm + e2e green.
+
 ### Next iteration
 
-Stage 1 — IA restructure + design system: lane navigation
-(Data/Replay/Playgrounds/Design + `/lab` route group) with existing
-pages reachable (redirects fine); extract component inventory to
-`DESIGN.md`; choose chart library + token-mapped chart theme with demo
-scatter in `/lab`; shared inspector component (payload + provenance +
-copy + code panes) used by the prediction detail page.
+Stage 2 — parser playground (gate met: dr-code migration stage done).
+dr-code `[serve]` extra on a new `serve` branch exposing
+`explain(text, profile, stages=...)`; `pnpm gen:api` client;
+`/playgrounds/parser` driven by e2e against the local facade with
+fixture text; facade unit-tested in dr-code; localhost-only binding.

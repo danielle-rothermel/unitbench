@@ -9,6 +9,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: 'list',
+  // Dev-server on-demand compilation makes first page loads slow when
+  // several workers hit distinct routes at once.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
