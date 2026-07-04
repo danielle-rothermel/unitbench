@@ -7,7 +7,7 @@
 | 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
 | 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
 | 2 parser playground | done | facade (dr-code PR #10) + gen:api client + /playgrounds/parser + e2e vs local facade |
-| 3 provider query page | pending | gate met: dr-providers v0.2 done |
+| 3 provider query page | done | facade + variance machinery (dr-providers PR #4) + /playgrounds/provider + e2e vs FixtureProvider |
 | 4 graph viewer | done | /design/graph: schema-validated paste/upload, DAG render, node inspector |
 | 5 projection read layer + dashboard | pending | |
 | 6 replay viewer | pending | |
@@ -261,13 +261,53 @@
 - **Stage 4 acceptance — all met:** renders the repo's fixture specs
   (direct, enc-dec); invalid spec shows the schema error; e2e green.
 
+### 2026-07-04 — iteration 4: stage 3 provider query page + variance
+
+- **dr-providers** (branch `serve`, worktree `../dr-providers-serve`,
+  draft PR https://github.com/danielle-rothermel/dr-providers/pull/4;
+  branched from composable-migration 4c3434e, untouched):
+  - No variance/canary machinery existed in the library yet — the
+    brief assumes it; implemented it library-side as
+    `dr_providers.serve.runner` (recorded conservative choice: logic
+    stays out of the app; the runner is the reusable machinery).
+  - `QuerySpec` (declarative provider_kind/model/messages/knobs) →
+    kernel request via the v0.2 config factories; `run_query` applies
+    `with_conformance_warnings`, returns wire payload + response or
+    the structured `ProviderFailure` record; `run_variance` fans
+    prompt × models × N over any `Provider`, per-model dispersion
+    (failures, distinct outputs, length stats) + JSONL-able records.
+  - FastAPI facade: POST /build_payload (422 with failure record on
+    UnsupportedControlError), POST /query, POST /variance (samples
+    ≤25, models ≤8), GET /health. Provider choice per request:
+    scriptable FixtureProvider (default) or live (requires the
+    config's API key env; 424 `missing_api_key` otherwise — never
+    exercised by tests). Localhost-only CORS + bind; typer CLI on
+    port 8322 with `openapi` dump. 14 unit tests; full suite 97
+    passed; ruff + ty clean.
+- **unitbench**: `scripts/gen-api.mjs` generalized to a facade list
+  (dr-code + dr-providers; `DR_*_SERVE_DIR` overrides); committed
+  dr-providers schema/types + typed client (port 8322).
+  `/playgrounds/provider`: request builder (provider kind, model,
+  temperature, token limit, prompt), fixture outcome controls, wire
+  payload preview with endpoint path, response with conformance
+  violations as yellow warning rows, failure record card with Retry,
+  usage/cost stat cells, Inspector raw payloads; variance mode
+  section → per-model dispersion table + client-side JSONL download +
+  report Inspector. Nav: Playgrounds lane links Provider. Playwright
+  boots the facade as a third webServer.
+- e2e (FixtureProvider only, no keys, no network): payload preview +
+  fixture send; token_limit_exceeded conformance violation rendered;
+  variance across 2 models × 3 samples with 6-record JSONL download.
+- Verified: dr-providers ruff/ty/97 tests ✓; unitbench typecheck ✓
+  lint ✓ unit 143 ✓ build ✓ e2e 15/15 ✓ detector `[]`.
+- **Stage 3 acceptance — all met:** e2e green using FixtureProvider
+  only; page clearly marked local-only; no keys read in tests.
+
 ### Next iteration
 
-Stage 3 — provider query page + variance (gate met: dr-providers v0.2
-done). dr-providers `[serve]` extra (generate/build_payload/
-conformance) on a new `serve` branch; `/playgrounds/provider`
-request builder → wire payload preview → response + conformance
-violations → retry; variance mode (prompt × model × N → JSONL +
-report) on the library's variance/canary machinery, e2e against
-FixtureProvider only, no keys in tests. Then stage 5 (projection read
-layer + dashboard) and stage 6 (replay viewer).
+Stage 5 — projection read layer + dashboard: projection consumer
+sketch (design commit); read-layer interface over `published_*`
+tables behind one module; Data-lane dashboard with
+correctness-vs-compression scatter (click-through to prediction
+detail) + one distribution view; live Neon locally. Then stage 6
+(replay viewer).

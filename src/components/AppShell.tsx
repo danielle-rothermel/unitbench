@@ -229,6 +229,12 @@ export default function AppShell({ children, tables }: AppShellProps) {
               icon={<CodeIcon />}
               label="Parser"
             />
+            <NavLink
+              href="/playgrounds/provider"
+              active={isActive(pathname, '/playgrounds/provider')}
+              icon={<ChartIcon />}
+              label="Provider"
+            />
           </NavGroup>
           <NavGroup label="Design">
             <NavLink
