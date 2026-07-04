@@ -10,7 +10,7 @@
 | 3 provider query page | done | facade + variance machinery (dr-providers PR #4) + /playgrounds/provider + e2e vs FixtureProvider |
 | 4 graph viewer | done | /design/graph: schema-validated paste/upload, DAG render, node inspector |
 | 5 projection read layer + dashboard | done | projections.md sketch; read-layer module; /dashboard scatter + distribution, live Neon, click-through |
-| 6 replay viewer | pending | |
+| 6 replay viewer | done | /replay step-through + compare, fixture runs behind isolated replay-data module |
 
 ## Environment
 
@@ -334,12 +334,42 @@
   (link-count === point-count asserted); read layer isolated behind
   one module; pnpm + e2e green.
 
-### Next iteration
+### 2026-07-04 — iteration 5 (cont.): stage 6 replay viewer → all stages done
 
-Stage 6 — replay viewer: step-through of one generation run
-(`node_attempts` + `graph_snapshot`) with inputs/outputs in the
-inspector; side-by-side compare of two predictions sharing a
-`graph_digest`. Check first what run/attempt data actually exists in
-Neon (published tables may not carry node_attempts — the projection
-sketch flagged this); if the data is absent, drive from fixture runs
-per the accept criterion ("e2e walks a fixture run end-to-end").
+- Verified live: Neon publishes no node_attempts/graph_snapshot
+  anywhere (only `published_*` tables; `published_v1_predictions` is
+  empty) — as the projection sketch predicted. The viewer is therefore
+  fixture-driven per the accept criterion, with data access isolated
+  in `src/lib/replay/replay-data.ts` (module doc records the swap
+  seam: when `replay_runs`/`replay_node_attempts` land, only that file
+  changes).
+- `src/lib/replay/replay-run.ts`: ReplayRun/ReplayNodeAttempt types
+  mirroring the replay projection; `compareRuns` (digest guard,
+  latest-attempt-per-node, differing output keys). Fixtures: two runs
+  sharing the real encdec `graph_digest ec4e636b819ecfbf` with its
+  fixture GraphSpec as snapshot — one completed, one with a failed
+  decoder attempt plus retry. 4 unit tests (incl. fixtures validating
+  against `parseGraphSpec` — which also justifies the one
+  `as unknown as` cast over the JSON imports).
+- `/replay` (Replay lane): step-through mode — Prev/Next + clickable
+  attempt chips, current attempt card with node id / attempt index /
+  status pill and Inspector payloads (resolved inputs, output, error;
+  all open); compare mode — per-node side-by-side cards, `differs` +
+  differing-key tags on yellow, identical nodes green, both outputs
+  as JSON panes. Nav: Replay lane links Run replay; the last
+  "planned" placeholder is gone.
+- Verified: typecheck ✓ lint ✓ unit 150 ✓ build ✓ e2e 19/19 ✓
+  detector `[]`.
+- **Stage 6 acceptance — all met:** e2e walks a fixture run
+  end-to-end (both runs, incl. the failed attempt's error payload);
+  compare view diffs two runs; pnpm green.
+
+## Completion
+
+All seven stages (0–6) are `done`; none gated, none blocked. Every
+stage's acceptance checks are recorded above with their verification
+runs. Cross-repo artifacts: unitbench `workbench` branch (PR #4
+draft), dr-code `serve` branch (PR #10 draft), dr-providers `serve`
+branch (PR #4 draft). whetstone-ai, all `composable-migration`
+branches, and the Neon schema were never modified; no paid API calls
+were made.

@@ -1,0 +1,109 @@
+{
+  "generation_run_id": "fixture-run-failed",
+  "prediction_id": "dr-dspy/encdec/prediction/fixture-failed",
+  "graph_digest": "ec4e636b819ecfbf",
+  "status": "failed",
+  "graph_snapshot": {
+    "nodes": [
+      {
+        "config": {
+          "fields": [
+            {
+              "description": null,
+              "name": "description",
+              "role": "input",
+              "type_name": "str"
+            },
+            {
+              "description": null,
+              "name": "code",
+              "role": "output",
+              "type_name": "str"
+            }
+          ],
+          "input_bindings": {
+            "description": "encoder.description"
+          },
+          "metadata": {
+            "provider_config_id": "decoder",
+            "user_prompt_template": "Write code from {description}"
+          },
+          "output_field": "code",
+          "parameters": {}
+        },
+        "id": "decoder",
+        "op": "llm_call"
+      },
+      {
+        "config": {
+          "fields": [
+            {
+              "description": null,
+              "name": "prompt",
+              "role": "input",
+              "type_name": "str"
+            },
+            {
+              "description": null,
+              "name": "description",
+              "role": "output",
+              "type_name": "str"
+            }
+          ],
+          "input_bindings": {
+            "prompt": "task.prompt"
+          },
+          "metadata": {
+            "provider_config_id": "encoder",
+            "user_prompt_template": "Describe {prompt}"
+          },
+          "output_field": "description",
+          "parameters": {}
+        },
+        "id": "encoder",
+        "op": "llm_call"
+      }
+    ],
+    "terminal_node_id": "decoder"
+  },
+  "node_attempts": [
+    {
+      "node_id": "encoder",
+      "attempt_index": 0,
+      "status": "completed",
+      "input_bindings_resolved": {
+        "prompt": "Write a function add(a, b) that returns the sum."
+      },
+      "output": {
+        "description": "Sum two things."
+      },
+      "error": null
+    },
+    {
+      "node_id": "decoder",
+      "attempt_index": 0,
+      "status": "failed",
+      "input_bindings_resolved": {
+        "description": "Sum two things."
+      },
+      "output": null,
+      "error": {
+        "failure_class": "transient",
+        "code": "rate_limited",
+        "message": "provider rate limited the call"
+      }
+    },
+    {
+      "node_id": "decoder",
+      "attempt_index": 1,
+      "status": "completed",
+      "input_bindings_resolved": {
+        "description": "Sum two things."
+      },
+      "output": {
+        "code": "def add(a, b):\n    return a - b"
+      },
+      "error": null
+    }
+  ]
+}

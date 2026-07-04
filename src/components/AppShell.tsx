@@ -101,14 +101,6 @@ function NavLink({
   )
 }
 
-function PlannedLane() {
-  return (
-    <span className="block px-3 py-1.5 text-[12px] text-[var(--text-muted)] italic">
-      planned
-    </span>
-  )
-}
-
 function CodeIcon() {
   return (
     <svg
@@ -226,7 +218,12 @@ export default function AppShell({ children, tables }: AppShellProps) {
             />
           </NavGroup>
           <NavGroup label="Replay">
-            <PlannedLane />
+            <NavLink
+              href="/replay"
+              active={isActive(pathname, '/replay')}
+              icon={<GraphIcon />}
+              label="Run replay"
+            />
           </NavGroup>
           <NavGroup label="Playgrounds">
             <NavLink
