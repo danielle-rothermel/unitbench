@@ -31,6 +31,36 @@ export function shortDate(value: string | Date | null | undefined): string {
   })
 }
 
+const COST_FRACTION_DIGITS = 5
+
+function formatCostAmount(value: number): string {
+  return `$${value.toFixed(COST_FRACTION_DIGITS)}`
+}
+
+export function formatCost(cost: number | null | undefined): string | null {
+  if (cost === null || cost === undefined) return null
+  if (!Number.isFinite(cost)) return String(cost)
+  return formatCostAmount(cost)
+}
+
+export function formatCostCell(value: unknown): string {
+  if (value === null || value === undefined) return 'none'
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return String(value)
+  return formatCostAmount(parsed)
+}
+
+export function formatNumber(value: unknown): string {
+  if (value === null || value === undefined) return 'none'
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return String(value)
+  if (Number.isInteger(parsed)) return parsed.toLocaleString()
+  return parsed.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  })
+}
+
 export function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) return 'none'
   if (value instanceof Date) return shortDate(value)

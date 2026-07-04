@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn'
 type ErrorSectionProps = {
   title: string
   message: string
-  tone?: 'error' | 'setup'
+  tone?: 'error' | 'setup' | 'warning'
   className?: string
 }
 
@@ -14,13 +14,16 @@ export function ErrorSection({
   className,
 }: ErrorSectionProps) {
   const isError = tone === 'error'
+  const isWarning = tone === 'warning'
   return (
     <div
       className={cn(
         'flex items-start gap-4 rounded-xl border p-5',
         isError
           ? 'border-[var(--red-border)] bg-[var(--red-bg)]'
-          : 'border-[var(--border)] bg-[var(--bg-secondary)]',
+          : isWarning
+            ? 'border-[var(--yellow-border)] bg-[var(--yellow-bg)]'
+            : 'border-[var(--border)] bg-[var(--bg-secondary)]',
         className,
       )}
     >
@@ -29,7 +32,9 @@ export function ErrorSection({
           'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white',
           isError
             ? 'bg-[var(--red)]'
-            : 'bg-[var(--accent)]',
+            : isWarning
+              ? 'bg-[var(--yellow)]'
+              : 'bg-[var(--accent)]',
         )}
       >
         !
@@ -40,7 +45,9 @@ export function ErrorSection({
             'mb-1 font-semibold',
             isError
               ? 'text-[var(--red)]'
-              : 'text-[var(--text-primary)]',
+              : isWarning
+                ? 'text-[var(--yellow)]'
+                : 'text-[var(--text-primary)]',
           )}
         >
           {title}

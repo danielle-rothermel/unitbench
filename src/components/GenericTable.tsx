@@ -14,8 +14,19 @@ import {
 } from '@tanstack/react-table'
 import { ResultBadge } from '@/components/primitives'
 import { cn } from '@/lib/cn'
-import { formatCellValue, shortDate } from '@/lib/format'
-import type { TableColumn, TableConfig } from '@/lib/table-config'
+import {
+  formatCellValue,
+  formatCostCell,
+  formatNumber,
+  shortDate,
+} from '@/lib/format'
+import { experimentPredictionsHref } from '@/lib/predictions-nav'
+import {
+  allTableColumns,
+  DEFAULT_PREDICTIONS_TABLE_ID,
+  type TableColumn,
+  type TableConfig,
+} from '@/lib/table-config'
 import type { TableRow } from '@/lib/table-data'
 import { buildTableQuery, tableHref, type TableState } from '@/lib/table-params'
 
@@ -25,15 +36,29 @@ type GenericTableProps = {
   rows: TableRow[]
   total: number
   totalPages: number
+  hrefBuilder?: (state: TableState) => string
+  getCellHref?: (row: TableRow, columnKey: string) => string | null
 }
 
 function predictionDetailHref(
   predictionId: string,
   returnQuery: string,
+  tableId: string,
 ): string {
   const encoded = predictionId.split('/').map(encodeURIComponent).join('/')
+  const params = new URLSearchParams()
+  if (returnQuery) params.set('return', returnQuery)
+  if (tableId !== DEFAULT_PREDICTIONS_TABLE_ID) params.set('table', tableId)
+  const query = params.toString()
   const base = `/predictions/${encoded}`
-  return returnQuery ? `${base}?return=${encodeURIComponent(returnQuery)}` : base
+  return query ? `${base}?${query}` : base
+}
+
+function experimentPredictionsTableId(config: TableConfig): string {
+  if (config.id === 'published-v1-experiments') {
+    return 'published-v1-predictions'
+  }
+  return DEFAULT_PREDICTIONS_TABLE_ID
 }
 
 function cellContent(value: unknown, column: TableColumn): ReactNode {
@@ -41,6 +66,8 @@ function cellContent(value: unknown, column: TableColumn): ReactNode {
     return <ResultBadge state={formatCellValue(value)} size="sm" />
   }
   if (column.kind === 'date') return shortDate(formatCellValue(value))
+  if (column.kind === 'cost') return formatCostCell(value)
+  if (column.kind === 'number') return formatNumber(value)
   if (column.kind === 'json') {
     return (
       <code className="font-mono text-[12px] text-[var(--text-secondary)]">
@@ -63,32 +90,69 @@ export function GenericTable({
   rows,
   total,
   totalPages,
+  hrefBuilder,
+  getCellHref,
 }: GenericTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  const visibleColumns = useMemo(() => allTableColumns(config), [config])
   const returnQuery = useMemo(() => buildTableQuery(state).toString(), [state])
   const columnByKey = useMemo(
-    () => new Map(config.columns.map(column => [column.key, column])),
-    [config],
+    () => new Map(visibleColumns.map(column => [column.key, column])),
+    [visibleColumns],
   )
 
   const linkToDetail = config.detailRoute === 'prediction'
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () =>
-      config.columns.map(column => ({
+      visibleColumns.map(column => ({
         id: column.key,
         accessorKey: column.key,
         header: column.label,
         enableSorting: Boolean(column.sortable),
         cell: info => {
           const value = info.getValue()
+          const row = info.row.original
           if (linkToDetail && column.key === config.primaryKey) {
             const id = formatCellValue(value)
             return (
               <Link
-                href={predictionDetailHref(id, returnQuery)}
+                href={predictionDetailHref(id, returnQuery, config.id)}
                 className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
+              >
+                {id}
+              </Link>
+            )
+          }
+          const drillHref = getCellHref?.(row, column.key)
+          if (drillHref) {
+            return (
+              <Link
+                href={drillHref}
+                className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
+                title="View matching predictions"
+              >
+                {cellContent(value, column)}
+              </Link>
+            )
+          }
+          if (
+            (config.id === 'published-experiments' ||
+              config.id === 'published-v1-experiments') &&
+            column.key === 'experiment_id'
+          ) {
+            const id = formatCellValue(value)
+            const predictionsTableId = experimentPredictionsTableId(config)
+            const href =
+              predictionsTableId === DEFAULT_PREDICTIONS_TABLE_ID
+                ? experimentPredictionsHref(id)
+                : `/tables/${predictionsTableId}?experiment_id=${encodeURIComponent(id)}`
+            return (
+              <Link
+                href={href}
+                className="font-mono text-[var(--accent)] hover:text-[var(--accent-hover)]"
+                title="View predictions for this experiment"
               >
                 {id}
               </Link>
@@ -97,7 +161,7 @@ export function GenericTable({
           return cellContent(value, column)
         },
       })),
-    [config, linkToDetail, returnQuery],
+    [config, getCellHref, linkToDetail, returnQuery, visibleColumns],
   )
 
   const sorting: SortingState = state.sort
@@ -108,8 +172,10 @@ export function GenericTable({
     pageSize: state.pageSize,
   }
 
+  const buildHref = hrefBuilder ?? ((next: TableState) => tableHref(config.id, next))
+
   const pushState = (next: TableState) => {
-    startTransition(() => router.push(tableHref(config.id, next)))
+    startTransition(() => router.push(buildHref(next)))
   }
 
   const onSortingChange: OnChangeFn<SortingState> = updater => {
@@ -166,6 +232,8 @@ export function GenericTable({
           <thead>
             <tr>
               {headers.map(header => {
+                const column = columnByKey.get(header.id)
+                const isNumber = column?.kind === 'number'
                 const sortable = header.column.getCanSort()
                 const sorted = header.column.getIsSorted()
                 const label = flexRender(
@@ -175,13 +243,19 @@ export function GenericTable({
                 return (
                   <th
                     key={header.id}
-                    className="sticky top-0 z-[1] border-b border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-2.5 text-left align-middle font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase"
+                    className={cn(
+                      'sticky top-0 z-[1] border-b border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-4 py-2.5 align-middle font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase last:border-r-0',
+                      isNumber ? 'text-right' : 'text-left',
+                    )}
                   >
                     {sortable ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="group inline-flex items-center gap-1 uppercase transition-colors hover:text-[var(--text-primary)]"
+                        className={cn(
+                          'group inline-flex items-center gap-1 uppercase transition-colors hover:text-[var(--text-primary)]',
+                          isNumber && 'w-full justify-end',
+                        )}
                       >
                         {label}
                         <span
@@ -208,7 +282,7 @@ export function GenericTable({
             {bodyRows.length === 0 && (
               <tr>
                 <td
-                  colSpan={config.columns.length}
+                  colSpan={visibleColumns.length}
                   className="px-4 py-12 text-center align-middle"
                 >
                   <p className="text-sm font-medium text-[var(--text-secondary)]">
@@ -228,9 +302,9 @@ export function GenericTable({
                     <td
                       key={cell.id}
                       className={cn(
-                        'border-b border-[var(--border-subtle)] px-4 py-2.5 align-middle text-[13px] text-[var(--text-secondary)]',
+                        'border-b border-r border-[var(--border-subtle)] px-4 py-2.5 align-middle text-[13px] text-[var(--text-secondary)] last:border-r-0',
                         column?.kind === 'mono' && 'font-mono',
-                        column?.kind === 'number' && 'font-mono text-right',
+                        column?.kind === 'number' && 'font-mono text-right tabular-nums',
                         column?.truncate && 'max-w-[260px] truncate',
                       )}
                       title={formatCellValue(cell.getValue())}

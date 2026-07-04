@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { GenericTable } from '@/components/GenericTable'
 import { TableFilters } from '@/components/TableFilters'
+import { TableExploreAggregatesLink } from '@/components/TableExploreAggregatesLink'
+import { TableHideTestExperimentsToggle } from '@/components/TableHideTestExperimentsToggle'
+import { TableQuickFilters } from '@/components/TableQuickFilters'
 import { ErrorSection } from '@/components/panels/ErrorSection'
 import { Dot, Tag } from '@/components/primitives'
 import { getTableFacets, getTablePage } from '@/lib/table-data'
@@ -30,7 +33,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 
   const facets =
     tablePage.status === 'ok'
-      ? await getTableFacets(tablePage.config)
+      ? await getTableFacets(tablePage.config, tablePage.state)
       : {}
 
   return (
@@ -72,6 +75,12 @@ export default async function Page({ params, searchParams }: PageProps) {
 
       {tablePage.status === 'ok' && (
         <>
+          <TableHideTestExperimentsToggle
+            tableId={tableId}
+            state={tablePage.state}
+          />
+          <TableQuickFilters tableId={tableId} state={tablePage.state} />
+          <TableExploreAggregatesLink tableId={tableId} state={tablePage.state} />
           <TableFilters
             config={tablePage.config}
             state={tablePage.state}

@@ -1,4 +1,9 @@
 import { MissingDatabaseUrlError, neonSql } from '@/lib/neon'
+import {
+  PUBLISHED_PREDICTION_DETAIL_TABLES,
+  type DetailTables,
+} from '@/lib/table-config'
+import { quoteIdentifier } from '@/lib/sql-identifiers'
 
 export type PredictionDetail = {
   prediction_id: string
@@ -35,7 +40,10 @@ export type PredictionDetailResult =
   | { status: 'missing-url' }
   | { status: 'error'; message: string }
 
-const PREDICTION_DETAIL_SQL = `
+function predictionDetailSql(tables: DetailTables): string {
+  const predictions = quoteIdentifier(tables.predictions.name)
+  const details = quoteIdentifier(tables.details.name)
+  return `
 SELECT
   p.prediction_id,
   p.experiment_id,
@@ -63,19 +71,21 @@ SELECT
   d.request_json,
   d.response_json,
   d.validation_json
-FROM published_predictions p
-LEFT JOIN published_prediction_details d
+FROM ${predictions} p
+LEFT JOIN ${details} d
   ON d.prediction_id = p.prediction_id
 WHERE p.prediction_id = $1
 LIMIT 1
 `
+}
 
 export async function getPredictionDetail(
   predictionId: string,
+  tables: DetailTables = PUBLISHED_PREDICTION_DETAIL_TABLES,
 ): Promise<PredictionDetailResult> {
   try {
     const sql = neonSql()
-    const rows = (await sql.query(PREDICTION_DETAIL_SQL, [
+    const rows = (await sql.query(predictionDetailSql(tables), [
       predictionId,
     ])) as PredictionDetail[]
     const detail = rows[0]

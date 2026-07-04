@@ -3,13 +3,25 @@
 import Link from 'next/link'
 import { IdChip } from '@/components/chips/IdChip'
 import { CodePane } from '@/components/code/CodePane'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { PredictionDiagnosticsPanel } from '@/components/prediction/PredictionDiagnosticsPanel'
+import { PredictionEncdecPipeline } from '@/components/prediction/PredictionEncdecPipeline'
+import { PredictionOutcomeBanner } from '@/components/prediction/PredictionOutcomeBanner'
+import { PredictionReferenceSection } from '@/components/prediction/PredictionReferenceSection'
+import { PredictionRunConfigStrip } from '@/components/prediction/PredictionRunConfigStrip'
 import { TextPanel } from '@/components/panels/TextPanel'
 import { Dot, ResultBadge, SECTION_LABEL, Tag } from '@/components/primitives'
 import { StatCell } from '@/components/stats/StatCell'
 import { useCopy } from '@/hooks/useCopy'
-import { prettyJson, shortDate } from '@/lib/format'
+import { formatCost, prettyJson, shortDate } from '@/lib/format'
 import type { PredictionDetail } from '@/lib/prediction-detail'
+import {
+  buildEncdecPipeline,
+  buildOutcomeBanner,
+  buildPredictionDiagnostics,
+  buildReferenceFields,
+  buildRunConfigFields,
+  truncateFailureReason,
+} from '@/lib/prediction-diagnostics'
 
 type PredictionDetailPageProps = {
   detail: PredictionDetail
@@ -20,16 +32,16 @@ function formatScore(score: number | null): string | null {
   return score === null ? null : score.toFixed(2)
 }
 
-function formatCost(cost: number | null): string | null {
-  return cost === null ? null : `$${cost.toFixed(4)}`
-}
-
 export function PredictionDetailPage({
   detail,
   backHref,
 }: PredictionDetailPageProps) {
   const [copied, copy] = useCopy()
-  const isError = detail.result_state === 'error'
+  const diagnostics = buildPredictionDiagnostics(detail)
+  const outcomeBanner = buildOutcomeBanner(detail, diagnostics)
+  const runConfigFields = buildRunConfigFields(detail)
+  const reference = buildReferenceFields(detail.request_json)
+  const encdecPipeline = buildEncdecPipeline(detail)
   const experimentHref = `/tables/published-experiments?experiment_id=${encodeURIComponent(detail.experiment_id)}`
   const jsonPanels: { label: string; value: unknown }[] = [
     { label: 'Metrics', value: detail.metrics_json },
@@ -66,17 +78,13 @@ export function PredictionDetailPage({
             {detail.prediction_id}
           </h1>
         </div>
-        <ResultBadge state={detail.result_state} />
+        <ResultBadge
+          state={detail.result_state}
+          failure={truncateFailureReason(diagnostics.primaryFailureReason)}
+        />
       </header>
 
-      {isError && (
-        <div className="mb-6 max-w-[1280px]">
-          <ErrorSection
-            title="Prediction errored"
-            message={`Generation: ${detail.generation_status ?? 'n/a'} · Scoring: ${detail.scoring_status ?? 'n/a'}`}
-          />
-        </div>
-      )}
+      {outcomeBanner && <PredictionOutcomeBanner banner={outcomeBanner} />}
 
       <section className="mb-7 grid max-w-[1280px] grid-cols-4 gap-px border-y border-[var(--border)] bg-[var(--border-subtle)] max-md:grid-cols-2">
         <StatCell label="Model" value={detail.model} mono />
@@ -88,6 +96,10 @@ export function PredictionDetailPage({
         />
         <StatCell label="Created" value={shortDate(detail.created_at)} />
       </section>
+
+      <PredictionRunConfigStrip fields={runConfigFields} />
+
+      <PredictionDiagnosticsPanel detail={detail} diagnostics={diagnostics} />
 
       <section className="mb-8 flex max-w-[1280px] flex-col gap-2.5">
         <span className={SECTION_LABEL}>Provenance</span>
@@ -157,19 +169,25 @@ export function PredictionDetailPage({
         </div>
       </section>
 
+      <PredictionReferenceSection reference={reference} />
+
       <div className="flex flex-col gap-5">
-        <div className="flex max-w-[1280px] flex-col gap-5">
-          <div className="grid grid-cols-2 items-start gap-x-5 gap-y-5 max-lg:grid-cols-1">
-            <TextPanel
-              label={detail.input_kind ?? 'Input'}
-              value={detail.input_text}
-            />
-            <TextPanel
-              label={detail.output_kind ?? 'Output'}
-              value={detail.output_text}
-            />
+        {!encdecPipeline && (
+          <div className="flex max-w-[1280px] flex-col gap-5">
+            <div className="grid grid-cols-2 items-start gap-x-5 gap-y-5 max-lg:grid-cols-1">
+              <TextPanel
+                label={detail.input_kind ?? 'Input'}
+                value={detail.input_text}
+              />
+              <TextPanel
+                label={detail.output_kind ?? 'Output'}
+                value={detail.output_text}
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {encdecPipeline && <PredictionEncdecPipeline pipeline={encdecPipeline} />}
 
         {(detail.prompt_text || detail.code_text || detail.raw_generation) && (
           <div className="flex flex-col gap-2.5">

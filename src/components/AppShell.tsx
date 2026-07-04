@@ -39,6 +39,30 @@ function TableIcon() {
   )
 }
 
+function ChartIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      role="presentation"
+      focusable="false"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2.5 12.5V8.5" />
+      <path d="M6.5 12.5V5.5" />
+      <path d="M10.5 12.5V3.5" />
+      <path d="M14.5 12.5V7.5" />
+      <path d="M2 12.5H14.5" />
+    </svg>
+  )
+}
+
 export default function AppShell({ children, tables }: AppShellProps) {
   const pathname = usePathname() ?? '/'
 
@@ -77,6 +101,35 @@ export default function AppShell({ children, tables }: AppShellProps) {
               </Link>
             )
           })}
+        </div>
+        <div className="mt-5 px-3">
+          <span className="mb-1.5 block px-2 font-display text-[11px] font-semibold tracking-[0.08em] text-[var(--text-muted)] uppercase">
+            Analysis
+          </span>
+          <Link
+            href="/aggregate/heatmap"
+            className={cn(
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              isActive(pathname, '/aggregate/heatmap')
+                ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            <ChartIcon />
+            <span className="truncate">Heatmap</span>
+          </Link>
+          <Link
+            href="/aggregate"
+            className={cn(
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              pathname === '/aggregate'
+                ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            <ChartIcon />
+            <span className="truncate">Aggregation</span>
+          </Link>
         </div>
       </nav>
       <main className="min-h-screen flex-1 px-5 py-6 md:ml-64 md:px-10 md:py-8">

@@ -12,12 +12,18 @@ describe('table config allowlist', () => {
       'published-experiments',
       'published-predictions',
       'published-prediction-details',
+      'published-v1-experiments',
+      'published-v1-predictions',
+      'published-v1-prediction-details',
     ])
   })
 
   it('resolves known tables and rejects unknown tables', () => {
     expect(getTableConfig('published-experiments').table.name).toBe(
       'published_experiments',
+    )
+    expect(getTableConfig('published-v1-predictions').table.name).toBe(
+      'published_v1_predictions',
     )
     expect(() => getTableConfig('raw-local-table')).toThrow(UnknownTableError)
   })
@@ -26,5 +32,33 @@ describe('table config allowlist', () => {
     const config = getTableConfig('published-predictions')
     expect(isConfiguredColumn(config, 'prediction_id')).toBe(true)
     expect(isConfiguredColumn(config, 'drop table')).toBe(false)
+  })
+
+  it('exposes enriched prediction browse columns and facet filters', () => {
+    const config = getTableConfig('published-predictions')
+    const keys = config.columns.map(column => column.key)
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'experiment_kind',
+        'source',
+        'generation_status',
+        'scoring_status',
+        'provider_cost',
+      ]),
+    )
+    expect(
+      config.columns
+        .filter(column => column.filter === 'facet')
+        .map(column => column.key),
+    ).toEqual(
+      expect.arrayContaining([
+        'experiment_kind',
+        'source',
+        'model',
+        'result_state',
+        'generation_status',
+        'scoring_status',
+      ]),
+    )
   })
 })
