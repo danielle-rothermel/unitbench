@@ -194,6 +194,12 @@ export default function AppShell({ children, tables }: AppShellProps) {
         </div>
         <div className="flex-1 overflow-y-auto">
           <NavGroup label="Data">
+            <NavLink
+              href="/dashboard"
+              active={isActive(pathname, '/dashboard')}
+              icon={<ChartIcon />}
+              label="Dashboard"
+            />
             {tables.map(table => {
               const href = `/tables/${table.id}`
               return (

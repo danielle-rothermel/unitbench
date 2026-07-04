@@ -9,7 +9,7 @@
 | 2 parser playground | done | facade (dr-code PR #10) + gen:api client + /playgrounds/parser + e2e vs local facade |
 | 3 provider query page | done | facade + variance machinery (dr-providers PR #4) + /playgrounds/provider + e2e vs FixtureProvider |
 | 4 graph viewer | done | /design/graph: schema-validated paste/upload, DAG render, node inspector |
-| 5 projection read layer + dashboard | pending | |
+| 5 projection read layer + dashboard | done | projections.md sketch; read-layer module; /dashboard scatter + distribution, live Neon, click-through |
 | 6 replay viewer | pending | |
 
 ## Environment
@@ -303,11 +303,43 @@
 - **Stage 3 acceptance — all met:** e2e green using FixtureProvider
   only; page clearly marked local-only; no keys read in tests.
 
+### 2026-07-04 — iteration 5: stage 5 projection read layer + dashboard
+
+- Design commit: `docs/workbench/projections.md` — consumer sketch of
+  the flat analytical projection (`analytics_predictions`: promoted
+  typed columns incl. compression ratios, eval counts, enc/dec split
+  costs, plus graph_digest/generation_run_id which published tables
+  lack) and the replay projection (`replay_runs` +
+  `replay_node_attempts`), with the read-layer swap plan.
+- Read layer: `src/lib/read-layer.ts` is the single physical-storage
+  module. `fetchCorrectnessCompressionPoints` (first 1500 enc-dec
+  predictions by id: score, result_state, best_compression_ratio via
+  the predictions⋈details JSONB join) and
+  `fetchCompressionDistribution` (exact width_bucket histogram over
+  all 46,870 qualifying rows, 12 buckets to ratio 3 + overflow). Unit
+  tests on the row mappers caught a real Number(null)→0 coercion bug.
+- `/dashboard` (Data lane): per-prediction correctness-vs-compression
+  scatter — score bands jittered deterministically (prediction-id
+  hash), passed/failed via green/red tokens, every point a Link to
+  its prediction detail, explicit "N beyond ratio 3 not shown" tag
+  (no silent caps); distribution view = grouped passed/failed
+  histogram from the exact SQL counts. Both charts visx +
+  chart-theme.
+- Scores in this dataset are binary {0,1} (checked live), hence the
+  band-jitter design; recorded for the projection design.
+- Verified: typecheck ✓ lint ✓ unit 146 ✓ build ✓ e2e 17/17 ✓
+  detector `[]`.
+- **Stage 5 acceptance — all met:** dashboard renders from live Neon
+  locally; every plot point navigates to its prediction detail
+  (link-count === point-count asserted); read layer isolated behind
+  one module; pnpm + e2e green.
+
 ### Next iteration
 
-Stage 5 — projection read layer + dashboard: projection consumer
-sketch (design commit); read-layer interface over `published_*`
-tables behind one module; Data-lane dashboard with
-correctness-vs-compression scatter (click-through to prediction
-detail) + one distribution view; live Neon locally. Then stage 6
-(replay viewer).
+Stage 6 — replay viewer: step-through of one generation run
+(`node_attempts` + `graph_snapshot`) with inputs/outputs in the
+inspector; side-by-side compare of two predictions sharing a
+`graph_digest`. Check first what run/attempt data actually exists in
+Neon (published tables may not carry node_attempts — the projection
+sketch flagged this); if the data is absent, drive from fixture runs
+per the accept criterion ("e2e walks a fixture run end-to-end").
