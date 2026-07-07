@@ -28,6 +28,7 @@ packages = ["tools/unitbench_publish"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
