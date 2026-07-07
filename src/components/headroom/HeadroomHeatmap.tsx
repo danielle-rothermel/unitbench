@@ -16,7 +16,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useMemo, useTransition } from 'react'
 import { HeadroomColorLegend } from '@/components/headroom/HeadroomColorLegend'
 import { HeadroomFacetPanel } from '@/components/headroom/HeadroomFacetPanel'
@@ -30,7 +30,7 @@ import {
 } from '@/lib/headroom-heatmap-grid'
 import { applyManualOrder, manualOrderOrUndefined, moveItem } from '@/lib/heatmap-order'
 import {
-  headroomHeatmapHref,
+  buildHeadroomHeatmapQuery,
   toBinConfig,
   type HeadroomHeatmapState,
 } from '@/lib/headroom-heatmap-params'
@@ -106,6 +106,9 @@ function SortableFacetPanel({ facet, grid }: SortableFacetPanelProps) {
 
 export function HeadroomHeatmap({ points, state }: HeadroomHeatmapProps) {
   const router = useRouter()
+  // URL state must land on whatever route mounts the component (the real-data
+  // harness embeds it outside /dev/headroom-heatmap), so build against pathname.
+  const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
   const grid = useMemo(() => buildHeadroomGrid(points, toBinConfig(state)), [points, state])
@@ -116,7 +119,8 @@ export function HeadroomHeatmap({ points, state }: HeadroomHeatmapProps) {
   )
 
   const commit = (next: HeadroomHeatmapState) => {
-    startTransition(() => router.push(headroomHeatmapHref(next)))
+    const query = buildHeadroomHeatmapQuery(next).toString()
+    startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
   const baseline = grid ? grid.facets.map(facet => facet.facet_key) : []

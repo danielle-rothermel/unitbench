@@ -8,7 +8,10 @@ import { makeHeadroomPoints, type HeadroomPoint } from '@/fixtures/heatmap'
 import type { HeadroomHeatmapState } from '@/lib/headroom-heatmap-params'
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+  usePathname: () => '/dev/headroom-heatmap',
+}))
 
 const defaultState: HeadroomHeatmapState = {
   view: 'facets',
