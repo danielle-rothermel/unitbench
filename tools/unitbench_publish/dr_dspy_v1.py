@@ -42,7 +42,7 @@ WITH filtered_scores AS (
         gr.generation_run_id,
         gr.status AS generation_status,
         gr.terminal_node_id,
-        gr.summary AS generation_summary,
+        COALESCE(gr.summary, '{{}}'::jsonb) AS generation_summary,
         gr.started_at AS generation_started_at,
         gr.completed_at AS generation_completed_at,
         sa.score_attempt_id,
@@ -50,7 +50,7 @@ WITH filtered_scores AS (
         sa.score,
         sa.generated_code_outcome,
         sa.metrics,
-        sa.per_test_results,
+        COALESCE(sa.per_test_results, '[]'::jsonb) AS per_test_results,
         sa.failure AS score_failure,
         sa.extracted_code,
         sa.completed_at AS score_completed_at,
@@ -64,7 +64,9 @@ WITH filtered_scores AS (
     FROM dr_dspy_prediction_specs ps
     INNER JOIN dr_dspy_generation_runs gr
         ON gr.prediction_id = ps.prediction_id
-    INNER JOIN dr_dspy_score_attempts sa
+    -- LEFT JOIN keeps predictions with no successful score attempt so
+    -- generation errors publish as result_state = 'error' instead of vanishing.
+    LEFT JOIN dr_dspy_score_attempts sa
         ON sa.generation_run_id = gr.generation_run_id
         AND sa.prediction_id = gr.prediction_id
         AND sa.scoring_profile_id = %(scoring_profile_id)s
@@ -85,8 +87,8 @@ ranked_predictions AS (
         ROW_NUMBER() OVER (
             PARTITION BY prediction_id
             ORDER BY
-                score_attempt_index DESC,
-                generation_completed_at DESC,
+                score_attempt_index DESC NULLS LAST,
+                generation_completed_at DESC NULLS LAST,
                 generation_run_id
         ) AS prediction_rank
     FROM best_run_scores
@@ -182,22 +184,22 @@ class CanonicalPredictionRow(BaseModel):
     spec_created_at: datetime
     generation_run_id: StrictStr
     generation_status: StrictStr
-    terminal_node_id: StrictStr
+    terminal_node_id: StrictStr | None
     generation_summary: dict[str, Any] = Field(default_factory=dict)
     generation_started_at: datetime
-    generation_completed_at: datetime
-    score_attempt_id: StrictStr
-    score_status: StrictStr
+    generation_completed_at: datetime | None
+    score_attempt_id: StrictStr | None
+    score_status: StrictStr | None
     score: float | None
     generated_code_outcome: StrictStr | None
     metrics: dict[str, Any] | None = None
     per_test_results: list[Any] = Field(default_factory=list)
     score_failure: dict[str, Any] | None = None
     extracted_code: dict[str, Any] | None = None
-    score_completed_at: datetime
-    score_attempt_index: StrictInt
-    scoring_profile_id: StrictStr
-    scoring_profile_version: StrictStr
+    score_completed_at: datetime | None
+    score_attempt_index: StrictInt | None
+    scoring_profile_id: StrictStr | None
+    scoring_profile_version: StrictStr | None
 
 
 class NodeAttemptRow(BaseModel):
@@ -325,15 +327,27 @@ def total_provider_cost(node_attempts: Iterable[NodeAttemptRow], run_id: str) ->
     return total if found else None
 
 
-def display_model(row: CanonicalPredictionRow) -> str:
-    if row.graph_layout == "encdec":
-        encoder, decoder = extract_encoder_decoder_models(
-            row.dimensions,
-            row.provider_configs,
-        )
+def display_model_label(
+    *,
+    graph_layout: str,
+    model: str,
+    dimensions: Mapping[str, Any],
+    provider_configs: Sequence[Mapping[str, Any]] | None,
+) -> str:
+    if graph_layout == "encdec":
+        encoder, decoder = extract_encoder_decoder_models(dimensions, provider_configs)
         if encoder and decoder:
             return f"{encoder} -> {decoder}"
-    return row.model
+    return model
+
+
+def display_model(row: CanonicalPredictionRow) -> str:
+    return display_model_label(
+        graph_layout=row.graph_layout,
+        model=row.model,
+        dimensions=row.dimensions,
+        provider_configs=row.provider_configs,
+    )
 
 
 def build_canonical_query(
@@ -426,7 +440,7 @@ def map_v1_prediction(
     prompt = str(inputs.get("prompt") or "")
     nodes = latest_node_outputs(node_attempts, row.generation_run_id)
     provider_cost = total_provider_cost(node_attempts, row.generation_run_id)
-    updated_at = max(row.generation_completed_at, row.score_completed_at)
+    updated_at = prediction_updated_at(row)
 
     if row.graph_layout == "encdec":
         encoder_attempt = nodes.get("encoder")
@@ -531,8 +545,8 @@ def map_v1_prediction(
             "scoring_profile_id": row.scoring_profile_id,
             "scoring_profile_version": row.scoring_profile_version,
             "v0_prediction_id": v0_prediction_id(row.generation_summary),
-            "generated_at": row.generation_completed_at.isoformat(),
-            "scored_at": row.score_completed_at.isoformat(),
+            "generated_at": isoformat_or_none(row.generation_completed_at),
+            "scored_at": isoformat_or_none(row.score_completed_at),
         },
     )
     detail = PublishedPredictionDetail(
@@ -552,6 +566,21 @@ def map_v1_prediction(
         updated_at=updated_at,
     )
     return prediction, detail
+
+
+def prediction_updated_at(row: CanonicalPredictionRow) -> datetime:
+    timestamps = [
+        timestamp
+        for timestamp in (row.generation_completed_at, row.score_completed_at)
+        if timestamp is not None
+    ]
+    if timestamps:
+        return max(timestamps)
+    return row.spec_created_at
+
+
+def isoformat_or_none(timestamp: datetime | None) -> str | None:
+    return timestamp.isoformat() if timestamp is not None else None
 
 
 def metrics_json(row: CanonicalPredictionRow) -> dict[str, Any]:
