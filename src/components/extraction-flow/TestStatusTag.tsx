@@ -4,6 +4,8 @@ import type { EvaluationCaseStatus } from '@/fixtures/primitives'
 /**
  * Own status → tone map: shared ResultBadge's STATE_BADGE has no
  * 'timeout'/'error' entries and primitives.tsx is not edited here.
+ * Tones match the STATE_BADGE additions landing in the R3 PR
+ * (error red, timeout yellow) so adjacent pages agree.
  */
 export const TEST_STATUS_TONE: Record<
   EvaluationCaseStatus,
@@ -11,8 +13,8 @@ export const TEST_STATUS_TONE: Record<
 > = {
   passed: 'green',
   failed: 'red',
-  error: 'yellow',
-  timeout: 'blue',
+  error: 'red',
+  timeout: 'yellow',
 }
 
 type TestStatusTagProps = {

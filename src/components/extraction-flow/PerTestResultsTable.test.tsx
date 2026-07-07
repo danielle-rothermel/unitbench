@@ -39,8 +39,8 @@ describe('PerTestResultsTable', () => {
 
     expect(screen.getByText('passed')).toHaveClass('bg-[var(--green-bg)]')
     expect(screen.getByText('failed')).toHaveClass('bg-[var(--red-bg)]')
-    expect(screen.getByText('error')).toHaveClass('bg-[var(--yellow-bg)]')
-    expect(screen.getByText('timeout')).toHaveClass('bg-[var(--blue-bg)]')
+    expect(screen.getByText('error')).toHaveClass('bg-[var(--red-bg)]')
+    expect(screen.getByText('timeout')).toHaveClass('bg-[var(--yellow-bg)]')
   })
 
   it('shows message text on failing rows and an em-dash on passing rows', () => {
