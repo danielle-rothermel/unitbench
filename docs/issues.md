@@ -1,3 +1,5 @@
+> **RETIRES AT D3 MERGE** — this drives/feeds the in-flight workbench PR #4 and becomes historical when it merges (open items migrate to Linear then). Tracked in Linear S17/DEV-21.
+
 # Unitbench — Issues, Gaps & Growth Opportunities
 
 _Captured 2026-06-30. A review of the current implementation: what's truly broken,
