@@ -17,9 +17,16 @@ function parseSeed(value: string | string[] | undefined): number {
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const seed = parseSeed(resolvedSearchParams.seed)
-  const perModel = makeSweepMetricsRows({ seed, groupBy: ['model'] })
-  const perTask = makeSweepMetricsRows({ seed, groupBy: ['task_id'] })
-  const perModelTask = makeSweepMetricsRows({ seed, groupBy: ['model', 'task_id'] })
+  // samplesPerGroup scaled per grouping so the three groupings describe the same
+  // 384-run sweep (4 models × 96 = 12 tasks × 32 = 48 model·task pairs × 8); the
+  // generator's default 96 per row made sliced totals exceed the all-models total.
+  const perModel = makeSweepMetricsRows({ seed, groupBy: ['model'], samplesPerGroup: 96 })
+  const perTask = makeSweepMetricsRows({ seed, groupBy: ['task_id'], samplesPerGroup: 32 })
+  const perModelTask = makeSweepMetricsRows({
+    seed,
+    groupBy: ['model', 'task_id'],
+    samplesPerGroup: 8,
+  })
 
   return (
     <div className="flex flex-col gap-6">
