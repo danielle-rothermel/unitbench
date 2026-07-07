@@ -1,0 +1,337 @@
+---
+title: "R0 — Shared fixture shapes for Unitbench viz components (REL-13)"
+kind: plan
+---
+
+## Objective
+
+Define one shared fake-data contract for the six Unitbench visualization components (R1–R6) so six different agents build against the same shapes, and the D3 real-data wiring is a pass-through. Done means: the six TypeScript shapes below are approved, after which the `src/fixtures/` module (types + seeded generators + vitest tests) is implemented on branch `r0-fixtures` and PR'd.
+
+Scope is the contract only — no component code, no route changes, and no changes to `tools/unitbench_publish`. Every field is derived from what the real pipeline already produces; three additive gaps are called out explicitly rather than papered over. A few decisions are open for review — see Open Questions at the bottom.
+
+## Grounding: the real data path
+
+Fixtures stand in for the SQL layer, so their keys are the Neon column / JSONB payload keys, verbatim, in snake_case. A component built against a fixture row renders a SQL result row with zero mapping.
+
+<Diagram id="data-path" caption="Fixtures mirror the SQL layer: same keys, same value formats." frame="show">
+
+```html
+<div class="diagram-panel" data-rough>
+  <div class="diagram-row">
+    <div class="diagram-box"><div class="diagram-pill">whetstone-ai</div><div class="diagram-node">ScoreAttemptRecord</div><div class="diagram-node">NodeAttemptRecord</div><div class="diagram-node">MetricsPayload</div></div>
+    <div class="diagram-arrow">→</div>
+    <div class="diagram-box"><div class="diagram-pill">publisher</div><div class="diagram-node">tools/unitbench_publish</div><div class="diagram-muted">dr_dspy_v1.py mapping</div></div>
+    <div class="diagram-arrow">→</div>
+    <div class="diagram-box"><div class="diagram-pill">Neon</div><div class="diagram-node">published_predictions</div><div class="diagram-node">published_prediction_details</div></div>
+    <div class="diagram-arrow">→</div>
+    <div class="diagram-node">SQL queries (D3)</div>
+    <div class="diagram-arrow">→</div>
+    <div class="diagram-box"><div class="diagram-pill">unitbench</div><div class="diagram-node">R1–R6 components</div></div>
+  </div>
+  <div class="diagram-row diagram-fixture-row">
+    <div class="diagram-box diagram-accent"><div class="diagram-pill">now (R0)</div><div class="diagram-node">src/fixtures/ generators</div><div class="diagram-muted">same shapes as the SQL rows</div></div>
+    <div class="diagram-arrow">↗</div>
+  </div>
+</div>
+```
+
+```css
+.diagram-panel { display: flex; flex-direction: column; gap: 18px; padding: 8px; }
+.diagram-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.diagram-fixture-row { justify-content: flex-end; padding-right: 18%; }
+.diagram-box { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.diagram-arrow { color: var(--wf-muted); font-size: 18px; }
+.diagram-accent { border-color: var(--wf-accent); }
+```
+
+</Diagram>
+
+Sources of record, in priority order:
+
+1. **Neon tables** written by `tools/unitbench_publish` (`models.py`, `schema.py`, `dr_dspy_v1.py`) — the authoritative field inventory.
+2. **whetstone-ai scoring records** (`src/dr_dspy/records/models.py`, `humaneval/{scoring,task,compression,code_parsing,parsed_code,metric_models}.py`) — the payloads inside `summary_json` / `metrics_json` / `validation_json`.
+3. **Existing app conventions** — measure names from `src/lib/aggregate-config.ts` (`n`, `avg_score`, `stddev_score`, `pass_rate`, `avg_cost`), canonical model collapsing from `src/lib/canonical-model.ts`, heatmap idioms from `src/lib/heatmap-order.ts`.
+
+## The Neon contract fixtures mirror
+
+<DataModel
+  id="neon-tables"
+  entities={[
+    {
+      id: "published_experiments",
+      name: "published_experiments",
+      fields: [
+        { name: "experiment_id", type: "text", pk: true },
+        { name: "experiment_kind", type: "text" },
+        { name: "row_count", type: "int" },
+        { name: "pass_count", type: "int" },
+        { name: "error_count", type: "int" },
+        { name: "pass_rate", type: "float", nullable: true },
+        { name: "total_provider_cost", type: "float", nullable: true },
+      ],
+    },
+    {
+      id: "published_predictions",
+      name: "published_predictions",
+      fields: [
+        { name: "prediction_id", type: "text", pk: true },
+        { name: "experiment_id", type: "text", fk: "published_experiments.experiment_id" },
+        { name: "task_id", type: "text", nullable: true },
+        { name: "sample_index", type: "int", nullable: true },
+        { name: "model", type: "text", nullable: true },
+        { name: "result_state", type: "text" },
+        { name: "score", type: "float", nullable: true },
+        { name: "provider_cost", type: "float", nullable: true },
+        { name: "summary_json", type: "jsonb" },
+      ],
+    },
+    {
+      id: "published_prediction_details",
+      name: "published_prediction_details",
+      fields: [
+        { name: "prediction_id", type: "text", pk: true, fk: "published_predictions.prediction_id" },
+        { name: "prompt_text", type: "text", nullable: true },
+        { name: "code_text", type: "text", nullable: true },
+        { name: "raw_generation", type: "text", nullable: true },
+        { name: "metrics_json", type: "jsonb" },
+        { name: "request_json", type: "jsonb" },
+        { name: "response_json", type: "jsonb" },
+        { name: "validation_json", type: "jsonb" },
+      ],
+    },
+  ]}
+  relations={[
+    { from: "published_experiments", to: "published_predictions", kind: "1-n" },
+    { from: "published_prediction_details", to: "published_predictions", kind: "1-1" },
+  ]}
+/>
+
+## Shared primitives (`src/fixtures/primitives.ts`)
+
+One canonical identity reused by every per-sample shape, plus the closed enums copied exactly from the pipeline (`GeneratedCodeOutcome`, `EvaluationCaseStatus`, `ExtractionMethod`, `CompressionMethod`, `FailureClass`, `TestCaseKind`, `ResultState`, `ExperimentKind`, `GraphLayout` — exact strings from whetstone-ai `StrEnum`s).
+
+<AnnotatedCode
+  id="sample-identity"
+  filename="src/fixtures/primitives.ts"
+  language="ts"
+  code={"/** Identity of one prediction (= one task x model x repetition sample). */\nexport type SampleIdentity = {\n  prediction_id: string        // published_predictions.prediction_id\n  experiment_id: string        // \"dr-dspy-v1/{layout}/{experiment_name}\"\n  experiment_kind: ExperimentKind  // 'humaneval_direct' | 'humaneval_encdec'\n  task_id: string              // \"HumanEval/12\"\n  model: string                // canonical label per src/lib/canonical-model.ts\n  sample_index: number         // repetition ordinal (summary_json.repetition_seed)\n}"}
+  annotations={[
+    { lines: "4", label: "ID format", note: "Matches dr_dspy_v1.experiment_id(): prefix/layout/experiment_name." },
+    { lines: "6", label: "Canonical model", note: "Enc-dec rows are 'encoder -> decoder', collapsed to one label when equal — same rule the app already applies in SQL." },
+    { lines: "7", label: "Known gap", note: "Column is NULL in v1 rows today; real value lives in summary_json.repetition_seed. See Open Questions." },
+  ]}
+/>
+
+## The six shapes
+
+### 1. Sweep metrics — R1 (`src/fixtures/sweep.ts`)
+
+One row per group of a grouped aggregate over `published_predictions` — the same row shape `src/lib/aggregate-data.ts:130-136` already produces, extended with error/rate-limit counts and latency. Group keys are nullable: a per-model row has `task_id: null` and vice versa.
+
+<Code
+  id="sweep-type"
+  filename="src/fixtures/sweep.ts"
+  language="ts"
+  code={"export type SweepMetricsRow = {\n  // group keys — null when not part of the grouping\n  model: string | null\n  task_id: string | null\n  experiment_kind: ExperimentKind | null\n\n  // measures — names match aggregate-config SORT_MEASURES where they exist\n  n: number\n  pass_count: number\n  fail_count: number\n  pending_count: number\n  error_count: number            // result_state = 'error'\n  rate_limit_count: number       // failure_class = 'rate_limited'\n  pass_rate: number | null\n  avg_score: number | null       // score is binary 0/1 (scoring.py)\n  stddev_score: number | null\n  avg_cost: number | null        // avg(provider_cost) USD\n  total_cost: number | null\n  avg_latency_ms: number | null  // generation started -> completed\n  p95_latency_ms: number | null\n}"}
+/>
+
+<Json
+  id="sweep-example"
+  title="Example row (per-model grouping)"
+  json={'{"model": "openai/gpt-5.5-codex", "task_id": null, "experiment_kind": "humaneval_encdec", "n": 984, "pass_count": 611, "fail_count": 293, "pending_count": 12, "error_count": 68, "rate_limit_count": 41, "pass_rate": 0.621, "avg_score": 0.621, "stddev_score": 0.485, "avg_cost": 0.0042, "total_cost": 4.13, "avg_latency_ms": 8410, "p95_latency_ms": 22750}'}
+  collapsedDepth={2}
+/>
+
+### 2. Extraction flow — R2 (`src/fixtures/extraction.ts`)
+
+One sample's journey: raw generation → extraction → parsed functions → entry-point selection → per-test results. Mirrors `validation_json.extracted_code` (`ExtractedCodePayload`/`CodeExtractionResult`), `EvaluationTaskSummary`, and `per_test_results` (`PerTestResultPayload`). Note: in the real pipeline the entry-point choice is outcome-based (`task.py` picks the candidate maximizing passed cases, tie-broken by name === `entry_point`); arity is visible per function via its signature. The shape exposes both so R2 renders the selection story faithfully.
+
+<Code
+  id="extraction-type"
+  filename="src/fixtures/extraction.ts"
+  language="ts"
+  code={"/** One top-level function found in the extracted code (parsed_code.py). */\nexport type ParsedFunction = {\n  function_name: string\n  arity: number                // len(function_args)\n  signature_str: string\n  is_selected: boolean         // === best_function_name\n}\n\n/** Persisted per-test element — PerTestResultPayload (records/models.py). */\nexport type PerTestResult = {\n  test_id: string              // \"case-3\"\n  function_name: string\n  status: EvaluationCaseStatus // 'passed' | 'failed' | 'error' | 'timeout'\n  message: string              // '' when passed\n  test_type: TestCaseKind      // 'input_result' | 'input_oracle' | 'input_expression'\n  input_repr: string\n  expected_output_repr: string\n  actual_output_repr: string\n}\n\nexport type ExtractionFlowSample = {\n  identity: SampleIdentity\n  prompt_text: string                    // details.prompt_text\n  entry_point: string                    // request_json.entry_point\n  raw_generation: string | null          // details.raw_generation\n  extracted_code: string | null          // details.code_text\n  extraction_method: ExtractionMethod | null  // 'fenced_code', 'bare_python', ...\n  compile_ok: boolean\n  compile_error: string | null\n  parsed_functions: ParsedFunction[]\n  best_function_name: string | null      // EvaluationTaskSummary.best_function_name\n  generated_code_outcome: GeneratedCodeOutcome | null\n  per_test_results: PerTestResult[]\n  status_counts: Partial<Record<EvaluationCaseStatus, number>>\n}"}
+/>
+
+<Json
+  id="extraction-example"
+  title="Example row"
+  json={'{"identity": {"prediction_id": "dr-dspy-v1/encdec/prediction/pred-01HZX4", "experiment_id": "dr-dspy-v1/encdec/coarse-budget-01", "experiment_kind": "humaneval_encdec", "task_id": "HumanEval/12", "model": "openai/gpt-5.5-codex", "sample_index": 1}, "prompt_text": "def longest(strings: List[str]) -> Optional[str]: ...", "entry_point": "longest", "raw_generation": "```python\\ndef longest(strings): ...\\n```", "extracted_code": "def longest(strings):\\n    if not strings:\\n        return None\\n    return max(strings, key=len)", "extraction_method": "fenced_code", "compile_ok": true, "compile_error": null, "parsed_functions": [{"function_name": "longest", "arity": 1, "signature_str": "def longest(strings)", "is_selected": true}, {"function_name": "helper", "arity": 2, "signature_str": "def helper(a, b)", "is_selected": false}], "best_function_name": "longest", "generated_code_outcome": "tests_failed", "per_test_results": [{"test_id": "case-0", "function_name": "longest", "status": "passed", "message": "", "test_type": "input_result", "input_repr": "([\'a\', \'bb\', \'ccc\'],)", "expected_output_repr": "\'ccc\'", "actual_output_repr": "\'ccc\'"}, {"test_id": "case-1", "function_name": "longest", "status": "failed", "message": "expected None, got \'\'", "test_type": "input_result", "input_repr": "([],)", "expected_output_repr": "None", "actual_output_repr": "\'\'"}], "status_counts": {"passed": 1, "failed": 1}}'}
+  collapsedDepth={1}
+/>
+
+### 3. Compression results — R3 (`src/fixtures/compression.ts`)
+
+Target vs achieved ratio plus IR/char counts for one sample. Sources: `dimensions.compression_target` (legacy alias `budget_ratio` — the key `heatmap-config.BUDGET_DIMENSION_SQL` already reads), `metrics_json.realized_compression_ratio`, `HumanEvalScoreResult.best_compression_ratio`, per-stage `TextMetricsPayload.character_count`, and byte-based `CompressionMetric` per lossless method (`compression.py`: `ratio_to_ground_truth = compressed_bytes / ground_truth_bytes`, lower is better).
+
+<Code
+  id="compression-type"
+  filename="src/fixtures/compression.ts"
+  language="ts"
+  code={"/** compression.py CompressionMetric — byte-based, one per method, all methods present. */\nexport type CompressionMetric = {\n  method: CompressionMethod      // 'raw' | 'zlib' | 'gzip' | 'bz2' | 'lzma' | 'zstd'\n  ground_truth_bytes: number\n  representation_bytes: number   // IR / encoded-description bytes\n  compressed_bytes: number       // 'raw' = representation_bytes\n  ratio_to_ground_truth: number | null\n  percent_reduction_vs_ground_truth: number | null\n}\n\nexport type CompressionResultRow = {\n  identity: SampleIdentity\n  target_compression_ratio: number | null   // the knob; null for direct runs\n  encoder_char_budget: number | null        // max(50, round(target * gt_chars))\n  achieved_compression_ratio: number | null // metrics_json.realized_compression_ratio\n  best_compression_ratio: number | null     // min ratio across methods\n  ground_truth_char_count: number           // TextMetrics.character_count (chars)\n  encoded_char_count: number | null         // encoder-output IR char count\n  generated_char_count: number | null       // decoded/generated code char count\n  compression_metrics: CompressionMetric[]  // one per method\n  result_state: ResultState\n  score: number | null\n}"}
+/>
+
+<Json
+  id="compression-example"
+  title="Example row (methods abbreviated; fixtures emit all six)"
+  json={'{"identity": {"prediction_id": "dr-dspy-v1/encdec/prediction/pred-01HZX4", "experiment_id": "dr-dspy-v1/encdec/coarse-budget-01", "experiment_kind": "humaneval_encdec", "task_id": "HumanEval/12", "model": "openai/gpt-5.5-codex", "sample_index": 1}, "target_compression_ratio": 0.5, "encoder_char_budget": 96, "achieved_compression_ratio": 0.44, "best_compression_ratio": 0.41, "ground_truth_char_count": 192, "encoded_char_count": 89, "generated_char_count": 205, "compression_metrics": [{"method": "raw", "ground_truth_bytes": 192, "representation_bytes": 89, "compressed_bytes": 89, "ratio_to_ground_truth": 0.464, "percent_reduction_vs_ground_truth": 53.6}, {"method": "zstd", "ground_truth_bytes": 192, "representation_bytes": 89, "compressed_bytes": 79, "ratio_to_ground_truth": 0.411, "percent_reduction_vs_ground_truth": 58.9}], "result_state": "passed", "score": 1.0}'}
+  collapsedDepth={1}
+/>
+
+### 4. Pipeline trace — R4 (`src/fixtures/pipeline.ts`)
+
+Per-stage trace of encode → lossless compress → decompress → decode → run tests. LLM stages map to `NodeAttemptRecord`s (`node_id`: `encoder`, `decoder`, or `direct`); the lossless compress/decompress stages are measurement steps derived from `CompressionMetric`; the test stage summarizes `per_test_results`. Direct-layout traces contain `generate` + `run_tests` only. A stage keeps its last `failure` even when a retry succeeded, so `attempt_index` + `failure` render the retry story while `status` reflects the final attempt.
+
+<Code
+  id="pipeline-type"
+  filename="src/fixtures/pipeline.ts"
+  language="ts"
+  code={"export const PIPELINE_STAGE_NAMES = [\n  'encode', 'compress', 'decompress', 'decode', 'generate', 'run_tests',\n] as const\nexport type PipelineStageName = (typeof PIPELINE_STAGE_NAMES)[number]\n\nexport type StageFailure = {   // FailureMetadataPayload, trimmed to render needs\n  failure_class: FailureClass | null  // 'rate_limited', 'transient', ...\n  error_type: string\n  message: string\n}\n\nexport type PipelineStage = {\n  stage: PipelineStageName\n  node_id: string | null           // 'encoder' | 'decoder' | 'direct'; null otherwise\n  status: 'success' | 'error' | 'skipped'\n  attempt_index: number            // retries; NodeAttemptRecord.attempt_index\n  started_at: string | null        // ISO; null for measurement stages\n  completed_at: string | null\n  duration_ms: number | null\n  input_char_count: number | null\n  output_char_count: number | null\n  output_excerpt: string | null    // IR text, code, test summary line\n  model: string | null             // ProviderConfigRef.model for LLM stages\n  provider_cost: number | null     // usage_cost.provider_cost\n  failure: StageFailure | null\n}\n\nexport type PipelineTrace = {\n  identity: SampleIdentity\n  graph_layout: GraphLayout        // 'direct' | 'encdec'\n  stages: PipelineStage[]\n  result_state: ResultState\n  total_provider_cost: number | null   // published_predictions.provider_cost\n  total_duration_ms: number | null\n}"}
+/>
+
+<Json
+  id="pipeline-example"
+  title="Example row (encdec; decoder rate-limited then recovered; 3 of 5 stages shown)"
+  json={'{"identity": {"prediction_id": "dr-dspy-v1/encdec/prediction/pred-01HZX4", "experiment_id": "dr-dspy-v1/encdec/coarse-budget-01", "experiment_kind": "humaneval_encdec", "task_id": "HumanEval/12", "model": "openai/gpt-5.5-codex", "sample_index": 1}, "graph_layout": "encdec", "stages": [{"stage": "encode", "node_id": "encoder", "status": "success", "attempt_index": 0, "started_at": "2026-07-06T21:14:03Z", "completed_at": "2026-07-06T21:14:09Z", "duration_ms": 6180, "input_char_count": 192, "output_char_count": 89, "output_excerpt": "fn longest: pick max-len str, None if empty", "model": "openai/gpt-5.5-codex", "provider_cost": 0.0011, "failure": null}, {"stage": "decode", "node_id": "decoder", "status": "success", "attempt_index": 1, "started_at": "2026-07-06T21:14:31Z", "completed_at": "2026-07-06T21:14:40Z", "duration_ms": 9020, "input_char_count": 89, "output_char_count": 205, "output_excerpt": "def longest(strings): ...", "model": "openai/gpt-5.5-codex", "provider_cost": 0.0019, "failure": {"failure_class": "rate_limited", "error_type": "RateLimitError", "message": "429 from provider; retried"}}, {"stage": "run_tests", "node_id": null, "status": "success", "attempt_index": 0, "started_at": "2026-07-06T21:14:41Z", "completed_at": "2026-07-06T21:14:43Z", "duration_ms": 1650, "input_char_count": 205, "output_char_count": null, "output_excerpt": "7/8 cases passed", "model": null, "provider_cost": null, "failure": null}], "result_state": "failed", "total_provider_cost": 0.003, "total_duration_ms": 40200}'}
+  collapsedDepth={1}
+/>
+
+### 5. Bootstrap samples — R5 (`src/fixtures/bootstrap.ts`)
+
+Raw per-sample rows — literally the projection of `published_predictions` a bootstrap needs. `BootstrapCiSummary` is the output contract of the shared bootstrap helper (computed client-side, seeded), not fixture data. Rationale in Decisions below.
+
+<Code
+  id="bootstrap-type"
+  filename="src/fixtures/bootstrap.ts"
+  language="ts"
+  code={"/** One scored prediction — the resampling unit. */\nexport type BootstrapSampleRow = {\n  experiment_id: string\n  experiment_kind: ExperimentKind\n  model: string\n  task_id: string\n  sample_index: number\n  passed: boolean            // result_state === 'passed'\n  score: number | null       // binary today; kept for fractional-score futures\n}\n\n/** Output contract of the shared bootstrap helper (computed, not stored). */\nexport type BootstrapCiSummary = {\n  model: string | null       // null = aggregated across models\n  task_id: string | null     // null = aggregated across tasks\n  n_samples: number          // N actually used in this resample config\n  observed_pass_rate: number\n  ci_low: number\n  ci_high: number\n  confidence_level: number   // e.g. 0.95\n  n_resamples: number        // e.g. 2000\n  seed: number               // deterministic reruns\n}"}
+/>
+
+<Json
+  id="bootstrap-example"
+  title="Example rows (raw sample + computed summary)"
+  json={'{"sample": {"experiment_id": "dr-dspy-v1/encdec/coarse-budget-01", "experiment_kind": "humaneval_encdec", "model": "openai/gpt-5.5-codex", "task_id": "HumanEval/12", "sample_index": 2, "passed": true, "score": 1.0}, "computed": {"model": "openai/gpt-5.5-codex", "task_id": null, "n_samples": 3, "observed_pass_rate": 0.62, "ci_low": 0.55, "ci_high": 0.69, "confidence_level": 0.95, "n_resamples": 2000, "seed": 17}}'}
+  collapsedDepth={2}
+/>
+
+### 6. Binned headroom heatmap — R6 (`src/fixtures/heatmap.ts`)
+
+Raw per-task points in the fixture; binning runs client-side (rationale in Decisions). One point per task × model × target budget: X = mean achieved compression ratio across the N samples, Y = per-task average pass rate across the same N. The cell type is still part of the contract because it is the component's render prop.
+
+<Code
+  id="heatmap-type"
+  filename="src/fixtures/heatmap.ts"
+  language="ts"
+  code={"/** One task x model x target group — the unit that gets binned. */\nexport type HeadroomPoint = {\n  model: string                          // facet key (canonical label)\n  task_id: string\n  experiment_kind: ExperimentKind\n  target_compression_ratio: number | null  // knob; null for direct baseline points\n  achieved_compression_ratio: number     // X: mean realized ratio across samples\n  mean_pass_rate: number                 // Y: mean pass/fail across N samples\n  n_samples: number\n}\n\nexport type HeadroomBinConfig = {\n  x_bin_count: number                    // e.g. 10\n  y_bin_count: number\n  x_domain?: [number, number]            // default: data extent\n  y_domain?: [number, number]            // default: [0, 1]\n}\n\n/** Render contract — produced by the shared binning helper. */\nexport type HeadroomHeatmapCell = {\n  facet_key: string                      // model, or 'all' when unfaceted\n  x_bin_index: number\n  x_min: number\n  x_max: number\n  y_bin_index: number\n  y_min: number\n  y_max: number\n  count: number                          // task count in the cell (color)\n}"}
+/>
+
+<Json
+  id="heatmap-example"
+  title="Example rows (point + binned cell)"
+  json={'{"point": {"model": "openai/gpt-5.5-codex", "task_id": "HumanEval/12", "experiment_kind": "humaneval_encdec", "target_compression_ratio": 0.5, "achieved_compression_ratio": 0.44, "mean_pass_rate": 0.667, "n_samples": 3}, "cell": {"facet_key": "openai/gpt-5.5-codex", "x_bin_index": 2, "x_min": 0.4, "x_max": 0.6, "y_bin_index": 6, "y_min": 0.6, "y_max": 0.7, "count": 14}}'}
+  collapsedDepth={2}
+/>
+
+## Decisions
+
+<Callout id="decision-bootstrap" tone="decision">
+
+**Bootstrap (R5): raw per-sample arrays; bootstrapping runs client-side.** Neon stores one row per prediction — there is no CI table to pass through, so a precomputed-CI fixture would invent a shape with no real counterpart and bake in N, the resample count, and the confidence level. R5's acceptance ("compare across N") requires re-resampling at different N, which needs raw samples. Cardinality is small (tasks × models × N ≈ 164 × 6 × 3), so a seeded client-side bootstrap is cheap and deterministic.
+
+</Callout>
+
+<Callout id="decision-heatmap" tone="decision">
+
+**Heatmap (R6): raw per-task points; binning runs client-side.** Bin edges and counts are view parameters — R6 requires URL-persisted layout state, matching how the existing heatmap treats axis order (`heatmap-params.ts`) — so pre-binned fixtures would freeze the exact knobs the user is meant to turn. Point cardinality (≈6k) sits under the existing `HEATMAP_MAX_ROWS = 10_000` precedent. The D3 swap is one `GROUP BY task_id, model, target` over `published_predictions` joined to `metrics_json.realized_compression_ratio`.
+
+</Callout>
+
+<Callout id="decision-identity" tone="decision">
+
+**Shared identity: `SampleIdentity` mirroring `published_predictions` keys.** `prediction_id / experiment_id / experiment_kind / task_id / model / sample_index`, snake_case, values shaped exactly as the publisher writes them (`dr_dspy_v1.experiment_id()` and `display_model()` formats; canonical model label per `canonical-model.ts`). One explicit deviation: `sample_index` is required in fixtures while the v1 publisher leaves the column NULL — see Open Questions.
+
+</Callout>
+
+<Callout id="decision-location" tone="decision">
+
+**Location and import path: `src/fixtures/`, imported as `@/fixtures`.** Per-view modules (`sweep.ts`, `extraction.ts`, `compression.ts`, `pipeline.ts`, `bootstrap.ts`, `heatmap.ts`) plus `primitives.ts` and `rng.ts` (small seeded PRNG — deterministic generators, no `Math.random()`), re-exported from `index.ts`. Each module exports its types plus a generator (`makeSweepMetricsRows(opts)`, …) with realistic defaults and overridable knobs (model/task counts, N, error rates, seed). Vitest tests colocate as `src/fixtures/*.test.ts`.
+
+</Callout>
+
+## File map (implementation, after approval)
+
+<FileTree
+  id="fixtures-file-tree"
+  title="src/fixtures/ — all new files"
+  entries={[
+    { path: "src/fixtures/index.ts", change: "added", note: "Re-exports all types + generators." },
+    { path: "src/fixtures/primitives.ts", change: "added", note: "SampleIdentity + closed enum value sets (exact pipeline strings)." },
+    { path: "src/fixtures/rng.ts", change: "added", note: "Seeded PRNG so generators are deterministic." },
+    { path: "src/fixtures/sweep.ts", change: "added", note: "SweepMetricsRow + makeSweepMetricsRows()." },
+    { path: "src/fixtures/extraction.ts", change: "added", note: "ExtractionFlowSample + makeExtractionFlowSample()." },
+    { path: "src/fixtures/compression.ts", change: "added", note: "CompressionResultRow + makeCompressionResultRows()." },
+    { path: "src/fixtures/pipeline.ts", change: "added", note: "PipelineTrace + makePipelineTrace()." },
+    { path: "src/fixtures/bootstrap.ts", change: "added", note: "BootstrapSampleRow, BootstrapCiSummary + makeBootstrapSampleRows()." },
+    { path: "src/fixtures/heatmap.ts", change: "added", note: "HeadroomPoint, HeadroomHeatmapCell + makeHeadroomPoints()." },
+    { path: "docs/plans/05-r0-fixture-shapes.md", change: "added", note: "Full design doc (this plan's source of truth in-repo)." },
+  ]}
+/>
+
+<Callout id="d3-gaps" tone="warning">
+
+**Known gaps surfaced for D3 (not R0 blockers):** (1) `latency_ms` and `failure_class` are needed by R1 but not yet projected into `published_predictions` — both exist upstream at publish time; two additive `summary_json` keys close the gap. (2) `sample_index` NULL in v1 rows. (3) `metrics_json.realized_compression_ratio` should be pinned to a specific compression method (`raw` vs best) — the fixture exposes both scalars plus the per-method table so either pin works.
+
+</Callout>
+
+## Verification (implementation phase)
+
+- `pnpm test` — vitest: each generator emits rows that satisfy the exported types, enum fields only take catalog values, generators are deterministic for a fixed seed, and example-row snapshots in this plan stay valid.
+- `pnpm lint` and `pnpm build` — types compile under `strict` with no component/route changes.
+- Smoke: import `@/fixtures` from a scratch test and render `makeSweepMetricsRows()` through the existing `GenericTable` fixture-free (no route wiring) to confirm zero-mapping consumption.
+
+### Open Questions
+
+<QuestionForm
+  id="open-questions"
+  questions={[
+    {
+      id: "r1-fields-ahead-of-neon",
+      title: "R1: bake rate_limit_count + latency into the fixture now?",
+      subtitle: "Both exist upstream (NodeAttemptRecord timestamps, FailureMetadataPayload.failure_class) but are not yet projected into published_predictions, so D3 needs two additive summary_json keys in the publisher before these two columns are real.",
+      mode: "single",
+      options: [
+        { id: "bake-in-now", label: "Yes — fixture leads, D3 adds two summary_json keys", detail: "R1 renders error/latency panels from day one; the publisher change is small and additive.", recommended: true },
+        { id: "strict-mirror", label: "No — fixture mirrors Neon exactly, add fields later", detail: "Strictest pass-through guarantee, but R1 ships without rate-limit/latency panels until the publisher changes." },
+      ],
+      required: true,
+    },
+    {
+      id: "heatmap-point-granularity",
+      title: "R6: point granularity for the headroom heatmap?",
+      mode: "single",
+      options: [
+        { id: "per-target", label: "task x model x target budget", detail: "Keeps the budget knob filterable/facetable; E3/E4 read the fine-sweep structure directly.", recommended: true },
+        { id: "pooled", label: "task x model (pooled across targets)", detail: "Simpler, but collapses the budget dimension the fine sweep varies." },
+      ],
+      required: true,
+    },
+    {
+      id: "sample-index-source",
+      title: "sample_index: COALESCE at query time, or backfill the column?",
+      subtitle: "v1 publisher leaves published_predictions.sample_index NULL; the repetition lives in summary_json.repetition_seed.",
+      mode: "single",
+      options: [
+        { id: "coalesce", label: "COALESCE projection in D3 queries", detail: "No publisher change; one expression in each consuming query.", recommended: true },
+        { id: "backfill", label: "Publisher writes sample_index going forward", detail: "Cleaner long-term; touches tools/unitbench_publish (currently out of scope)." },
+      ],
+      required: true,
+    },
+    {
+      id: "shape-feedback",
+      title: "Any field-level changes to the six shapes?",
+      mode: "freeform",
+      placeholder: "e.g. rename a field, drop a measure, add a facet key...",
+    },
+  ]}
+  submitLabel="Send answers"
+/>
