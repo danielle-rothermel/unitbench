@@ -18,7 +18,14 @@ from unitbench_publish.schema import (
 NOW = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
 
 
-def direct_canonical_row(*, score: float = 1.0) -> CanonicalPredictionRow:
+def direct_canonical_row(
+    *,
+    score: float = 1.0,
+    harness_failure_count: int = 0,
+    score_attempt_id: str | None = "score-direct-1",
+    score_status: str | None = "success",
+    submission_outcome: str | None = "passed",
+) -> CanonicalPredictionRow:
     return CanonicalPredictionRow(
         prediction_id="v1-direct-1",
         experiment_name="direct-exp",
@@ -64,18 +71,18 @@ def direct_canonical_row(*, score: float = 1.0) -> CanonicalPredictionRow:
         },
         generation_started_at=NOW,
         generation_completed_at=NOW,
-        score_attempt_id="score-direct-1",
-        score_status="success",
+        score_attempt_id=score_attempt_id,
+        score_status=score_status,
         score=score,
-        generated_code_outcome="passed",
+        submission_outcome=submission_outcome,
         metrics={"compression": {"ratio_to_ground_truth": 0.5}},
         per_test_results=[{"status": "passed"}],
-        score_failure=None,
-        extracted_code={"code": "def add(a, b): return a + b"},
+        extracted_submission={"code": "def add(a, b): return a + b"},
         score_completed_at=NOW,
         score_attempt_index=0,
         scoring_profile_id="humaneval",
         scoring_profile_version="v1",
+        harness_failure_count=harness_failure_count,
     )
 
 
@@ -137,15 +144,15 @@ def encdec_canonical_row(*, score: float = 0.0) -> CanonicalPredictionRow:
         score_attempt_id="score-encdec-1",
         score_status="success",
         score=score,
-        generated_code_outcome="tests_failed",
+        submission_outcome="tests_failed",
         metrics={"custom": {"evaluation": {"best_compression_ratio": 0.6}}},
         per_test_results=[{"status": "failed"}],
-        score_failure=None,
-        extracted_code={"code": "def sub(a, b): return a - b"},
+        extracted_submission={"code": "def sub(a, b): return a - b"},
         score_completed_at=NOW,
         score_attempt_index=0,
         scoring_profile_id="humaneval",
         scoring_profile_version="v1",
+        harness_failure_count=0,
     )
 
 
@@ -204,7 +211,7 @@ def test_result_state_for_v1_scored_predictions() -> None:
             generation_status="success",
             scoring_status="success",
             score=1.0,
-            generated_code_outcome="passed",
+            submission_outcome="passed",
         )
         is ResultState.PASSED
     )
@@ -213,7 +220,7 @@ def test_result_state_for_v1_scored_predictions() -> None:
             generation_status="success",
             scoring_status="success",
             score=0.0,
-            generated_code_outcome="tests_failed",
+            submission_outcome="tests_failed",
         )
         is ResultState.FAILED
     )
@@ -236,6 +243,14 @@ def test_result_state_for_v1_error_predictions() -> None:
         )
         is ResultState.ERROR
     )
+    assert (
+        result_state_for_v1_prediction(
+            generation_status="success",
+            scoring_status="harness_failure",
+            score=None,
+        )
+        is ResultState.ERROR
+    )
 
 
 def test_direct_v1_prediction_maps_to_published_rows() -> None:
@@ -252,6 +267,7 @@ def test_direct_v1_prediction_maps_to_published_rows() -> None:
     assert detail.output_kind == "generated_code"
     assert detail.code_text == "def add(a, b): return a + b"
     assert detail.metrics_json["score"] == 1.0
+    assert detail.metrics_json["submission_outcome"] == "passed"
 
 
 def test_encdec_v1_prediction_maps_to_display_model_and_details() -> None:
@@ -282,10 +298,10 @@ def errored_canonical_row() -> CanonicalPredictionRow:
             "score_attempt_id": None,
             "score_status": None,
             "score": None,
-            "generated_code_outcome": None,
+            "submission_outcome": None,
             "metrics": None,
             "per_test_results": [],
-            "extracted_code": None,
+            "extracted_submission": None,
             "score_completed_at": None,
             "score_attempt_index": None,
             "scoring_profile_id": None,
@@ -311,6 +327,36 @@ def test_errored_v1_prediction_publishes_as_error_row() -> None:
 def test_canonical_query_left_joins_score_attempts() -> None:
     assert "LEFT JOIN dr_dspy_score_attempts" in CANONICAL_PREDICTIONS_SQL
     assert "score_attempt_index DESC NULLS LAST" in CANONICAL_PREDICTIONS_SQL
+
+
+def test_v1_prediction_surfaces_harness_failure_count() -> None:
+    prediction, detail = map_v1_prediction(
+        direct_canonical_row(harness_failure_count=2),
+        node_attempts=direct_node_attempts(),
+    )
+
+    assert prediction.harness_failure_count == 2
+    assert detail.metrics_json["harness_failure_count"] == 2
+    assert detail.validation_json["harness_failure_count"] == 2
+
+
+def test_v1_prediction_surfaces_harness_only_rows() -> None:
+    prediction, detail = map_v1_prediction(
+        direct_canonical_row(
+            score=None,
+            score_attempt_id=None,
+            score_status="harness_failure",
+            submission_outcome=None,
+            harness_failure_count=2,
+        ),
+        node_attempts=direct_node_attempts(),
+    )
+
+    assert prediction.result_state is ResultState.ERROR
+    assert prediction.scoring_status == "harness_failure"
+    assert prediction.harness_failure_count == 2
+    assert detail.metrics_json["score"] is None
+    assert detail.validation_json["harness_failure_count"] == 2
 
 
 def test_build_v1_publish_dataset_summarizes_experiment_counts() -> None:

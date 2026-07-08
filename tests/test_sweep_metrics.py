@@ -78,7 +78,7 @@ def encdec_prediction_row(
     generation_summary: dict | None = None,
     score_status: str | None = "success",
     score: float | None = 1.0,
-    generated_code_outcome: str | None = "passed",
+    submission_outcome: str | None = "passed",
 ) -> MetricsPredictionRow:
     return MetricsPredictionRow(
         prediction_id=prediction_id,
@@ -97,7 +97,7 @@ def encdec_prediction_row(
         generation_summary=generation_summary or {},
         score_status=score_status,
         score=score,
-        generated_code_outcome=generated_code_outcome,
+        submission_outcome=submission_outcome,
     )
 
 
@@ -119,7 +119,7 @@ def test_included_in_pass_rate_rule(
 ) -> None:
     assert (
         prediction_included_in_pass_rate(
-            result_state=result_state, generated_code_outcome=outcome
+            result_state=result_state, submission_outcome=outcome
         )
         is expected
     )
@@ -143,7 +143,7 @@ def test_errored_prediction_row_builds_excluded_record() -> None:
         },
         score_status=None,
         score=None,
-        generated_code_outcome=None,
+        submission_outcome=None,
     )
     record = build_prediction_records([row], [])[0]
 

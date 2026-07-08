@@ -70,7 +70,9 @@ export function PredictionDiagnosticsPanel({
           <StagePill key={stage.id} stage={stage} />
         ))}
       </div>
-      {(diagnostics.primaryFailureReason || diagnostics.testSummary) && (
+      {(diagnostics.primaryFailureReason ||
+        diagnostics.testSummary ||
+        diagnostics.harnessFailureSummary) && (
         <div className="flex flex-col gap-1 text-[13px] text-[var(--text-secondary)]">
           {diagnostics.primaryFailureReason && (
             <p>
@@ -86,6 +88,14 @@ export function PredictionDiagnosticsPanel({
                 Tests:
               </span>{' '}
               {diagnostics.testSummary}
+            </p>
+          )}
+          {diagnostics.harnessFailureSummary && (
+            <p>
+              <span className="font-semibold text-[var(--text-primary)]">
+                Harness:
+              </span>{' '}
+              {diagnostics.harnessFailureSummary}
             </p>
           )}
         </div>

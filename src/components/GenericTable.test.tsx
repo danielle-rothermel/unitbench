@@ -18,6 +18,7 @@ const sampleRow = {
   task_id: 'HumanEval/1',
   model: 'openai/test',
   result_state: 'passed',
+  harness_failure_count: 0,
   score: 1,
   updated_at: '2026-06-28T12:00:00Z',
 }

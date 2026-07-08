@@ -42,6 +42,7 @@ PUBLISHED_PREDICTION_COLUMNS: tuple[str, ...] = (
     "result_state",
     "generation_status",
     "scoring_status",
+    "harness_failure_count",
     "score",
     "provider_cost",
     "created_at",
@@ -99,6 +100,7 @@ CREATE_TABLE_SQL: tuple[str, ...] = (
         result_state TEXT NOT NULL,
         generation_status TEXT,
         scoring_status TEXT,
+        harness_failure_count INTEGER NOT NULL DEFAULT 0,
         score DOUBLE PRECISION,
         provider_cost DOUBLE PRECISION,
         created_at TIMESTAMPTZ,
@@ -127,11 +129,23 @@ CREATE_TABLE_SQL: tuple[str, ...] = (
     """,
 )
 
+ALTER_TABLE_SQL: tuple[str, ...] = (
+    """
+    ALTER TABLE published_predictions
+    ADD COLUMN IF NOT EXISTS harness_failure_count INTEGER NOT NULL DEFAULT 0
+    """,
+)
+
 CREATE_TABLE_SQL_V1: tuple[str, ...] = tuple(
     statement.replace("published_experiments", PUBLISHED_V1_EXPERIMENTS_TABLE)
     .replace("published_predictions", PUBLISHED_V1_PREDICTIONS_TABLE)
     .replace("published_prediction_details", PUBLISHED_V1_PREDICTION_DETAILS_TABLE)
     for statement in CREATE_TABLE_SQL
+)
+
+ALTER_TABLE_SQL_V1: tuple[str, ...] = tuple(
+    statement.replace("published_predictions", PUBLISHED_V1_PREDICTIONS_TABLE)
+    for statement in ALTER_TABLE_SQL
 )
 
 CREATE_INDEX_SQL: tuple[str, ...] = (

@@ -24,7 +24,25 @@ HUMANEVAL_SCORING_PROFILE_ID = "humaneval"
 HUMANEVAL_SCORING_PROFILE_VERSION = "v1"
 
 CANONICAL_PREDICTIONS_SQL = """
-WITH filtered_scores AS (
+WITH harness_failures AS (
+    SELECT
+        prediction_id,
+        generation_run_id,
+        scoring_profile_id,
+        scoring_profile_version,
+        COUNT(*)::int AS harness_failure_count,
+        MAX(attempt_index)::int AS latest_harness_attempt_index,
+        MAX(completed_at) AS latest_harness_failure_at
+    FROM dr_dspy_score_harness_failures
+    WHERE scoring_profile_id = %(scoring_profile_id)s
+        AND scoring_profile_version = %(scoring_profile_version)s
+    GROUP BY
+        prediction_id,
+        generation_run_id,
+        scoring_profile_id,
+        scoring_profile_version
+),
+filtered_scores AS (
     SELECT
         ps.prediction_id,
         ps.experiment_name,
@@ -46,17 +64,28 @@ WITH filtered_scores AS (
         gr.started_at AS generation_started_at,
         gr.completed_at AS generation_completed_at,
         sa.score_attempt_id,
-        sa.status AS score_status,
+        COALESCE(
+            sa.status,
+            CASE
+                WHEN hf.harness_failure_count > 0 THEN 'harness_failure'
+            END
+        ) AS score_status,
         sa.score,
-        sa.generated_code_outcome,
+        sa.submission_outcome,
         sa.metrics,
         COALESCE(sa.per_test_results, '[]'::jsonb) AS per_test_results,
-        sa.failure AS score_failure,
-        sa.extracted_code,
-        sa.completed_at AS score_completed_at,
-        sa.attempt_index AS score_attempt_index,
-        sa.scoring_profile_id,
-        sa.scoring_profile_version,
+        sa.extracted_submission,
+        COALESCE(
+            sa.completed_at,
+            hf.latest_harness_failure_at
+        ) AS score_completed_at,
+        COALESCE(sa.attempt_index, hf.latest_harness_attempt_index)::int
+            AS score_attempt_index,
+        COALESCE(sa.scoring_profile_id, hf.scoring_profile_id)
+            AS scoring_profile_id,
+        COALESCE(sa.scoring_profile_version, hf.scoring_profile_version)
+            AS scoring_profile_version,
+        COALESCE(hf.harness_failure_count, 0)::int AS harness_failure_count,
         ROW_NUMBER() OVER (
             PARTITION BY ps.prediction_id, gr.generation_run_id
             ORDER BY sa.attempt_index DESC
@@ -72,6 +101,11 @@ WITH filtered_scores AS (
         AND sa.scoring_profile_id = %(scoring_profile_id)s
         AND sa.scoring_profile_version = %(scoring_profile_version)s
         AND sa.status = 'success'
+    LEFT JOIN harness_failures hf
+        ON hf.generation_run_id = gr.generation_run_id
+        AND hf.prediction_id = gr.prediction_id
+        AND hf.scoring_profile_id = %(scoring_profile_id)s
+        AND hf.scoring_profile_version = %(scoring_profile_version)s
     WHERE ps.graph_layout IN ('direct', 'encdec')
         {experiment_filter}
         {layout_filter}
@@ -116,15 +150,15 @@ SELECT
     score_attempt_id,
     score_status,
     score,
-    generated_code_outcome,
+    submission_outcome,
     metrics,
     per_test_results,
-    score_failure,
-    extracted_code,
+    extracted_submission,
     score_completed_at,
     score_attempt_index,
     scoring_profile_id,
-    scoring_profile_version
+    scoring_profile_version,
+    harness_failure_count
 FROM ranked_predictions
 WHERE prediction_rank = 1
 ORDER BY experiment_name, fair_order_key, prediction_id
@@ -191,15 +225,15 @@ class CanonicalPredictionRow(BaseModel):
     score_attempt_id: StrictStr | None
     score_status: StrictStr | None
     score: float | None
-    generated_code_outcome: StrictStr | None
+    submission_outcome: StrictStr | None
     metrics: dict[str, Any] | None = None
     per_test_results: list[Any] = Field(default_factory=list)
-    score_failure: dict[str, Any] | None = None
-    extracted_code: dict[str, Any] | None = None
+    extracted_submission: dict[str, Any] | None = None
     score_completed_at: datetime | None
     score_attempt_index: StrictInt | None
     scoring_profile_id: StrictStr | None
     scoring_profile_version: StrictStr | None
+    harness_failure_count: StrictInt = 0
 
 
 class NodeAttemptRow(BaseModel):
@@ -314,7 +348,9 @@ def latest_node_outputs(
     return latest
 
 
-def total_provider_cost(node_attempts: Iterable[NodeAttemptRow], run_id: str) -> float | None:
+def total_provider_cost(
+    node_attempts: Iterable[NodeAttemptRow], run_id: str
+) -> float | None:
     total = 0.0
     found = False
     for attempt in node_attempts:
@@ -433,7 +469,7 @@ def map_v1_prediction(
         generation_status=row.generation_status,
         scoring_status=row.score_status,
         score=row.score,
-        generated_code_outcome=row.generated_code_outcome,
+        submission_outcome=row.submission_outcome,
     )
     inputs = task_input_values(row.task_snapshot)
     metadata = task_metadata(row.task_snapshot)
@@ -530,6 +566,7 @@ def map_v1_prediction(
         result_state=result_state,
         generation_status=row.generation_status,
         scoring_status=row.score_status,
+        harness_failure_count=row.harness_failure_count,
         score=row.score,
         provider_cost=provider_cost,
         created_at=row.spec_created_at,
@@ -590,7 +627,8 @@ def metrics_json(row: CanonicalPredictionRow) -> dict[str, Any]:
     evaluation = custom.get("evaluation") if isinstance(custom, dict) else {}
     return {
         "score": row.score,
-        "generated_code_outcome": row.generated_code_outcome,
+        "submission_outcome": row.submission_outcome,
+        "harness_failure_count": row.harness_failure_count,
         "metrics": metrics,
         "realized_compression_ratio": (
             compression.get("ratio_to_ground_truth")
@@ -608,9 +646,9 @@ def metrics_json(row: CanonicalPredictionRow) -> dict[str, Any]:
 
 def validation_json(row: CanonicalPredictionRow) -> dict[str, Any]:
     return {
-        "generated_code_outcome": row.generated_code_outcome,
-        "score_failure": row.score_failure,
-        "extracted_code": row.extracted_code,
+        "submission_outcome": row.submission_outcome,
+        "harness_failure_count": row.harness_failure_count,
+        "extracted_submission": row.extracted_submission,
         "generation_summary": row.generation_summary,
     }
 
@@ -671,7 +709,9 @@ def build_publish_dataset(
         )
         accumulator.add_prediction(prediction)
     return PublishDataset(
-        experiments=[accumulator.to_published() for accumulator in accumulators.values()],
+        experiments=[
+            accumulator.to_published() for accumulator in accumulators.values()
+        ],
         predictions=predictions,
         details=details,
     )

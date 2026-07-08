@@ -16,6 +16,7 @@ export type PredictionDetail = {
   result_state: string
   generation_status: string | null
   scoring_status: string | null
+  harness_failure_count: number
   score: number | null
   provider_cost: number | null
   created_at: string | null
@@ -55,6 +56,7 @@ SELECT
   p.result_state,
   p.generation_status,
   p.scoring_status,
+  p.harness_failure_count,
   p.score,
   p.provider_cost,
   p.created_at,

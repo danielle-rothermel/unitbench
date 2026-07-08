@@ -15,6 +15,7 @@ function makeDetail(overrides: Partial<PredictionDetail> = {}): PredictionDetail
     result_state: 'passed',
     generation_status: 'generated',
     scoring_status: 'scored',
+    harness_failure_count: 0,
     score: 1,
     provider_cost: 0.0012,
     created_at: '2026-06-28T12:00:00Z',
@@ -47,6 +48,7 @@ describe('PredictionDetailPage', () => {
     expect(screen.getAllByText('humaneval_direct')).toHaveLength(1)
     expect(screen.getByText('openai/gpt-test')).toBeInTheDocument()
     expect(screen.getByText('$0.00120')).toBeInTheDocument()
+    expect(screen.getByText('Harness failures')).toBeInTheDocument()
     expect(screen.getByText('Provenance')).toBeInTheDocument()
     expect(screen.getByText('Generation · prompt → output')).toBeInTheDocument()
     expect(screen.getByText('Debug payloads')).toBeInTheDocument()
@@ -81,6 +83,21 @@ describe('PredictionDetailPage', () => {
     expect(paneLabels).not.toContain('Code')
     expect(screen.getByText('Prompt')).toBeInTheDocument()
     expect(screen.getByText('Code')).toBeInTheDocument()
+  })
+
+  it('shows harness failure counts in diagnostics when present', () => {
+    render(
+      <PredictionDetailPage
+        detail={makeDetail({ harness_failure_count: 1 })}
+        backHref="/tables/x"
+      />,
+    )
+
+    expect(
+      screen.getByText(
+        '1 scoring harness failure recorded separately from model test failures',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows diagnostics, run config, and reference sections when data is present', () => {
