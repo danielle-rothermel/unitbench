@@ -63,74 +63,6 @@
         "title": "FailureClass",
         "type": "string"
       },
-      "FixtureOutcomeSpec": {
-        "additionalProperties": false,
-        "properties": {
-          "completion_tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completion Tokens"
-          },
-          "failure_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Failure Code"
-          },
-          "failure_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Failure Message"
-          },
-          "finish_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "stop",
-            "title": "Finish Reason"
-          },
-          "text": {
-            "default": "",
-            "title": "Text",
-            "type": "string"
-          },
-          "total_cost": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total Cost"
-          }
-        },
-        "title": "FixtureOutcomeSpec",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -364,18 +296,18 @@
       },
       "ProviderChoice": {
         "additionalProperties": false,
-        "description": "Which provider executes the call: scripted fixture or live.",
+        "description": "Which provider executes the call: scripted or live.",
         "properties": {
-          "fixture_outcomes": {
-            "items": {
-              "$ref": "#/components/schemas/FixtureOutcomeSpec"
-            },
-            "title": "Fixture Outcomes",
-            "type": "array"
-          },
           "kind": {
             "$ref": "#/components/schemas/ProviderChoiceKind",
-            "default": "fixture"
+            "default": "scripted"
+          },
+          "scripted_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptedOutcomeSpec"
+            },
+            "title": "Scripted Outcomes",
+            "type": "array"
           }
         },
         "title": "ProviderChoice",
@@ -383,7 +315,7 @@
       },
       "ProviderChoiceKind": {
         "enum": [
-          "fixture",
+          "scripted",
           "live"
         ],
         "title": "ProviderChoiceKind",
@@ -573,6 +505,74 @@
         ],
         "title": "ReasoningEffort",
         "type": "string"
+      },
+      "ScriptedOutcomeSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Tokens"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "stop",
+            "title": "Finish Reason"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "total_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost"
+          }
+        },
+        "title": "ScriptedOutcomeSpec",
+        "type": "object"
       },
       "ServeProviderKind": {
         "enum": [

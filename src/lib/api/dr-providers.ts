@@ -104,27 +104,6 @@ export interface components {
          * @enum {string}
          */
         FailureClass: "permanent" | "transient" | "rate_limited" | "resource_exhaustion" | "unknown";
-        /** FixtureOutcomeSpec */
-        FixtureOutcomeSpec: {
-            /** Completion Tokens */
-            completion_tokens?: number | null;
-            /** Failure Code */
-            failure_code?: string | null;
-            /** Failure Message */
-            failure_message?: string | null;
-            /**
-             * Finish Reason
-             * @default stop
-             */
-            finish_reason: string | null;
-            /**
-             * Text
-             * @default
-             */
-            text: string;
-            /** Total Cost */
-            total_cost?: number | null;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -208,19 +187,19 @@ export interface components {
         };
         /**
          * ProviderChoice
-         * @description Which provider executes the call: scripted fixture or live.
+         * @description Which provider executes the call: scripted or live.
          */
         ProviderChoice: {
-            /** Fixture Outcomes */
-            fixture_outcomes?: components["schemas"]["FixtureOutcomeSpec"][];
-            /** @default fixture */
+            /** @default scripted */
             kind: components["schemas"]["ProviderChoiceKind"];
+            /** Scripted Outcomes */
+            scripted_outcomes?: components["schemas"]["ScriptedOutcomeSpec"][];
         };
         /**
          * ProviderChoiceKind
          * @enum {string}
          */
-        ProviderChoiceKind: "fixture" | "live";
+        ProviderChoiceKind: "scripted" | "live";
         /**
          * ProviderFailure
          * @description Primary failure artifact; exceptions carry it.
@@ -285,6 +264,27 @@ export interface components {
          * @enum {string}
          */
         ReasoningEffort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+        /** ScriptedOutcomeSpec */
+        ScriptedOutcomeSpec: {
+            /** Completion Tokens */
+            completion_tokens?: number | null;
+            /** Failure Code */
+            failure_code?: string | null;
+            /** Failure Message */
+            failure_message?: string | null;
+            /**
+             * Finish Reason
+             * @default stop
+             */
+            finish_reason: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Total Cost */
+            total_cost?: number | null;
+        };
         /**
          * ServeProviderKind
          * @enum {string}

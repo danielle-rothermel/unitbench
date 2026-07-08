@@ -89,8 +89,8 @@ export function ProviderPlayground() {
   })
 
   const fixtureProvider = (): ProviderChoice => ({
-    kind: 'fixture',
-    fixture_outcomes: [
+    kind: 'scripted',
+    scripted_outcomes: [
       {
         text: fixtureText,
         finish_reason: 'stop',
