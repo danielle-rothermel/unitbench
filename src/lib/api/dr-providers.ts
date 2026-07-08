@@ -139,17 +139,11 @@ export interface components {
         };
         /** LlmResponse */
         LlmResponse: {
-            /** Continuation Handle */
-            continuation_handle?: string | null;
             cost?: components["schemas"]["CostInfo"] | null;
             /** Finish Reason */
             finish_reason?: string | null;
             /** Model */
             model?: string | null;
-            /** Payload */
-            payload?: {
-                [key: string]: unknown;
-            };
             /** Provider Metadata */
             provider_metadata?: {
                 [key: string]: unknown;
@@ -219,12 +213,14 @@ export interface components {
         ProviderChoice: {
             /** Fixture Outcomes */
             fixture_outcomes?: components["schemas"]["FixtureOutcomeSpec"][];
-            /**
-             * Kind
-             * @default fixture
-             */
-            kind: string;
+            /** @default fixture */
+            kind: components["schemas"]["ProviderChoiceKind"];
         };
+        /**
+         * ProviderChoiceKind
+         * @enum {string}
+         */
+        ProviderChoiceKind: "fixture" | "live";
         /**
          * ProviderFailure
          * @description Primary failure artifact; exceptions carry it.
@@ -275,15 +271,20 @@ export interface components {
             /** Model */
             model: string;
             provider_kind: components["schemas"]["ServeProviderKind"];
-            /** Reasoning */
-            reasoning?: {
-                [key: string]: unknown;
-            };
+            reasoning?: components["schemas"]["ReasoningEffort"] | null;
             /** Temperature */
             temperature?: number | null;
             /** Token Limit */
             token_limit?: number | null;
+            /** Top P */
+            top_p?: number | null;
         };
+        /**
+         * ReasoningEffort
+         * @description Typed cross-provider reasoning level (see ADR 0001).
+         * @enum {string}
+         */
+        ReasoningEffort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         /**
          * ServeProviderKind
          * @enum {string}

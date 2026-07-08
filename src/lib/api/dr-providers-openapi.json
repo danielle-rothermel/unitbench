@@ -165,17 +165,6 @@
       "LlmResponse": {
         "additionalProperties": false,
         "properties": {
-          "continuation_handle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Continuation Handle"
-          },
           "cost": {
             "anyOf": [
               {
@@ -207,11 +196,6 @@
               }
             ],
             "title": "Model"
-          },
-          "payload": {
-            "additionalProperties": true,
-            "title": "Payload",
-            "type": "object"
           },
           "provider_metadata": {
             "additionalProperties": true,
@@ -390,13 +374,20 @@
             "type": "array"
           },
           "kind": {
-            "default": "fixture",
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/ProviderChoiceKind",
+            "default": "fixture"
           }
         },
         "title": "ProviderChoice",
         "type": "object"
+      },
+      "ProviderChoiceKind": {
+        "enum": [
+          "fixture",
+          "live"
+        ],
+        "title": "ProviderChoiceKind",
+        "type": "string"
       },
       "ProviderFailure": {
         "additionalProperties": false,
@@ -519,9 +510,14 @@
             "$ref": "#/components/schemas/ServeProviderKind"
           },
           "reasoning": {
-            "additionalProperties": true,
-            "title": "Reasoning",
-            "type": "object"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "temperature": {
             "anyOf": [
@@ -544,6 +540,17 @@
               }
             ],
             "title": "Token Limit"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P"
           }
         },
         "required": [
@@ -553,6 +560,19 @@
         ],
         "title": "QuerySpec",
         "type": "object"
+      },
+      "ReasoningEffort": {
+        "description": "Typed cross-provider reasoning level (see ADR 0001).",
+        "enum": [
+          "none",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "title": "ReasoningEffort",
+        "type": "string"
       },
       "ServeProviderKind": {
         "enum": [
@@ -838,7 +858,7 @@
   },
   "info": {
     "title": "dr-providers serve",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
