@@ -4,6 +4,7 @@ import { Fira_Code, Hanken_Grotesk, Space_Grotesk } from 'next/font/google'
 import AppShell from '@/components/AppShell'
 import { cn } from '@/lib/cn'
 import { getTableConfigs } from '@/lib/table-config'
+import '@dr-code/viewer/styles.css'
 import './globals.css'
 
 const display = Space_Grotesk({
