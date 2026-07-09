@@ -3,6 +3,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 .worktrees/
+test-results/
 
 # C extensions
 *.so
