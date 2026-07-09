@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from unitbench_publish.dr_dspy_v1 import (
+    CANONICAL_PREDICTIONS_SQL,
     CanonicalPredictionRow,
     NodeAttemptRow,
     build_publish_dataset,
@@ -265,6 +266,51 @@ def test_encdec_v1_prediction_maps_to_display_model_and_details() -> None:
     assert prediction.provider_cost == 0.005
     assert detail.output_kind == "decoded_generation"
     assert detail.request_json["encoded_description"] == "Subtract b from a."
+
+
+def errored_canonical_row() -> CanonicalPredictionRow:
+    row = direct_canonical_row()
+    return row.model_copy(
+        update={
+            "prediction_id": "v1-direct-error-1",
+            "generation_run_id": "run-direct-error-1",
+            "generation_status": "error",
+            "generation_summary": {
+                "metadata": {"v0_source": {"v0_prediction_id": "pred-err-legacy"}},
+                "terminal_error": {"failure": {"failure_class": "rate_limited"}},
+            },
+            "score_attempt_id": None,
+            "score_status": None,
+            "score": None,
+            "generated_code_outcome": None,
+            "metrics": None,
+            "per_test_results": [],
+            "extracted_code": None,
+            "score_completed_at": None,
+            "score_attempt_index": None,
+            "scoring_profile_id": None,
+            "scoring_profile_version": None,
+        }
+    )
+
+
+def test_errored_v1_prediction_publishes_as_error_row() -> None:
+    prediction, detail = map_v1_prediction(
+        errored_canonical_row(),
+        node_attempts=[],
+    )
+
+    assert prediction.result_state is ResultState.ERROR
+    assert prediction.score is None
+    assert prediction.scoring_status is None
+    assert prediction.summary_json["scored_at"] is None
+    assert prediction.updated_at == NOW
+    assert detail.output_text is None
+
+
+def test_canonical_query_left_joins_score_attempts() -> None:
+    assert "LEFT JOIN dr_dspy_score_attempts" in CANONICAL_PREDICTIONS_SQL
+    assert "score_attempt_index DESC NULLS LAST" in CANONICAL_PREDICTIONS_SQL
 
 
 def test_build_v1_publish_dataset_summarizes_experiment_counts() -> None:
