@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from datetime import datetime
 from typing import Any, TypeVar
 
 import psycopg
@@ -37,6 +38,18 @@ def init_published_schema(connection: Connection[Any]) -> None:
     ):
         connection.execute(statement)
     connection.commit()
+    init_metrics_schema(connection)
+
+
+def init_metrics_schema(connection: Connection[Any]) -> None:
+    """Create only the two v1 metrics projection tables (plus indexes/comments)."""
+    for statement in (
+        *schema.CREATE_METRICS_TABLE_SQL,
+        *schema.CREATE_METRICS_INDEX_SQL,
+        *schema.METRICS_COLUMN_COMMENT_SQL,
+    ):
+        connection.execute(statement)
+    connection.commit()
 
 
 def count_table(connection: Connection[Any], table: str) -> int:
@@ -67,6 +80,12 @@ def published_counts(connection: Connection[Any]) -> dict[str, int]:
         ),
         schema.PUBLISHED_V1_PREDICTION_DETAILS_TABLE: count_table(
             connection, schema.PUBLISHED_V1_PREDICTION_DETAILS_TABLE
+        ),
+        schema.PUBLISHED_V1_SWEEP_METRICS_TABLE: count_table(
+            connection, schema.PUBLISHED_V1_SWEEP_METRICS_TABLE
+        ),
+        schema.PUBLISHED_V1_FAILURE_METRICS_TABLE: count_table(
+            connection, schema.PUBLISHED_V1_FAILURE_METRICS_TABLE
         ),
     }
 
@@ -104,6 +123,25 @@ def upsert_models(
         if progress is not None:
             progress(table, written, total)
     return written
+
+
+def delete_stale_rows(
+    connection: Connection[Any],
+    *,
+    table: str,
+    source: str,
+    computed_before: datetime,
+) -> int:
+    """Delete rows from a metrics rebuild whose computed_at predates this run."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"DELETE FROM {table} "
+            "WHERE source = %(source)s AND computed_at < %(computed_before)s",
+            {"source": source, "computed_before": computed_before},
+        )
+        deleted = cursor.rowcount
+    connection.commit()
+    return deleted
 
 
 def batches(items: Sequence[T], size: int) -> Iterable[Sequence[T]]:

@@ -11,6 +11,7 @@ JsonDict = dict[str, Any]
 
 class SourceName(StrEnum):
     DR_DSPY = "dr-dspy"
+    DR_DSPY_V1 = "dr-dspy-v1"
 
 
 class ExperimentKind(StrEnum):
@@ -23,6 +24,13 @@ class ResultState(StrEnum):
     FAILED = "failed"
     PENDING = "pending"
     ERROR = "error"
+
+
+class MetricsGrouping(StrEnum):
+    MODEL = "model"
+    MODEL_KIND = "model_kind"
+    TASK = "task"
+    MODEL_TASK = "model_task"
 
 
 GENERATION_ERROR_STATUSES = frozenset(
@@ -139,3 +147,57 @@ class PublishDataset(BaseModel):
     experiments: list[PublishedExperiment]
     predictions: list[PublishedPrediction]
     details: list[PublishedPredictionDetail]
+
+
+class PublishedSweepMetric(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metric_key: StrictStr
+    source: SourceName
+    grouping: MetricsGrouping
+    model: StrictStr | None
+    task_id: StrictStr | None
+    experiment_kind: ExperimentKind | None
+    n: StrictInt
+    pass_count: StrictInt
+    fail_count: StrictInt
+    pending_count: StrictInt
+    error_count: StrictInt
+    rate_limit_count: StrictInt
+    included_in_pass_rate_count: StrictInt
+    scored_n: StrictInt
+    pass_rate: float | None
+    avg_score: float | None
+    stddev_score: float | None
+    avg_cost: float | None
+    total_cost: float | None
+    avg_latency_ms: float | None
+    p95_latency_ms: float | None
+    avg_provider_latency_ms_proxy: float | None
+    p95_provider_latency_ms_proxy: float | None
+    pass_rate_rank: StrictInt | None
+    computed_at: datetime
+    updated_at: datetime
+
+
+class PublishedFailureMetric(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    metric_key: StrictStr
+    source: SourceName
+    model: StrictStr
+    display_model: StrictStr | None
+    node_id: StrictStr
+    failure_class: StrictStr
+    error_type: StrictStr | None
+    attempt_count: StrictInt
+    prediction_count: StrictInt
+    computed_at: datetime
+    updated_at: datetime
+
+
+class SweepMetricsDataset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sweep_metrics: list[PublishedSweepMetric]
+    failure_metrics: list[PublishedFailureMetric]

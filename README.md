@@ -2,8 +2,9 @@
 
 A hosted viewer for published benchmark and experiment results. A local Python CLI
 (`tools/unitbench_publish`) curates experiment tables into Neon; the Next.js app reads
-those tables server-side, with filterable/sortable browse tables and per-prediction
-detail pages.
+those tables server-side, with filterable/sortable browse tables, per-prediction
+detail pages, an aggregate view (`/aggregate`), and a score heatmap
+(`/aggregate/heatmap`).
 
 ## Local development
 
@@ -23,8 +24,8 @@ The dev server runs at http://localhost:3000.
 
 - Use **pnpm**, not `npm`/`yarn` — the repo is pinned via the `packageManager`
   field and uses `pnpm-lock.yaml`.
-- The database connection is configured in `.env` via
-  `DR_LLM_POSTGRES_SYNC_ADMIN_URL` (Neon Postgres). The app reads its tables
+- The database connection is configured in `.env` via `DATABASE_URL`
+  (Neon Postgres) — see `.env.example`. The app reads its tables
   server-side, so no Python tooling is needed just to view the dev server — the
   tables are populated separately by the `tools/unitbench_publish` CLI.
 
