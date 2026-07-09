@@ -9,9 +9,11 @@ const STATE_BADGE: Record<string, string> = {
   scored: 'bg-[var(--green-bg)] text-[var(--green)]',
   generated: 'bg-[var(--green-bg)] text-[var(--green)]',
   failed: 'bg-[var(--red-bg)] text-[var(--red)]',
+  error: 'bg-[var(--red-bg)] text-[var(--red)]',
   generation_error: 'bg-[var(--red-bg)] text-[var(--red)]',
   score_error: 'bg-[var(--red-bg)] text-[var(--red)]',
   pending: 'bg-[var(--yellow-bg)] text-[var(--yellow)]',
+  timeout: 'bg-[var(--yellow-bg)] text-[var(--yellow)]',
   queued: 'bg-[var(--blue-bg)] text-[var(--blue)]',
   started: 'bg-[var(--blue-bg)] text-[var(--blue)]',
 }
