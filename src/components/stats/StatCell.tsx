@@ -25,7 +25,7 @@ export function StatCell({
           mono && 'font-mono',
         )}
       >
-        {value ?? 'unknown'}
+        {value ?? '—'}
       </div>
       {sub && <div className="mt-1 text-xs text-[var(--text-muted)]">{sub}</div>}
     </div>

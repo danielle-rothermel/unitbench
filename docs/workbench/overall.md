@@ -143,9 +143,20 @@ Hardest UI; reuses the inspector component and graph viewer.
 - MotherDuck/DuckDB read-side; Railway persistence of facades; facade
   auth.
 
+## Decisions made in flight
+
+- **Chart library: visx** (stage 1). SVG-native so the OKLCH tokens
+  pass straight through as `var(--…)` fill/stroke strings
+  (`src/lib/chart-theme.ts`); tree-shakeable; low-level enough for the
+  stage-5 violins. Demo scatter at `/lab/chart-demo`.
+- **Lane IA keeps existing URLs** (stage 1). URL-addressable state is a
+  praised feature; the lanes are navigation groups in `AppShell`
+  (Data / Replay / Playgrounds / Design / Lab), with planned lanes
+  shown as muted placeholders until stages 2–6 fill them. No redirects
+  needed.
+
 ## Open questions
 
-- Chart library choice (token-theming ergonomics decide it).
 - Read-layer interface shape for the published→projection swap.
 - Whether variance-mode reports feed the dr-providers audit corpus
   directly or via a curation step.

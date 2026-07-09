@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useTransition, type ReactNode } from 'react'
+import { useMemo, useRef, useTransition, type ReactNode } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { ResultBadge } from '@/components/primitives'
+import { useTableShortcuts } from '@/hooks/useTableShortcuts'
 import { cn } from '@/lib/cn'
 import {
   formatCellValue,
@@ -95,6 +96,8 @@ export function GenericTable({
 }: GenericTableProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  useTableShortcuts(containerRef)
 
   const visibleColumns = useMemo(() => allTableColumns(config), [config])
   const returnQuery = useMemo(() => buildTableQuery(state).toString(), [state])
@@ -215,7 +218,7 @@ export function GenericTable({
   const bodyRows = table.getRowModel().rows
 
   return (
-    <div className={cn('w-full', isPending && 'opacity-60')}>
+    <div ref={containerRef} className={cn('w-full', isPending && 'opacity-60')}>
       <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-4 py-2.5 text-[13px]">
           <span className="font-medium text-[var(--text-secondary)]">
@@ -224,8 +227,13 @@ export function GenericTable({
             </span>{' '}
             rows
           </span>
-          <span className="font-mono text-[12px] text-[var(--text-muted)]">
-            Page {state.page} of {totalPages}
+          <span className="flex items-center gap-3">
+            <span className="hidden font-mono text-[11px] text-[var(--text-muted)] md:inline">
+              / filter · j/k rows
+            </span>
+            <span className="font-mono text-[12px] text-[var(--text-muted)]">
+              Page {state.page} of {totalPages}
+            </span>
           </span>
         </div>
         <table className="w-full min-w-[980px] border-collapse">
@@ -244,7 +252,7 @@ export function GenericTable({
                   <th
                     key={header.id}
                     className={cn(
-                      'sticky top-0 z-[1] border-b border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-4 py-2.5 align-middle font-display text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase last:border-r-0',
+                      'sticky top-0 z-[1] border-b border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)] px-4 py-2.5 align-middle text-[11px] font-semibold tracking-[0.06em] text-[var(--text-muted)] uppercase last:border-r-0',
                       isNumber ? 'text-right' : 'text-left',
                     )}
                   >
@@ -294,7 +302,9 @@ export function GenericTable({
             {bodyRows.map(row => (
               <tr
                 key={row.id}
-                className="transition-colors last:[&>td]:border-b-0 hover:bg-[var(--bg-hover)]"
+                data-row
+                tabIndex={-1}
+                className="transition-colors last:[&>td]:border-b-0 focus-within:bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]"
               >
                 {row.getVisibleCells().map(cell => {
                   const column = columnByKey.get(cell.column.id)

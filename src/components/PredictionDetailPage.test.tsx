@@ -43,8 +43,8 @@ describe('PredictionDetailPage', () => {
       screen.getAllByText('dr-dspy/direct/prediction/abc'),
     ).toHaveLength(2)
     expect(screen.getAllByText('passed').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('dr-dspy')).toHaveLength(2)
-    expect(screen.getAllByText('humaneval_direct')).toHaveLength(2)
+    expect(screen.getAllByText('dr-dspy')).toHaveLength(1)
+    expect(screen.getAllByText('humaneval_direct')).toHaveLength(1)
     expect(screen.getByText('openai/gpt-test')).toBeInTheDocument()
     expect(screen.getByText('$0.00120')).toBeInTheDocument()
     expect(screen.getByText('Provenance')).toBeInTheDocument()
@@ -62,6 +62,25 @@ describe('PredictionDetailPage', () => {
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
     expect(screen.queryByText('Raw generation')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument()
+  })
+
+  it('collapses debug JSON payloads by default while keeping code panes open', () => {
+    const { container } = render(
+      <PredictionDetailPage detail={makeDetail()} backHref="/tables/x" />,
+    )
+
+    const payloadPanes = [...container.querySelectorAll('details')]
+    expect(payloadPanes.length).toBeGreaterThan(0)
+    for (const pane of payloadPanes) {
+      expect(pane.open).toBe(false)
+    }
+    const paneLabels = payloadPanes.map(pane =>
+      pane.querySelector('h3')?.textContent,
+    )
+    expect(paneLabels).not.toContain('Prompt')
+    expect(paneLabels).not.toContain('Code')
+    expect(screen.getByText('Prompt')).toBeInTheDocument()
+    expect(screen.getByText('Code')).toBeInTheDocument()
   })
 
   it('shows diagnostics, run config, and reference sections when data is present', () => {

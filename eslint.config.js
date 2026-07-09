@@ -6,12 +6,19 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  globalIgnores(['.next', '.claude', 'coverage', 'dist', 'next-env.d.ts']),
+  globalIgnores([
+    '.next',
+    '.claude',
+    '.worktrees',
+    'coverage',
+    'dist',
+    'next-env.d.ts',
+  ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,
   reactHooks.configs.flat.recommended,
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,mjs,jsx,ts,tsx}'],
     plugins: {
       '@next/next': nextPlugin,
     },

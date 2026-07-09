@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
 import {
@@ -21,6 +21,42 @@ const defaultState = {
 }
 
 describe('ScoreHeatmap', () => {
+  it('exposes grid semantics with axis headers and accessible cell names', () => {
+    render(
+      <ScoreHeatmap
+        state={defaultState}
+        rows={[
+          {
+            model: 'openai/gpt-5-nano',
+            experiment_kind: 'humaneval_direct',
+            n: 987,
+            avg_score: 0.75,
+          },
+          {
+            model: 'openai/gpt-5-nano',
+            experiment_kind: 'humaneval_encdec',
+            n: 3451,
+            avg_score: 0.147,
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'humaneval_direct' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('rowheader', { name: 'openai/gpt-5-nano' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', {
+        name: 'openai/gpt-5-nano, humaneval_direct: 0.750',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('gridcell')).toHaveLength(2)
+  })
+
   it('colors cells when one model is missing an experiment kind', () => {
     const { container } = render(
       <ScoreHeatmap

@@ -7,6 +7,8 @@ export type StageStatus =
   | 'pending'
   | 'skipped'
   | 'unknown'
+  | 'completed'
+  | 'inconsistent'
 
 export type PipelineStageId =
   | 'generation'
@@ -19,6 +21,7 @@ export type PipelineStageInfo = {
   id: PipelineStageId
   label: string
   status: StageStatus
+  statusLabel?: string
   detail: string | null
 }
 
@@ -231,6 +234,13 @@ function buildCompileStage(validation: Record<string, unknown>): PipelineStageIn
   }
 }
 
+export function formatInconsistentEvaluation(
+  failures: number,
+  total: number,
+): string {
+  return `${failures} failures reported for ${total} evaluation case${total === 1 ? '' : 's'} — inconsistent data`
+}
+
 function buildEvaluationStage(metrics: Record<string, unknown>): {
   stage: PipelineStageInfo
   testSummary: string | null
@@ -247,6 +257,20 @@ function buildEvaluationStage(metrics: Record<string, unknown>): {
         detail: null,
       },
       testSummary: null,
+    }
+  }
+
+  if (totalCases !== null && failureCount !== null && failureCount > totalCases) {
+    const marker = formatInconsistentEvaluation(failureCount, totalCases)
+    return {
+      stage: {
+        id: 'evaluation',
+        label: 'Evaluation',
+        status: 'inconsistent',
+        statusLabel: 'inconsistent data',
+        detail: marker,
+      },
+      testSummary: marker,
     }
   }
 
@@ -297,7 +321,8 @@ function buildScoringStage(detail: PredictionDetail): PipelineStageInfo {
     return {
       id: 'scoring',
       label: 'Scoring',
-      status: 'passed',
+      status: 'completed',
+      statusLabel: 'scored',
       detail: detail.score === null ? null : `score ${detail.score.toFixed(2)}`,
     }
   }
@@ -360,6 +385,9 @@ function derivePrimaryFailureReason(
   const totalCases = asInt(metrics.evaluation_total_cases)
   const failureCount = asInt(metrics.evaluation_failure_count)
   if (totalCases !== null && failureCount !== null && failureCount > 0) {
+    if (failureCount > totalCases) {
+      return formatInconsistentEvaluation(failureCount, totalCases)
+    }
     return `${failureCount}/${totalCases} evaluation cases failed`
   }
 

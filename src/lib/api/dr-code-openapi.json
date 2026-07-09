@@ -1,0 +1,550 @@
+{
+  "components": {
+    "schemas": {
+      "CandidateExplanation": {
+        "additionalProperties": false,
+        "properties": {
+          "compile_ok": {
+            "title": "Compile Ok",
+            "type": "boolean"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CandidateStatus"
+          }
+        },
+        "required": [
+          "index",
+          "source",
+          "status",
+          "compile_ok"
+        ],
+        "title": "CandidateExplanation",
+        "type": "object"
+      },
+      "CandidateStatus": {
+        "enum": [
+          "selected",
+          "rejected",
+          "not_reached"
+        ],
+        "title": "CandidateStatus",
+        "type": "string"
+      },
+      "CodeExtractionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "compile_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Error"
+          },
+          "compile_ok": {
+            "title": "Compile Ok",
+            "type": "boolean"
+          },
+          "extracted_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extracted Code"
+          },
+          "extraction_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Error"
+          },
+          "extraction_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtractionMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "raw_generation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Generation"
+          },
+          "selected_candidate_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Candidate Index"
+          }
+        },
+        "required": [
+          "raw_generation",
+          "extracted_code",
+          "extraction_method",
+          "candidate_count",
+          "compile_ok"
+        ],
+        "title": "CodeExtractionResult",
+        "type": "object"
+      },
+      "CodeParserProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "code_field": {
+            "default": "code",
+            "title": "Code Field",
+            "type": "string"
+          },
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "version"
+        ],
+        "title": "CodeParserProfile",
+        "type": "object"
+      },
+      "ExplainRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code_field": {
+            "default": "code",
+            "title": "Code Field",
+            "type": "string"
+          },
+          "parser_version": {
+            "default": "v1",
+            "title": "Parser Version",
+            "type": "string"
+          },
+          "profile_id": {
+            "default": "humaneval-best-effort",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "stages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ExplainStage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stages"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ExplainRequest",
+        "type": "object"
+      },
+      "ExplainStage": {
+        "enum": [
+          "unwrap",
+          "candidates",
+          "selection",
+          "result"
+        ],
+        "title": "ExplainStage",
+        "type": "string"
+      },
+      "ExtractionExplanation": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CandidateExplanation"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidates"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/CodeParserProfile"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeExtractionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectionExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainStage"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "unwrap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnwrapExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile",
+          "stages"
+        ],
+        "title": "ExtractionExplanation",
+        "type": "object"
+      },
+      "ExtractionMethod": {
+        "enum": [
+          "dspy_code_field",
+          "json_code_field",
+          "json_string",
+          "fenced_code",
+          "cleaned_candidate",
+          "bare_python",
+          "field_marker"
+        ],
+        "title": "ExtractionMethod",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "ProfilesResponse": {
+        "properties": {
+          "parser_version": {
+            "title": "Parser Version",
+            "type": "string"
+          },
+          "profile_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Profile Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_ids",
+          "parser_version"
+        ],
+        "title": "ProfilesResponse",
+        "type": "object"
+      },
+      "SelectionExplanation": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "selected_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Index"
+          }
+        },
+        "required": [
+          "selected_index",
+          "method",
+          "rationale"
+        ],
+        "title": "SelectionExplanation",
+        "type": "object"
+      },
+      "UnwrapExplanation": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "unwrapped_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unwrapped Text"
+          }
+        },
+        "required": [
+          "unwrapped_text",
+          "method"
+        ],
+        "title": "UnwrapExplanation",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "dr-code serve",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/explain": {
+      "post": {
+        "operationId": "explain_explain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionExplanation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Explain"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/profiles": {
+      "get": {
+        "operationId": "profiles_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Profiles"
+      }
+    }
+  }
+}

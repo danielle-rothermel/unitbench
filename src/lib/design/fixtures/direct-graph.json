@@ -1,0 +1,33 @@
+{
+  "nodes": [
+    {
+      "config": {
+        "fields": [
+          {
+            "description": null,
+            "name": "prompt",
+            "role": "input",
+            "type_name": "str"
+          },
+          {
+            "description": null,
+            "name": "output",
+            "role": "output",
+            "type_name": "str"
+          }
+        ],
+        "input_bindings": {
+          "prompt": "task.prompt"
+        },
+        "metadata": {
+          "user_prompt_template": "{prompt}"
+        },
+        "output_field": "output",
+        "parameters": {}
+      },
+      "id": "direct",
+      "op": "llm_call"
+    }
+  ],
+  "terminal_node_id": "direct"
+}

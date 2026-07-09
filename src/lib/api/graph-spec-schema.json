@@ -1,0 +1,195 @@
+{
+  "$defs": {
+    "BindingRef": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Namespace"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node Id"
+        },
+        "source": {
+          "$ref": "#/$defs/BindingSource"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "BindingRef",
+      "type": "object"
+    },
+    "BindingSource": {
+      "enum": [
+        "external",
+        "node"
+      ],
+      "title": "BindingSource",
+      "type": "string"
+    },
+    "FieldRole": {
+      "enum": [
+        "input",
+        "output"
+      ],
+      "title": "FieldRole",
+      "type": "string"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/FieldRole"
+        },
+        "type_name": {
+          "default": "str",
+          "minLength": 1,
+          "title": "Type Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "role"
+      ],
+      "title": "FieldSpec",
+      "type": "object"
+    },
+    "NodeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldSpec"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "input_bindings": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/BindingRef"
+              }
+            ]
+          },
+          "title": "Input Bindings",
+          "type": "object"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "output_field": {
+          "title": "Output Field",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "output_field"
+      ],
+      "title": "NodeConfig",
+      "type": "object"
+    },
+    "NodeSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "$ref": "#/$defs/NodeConfig"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "op": {
+          "minLength": 1,
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "config",
+        "op"
+      ],
+      "title": "NodeSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/NodeSpec"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "terminal_node_id": {
+      "title": "Terminal Node Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "nodes",
+    "terminal_node_id"
+  ],
+  "title": "GraphSpec",
+  "type": "object"
+}

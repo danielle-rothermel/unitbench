@@ -43,7 +43,7 @@ export default async function Page({ params, searchParams }: PageProps) {
           href="/"
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
-          <span aria-hidden="true">&lt;-</span> Back to tables
+          <span aria-hidden="true">←</span> Back to tables
         </Link>
       </div>
 
@@ -51,12 +51,12 @@ export default async function Page({ params, searchParams }: PageProps) {
         <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-[var(--text-secondary)]">
           <Tag mono>{tablePage.config.table.name}</Tag>
           <Dot />
-          <span>{tablePage.config.columns.length} visible columns</span>
+          <span>{tablePage.config.columns.length} columns</span>
         </div>
         <h1 className="font-display text-[28px] leading-tight font-bold text-[var(--text-primary)]">
           {tablePage.config.label}
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 max-w-[72ch] text-sm text-[var(--text-secondary)]">
           {tablePage.config.description}
         </p>
       </header>

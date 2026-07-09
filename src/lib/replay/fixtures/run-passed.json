@@ -1,0 +1,95 @@
+{
+  "generation_run_id": "fixture-run-passed",
+  "prediction_id": "dr-dspy/encdec/prediction/fixture-passed",
+  "graph_digest": "ec4e636b819ecfbf",
+  "status": "completed",
+  "graph_snapshot": {
+    "nodes": [
+      {
+        "config": {
+          "fields": [
+            {
+              "description": null,
+              "name": "description",
+              "role": "input",
+              "type_name": "str"
+            },
+            {
+              "description": null,
+              "name": "code",
+              "role": "output",
+              "type_name": "str"
+            }
+          ],
+          "input_bindings": {
+            "description": "encoder.description"
+          },
+          "metadata": {
+            "provider_config_id": "decoder",
+            "user_prompt_template": "Write code from {description}"
+          },
+          "output_field": "code",
+          "parameters": {}
+        },
+        "id": "decoder",
+        "op": "llm_call"
+      },
+      {
+        "config": {
+          "fields": [
+            {
+              "description": null,
+              "name": "prompt",
+              "role": "input",
+              "type_name": "str"
+            },
+            {
+              "description": null,
+              "name": "description",
+              "role": "output",
+              "type_name": "str"
+            }
+          ],
+          "input_bindings": {
+            "prompt": "task.prompt"
+          },
+          "metadata": {
+            "provider_config_id": "encoder",
+            "user_prompt_template": "Describe {prompt}"
+          },
+          "output_field": "description",
+          "parameters": {}
+        },
+        "id": "encoder",
+        "op": "llm_call"
+      }
+    ],
+    "terminal_node_id": "decoder"
+  },
+  "node_attempts": [
+    {
+      "node_id": "encoder",
+      "attempt_index": 0,
+      "status": "completed",
+      "input_bindings_resolved": {
+        "prompt": "Write a function add(a, b) that returns the sum."
+      },
+      "output": {
+        "description": "A function named add taking two numbers and returning their sum."
+      },
+      "error": null
+    },
+    {
+      "node_id": "decoder",
+      "attempt_index": 0,
+      "status": "completed",
+      "input_bindings_resolved": {
+        "description": "A function named add taking two numbers and returning their sum."
+      },
+      "output": {
+        "code": "def add(a, b):\n    return a + b"
+      },
+      "error": null
+    }
+  ]
+}

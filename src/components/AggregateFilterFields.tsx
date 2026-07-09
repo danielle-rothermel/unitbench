@@ -232,7 +232,7 @@ export function AggregateFilterFields({
     Object.keys(filters.filterOut).length > 0
 
   return (
-    <div className={cn('flex flex-wrap items-end gap-4', isPending && 'opacity-60')}>
+    <div className={cn('flex flex-wrap items-start gap-4', isPending && 'opacity-60')}>
       {filterColumns.map(column => {
         const columnValues = facets[column] ?? []
         const useCheckbox = columnValues.length <= CHECKBOX_FILTER_MAX_FACETS
