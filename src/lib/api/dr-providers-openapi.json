@@ -63,74 +63,6 @@
         "title": "FailureClass",
         "type": "string"
       },
-      "FixtureOutcomeSpec": {
-        "additionalProperties": false,
-        "properties": {
-          "completion_tokens": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completion Tokens"
-          },
-          "failure_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Failure Code"
-          },
-          "failure_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Failure Message"
-          },
-          "finish_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "stop",
-            "title": "Finish Reason"
-          },
-          "text": {
-            "default": "",
-            "title": "Text",
-            "type": "string"
-          },
-          "total_cost": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Total Cost"
-          }
-        },
-        "title": "FixtureOutcomeSpec",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -165,17 +97,6 @@
       "LlmResponse": {
         "additionalProperties": false,
         "properties": {
-          "continuation_handle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Continuation Handle"
-          },
           "cost": {
             "anyOf": [
               {
@@ -207,11 +128,6 @@
               }
             ],
             "title": "Model"
-          },
-          "payload": {
-            "additionalProperties": true,
-            "title": "Payload",
-            "type": "object"
           },
           "provider_metadata": {
             "additionalProperties": true,
@@ -380,23 +296,30 @@
       },
       "ProviderChoice": {
         "additionalProperties": false,
-        "description": "Which provider executes the call: scripted fixture or live.",
+        "description": "Which provider executes the call: scripted or live.",
         "properties": {
-          "fixture_outcomes": {
-            "items": {
-              "$ref": "#/components/schemas/FixtureOutcomeSpec"
-            },
-            "title": "Fixture Outcomes",
-            "type": "array"
-          },
           "kind": {
-            "default": "fixture",
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/ProviderChoiceKind",
+            "default": "scripted"
+          },
+          "scripted_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptedOutcomeSpec"
+            },
+            "title": "Scripted Outcomes",
+            "type": "array"
           }
         },
         "title": "ProviderChoice",
         "type": "object"
+      },
+      "ProviderChoiceKind": {
+        "enum": [
+          "scripted",
+          "live"
+        ],
+        "title": "ProviderChoiceKind",
+        "type": "string"
       },
       "ProviderFailure": {
         "additionalProperties": false,
@@ -519,9 +442,14 @@
             "$ref": "#/components/schemas/ServeProviderKind"
           },
           "reasoning": {
-            "additionalProperties": true,
-            "title": "Reasoning",
-            "type": "object"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasoningEffort"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "temperature": {
             "anyOf": [
@@ -544,6 +472,17 @@
               }
             ],
             "title": "Token Limit"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P"
           }
         },
         "required": [
@@ -552,6 +491,87 @@
           "messages"
         ],
         "title": "QuerySpec",
+        "type": "object"
+      },
+      "ReasoningEffort": {
+        "description": "Typed cross-provider reasoning level (see ADR 0001).",
+        "enum": [
+          "none",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ],
+        "title": "ReasoningEffort",
+        "type": "string"
+      },
+      "ScriptedOutcomeSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Tokens"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "stop",
+            "title": "Finish Reason"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "total_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost"
+          }
+        },
+        "title": "ScriptedOutcomeSpec",
         "type": "object"
       },
       "ServeProviderKind": {
@@ -838,7 +858,7 @@
   },
   "info": {
     "title": "dr-providers serve",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
