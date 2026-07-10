@@ -1,7 +1,7 @@
 /**
  * Pure view-model helpers for the compression-results visualizer (R3, REL-4).
  * No React here; components in src/components/compression consume these.
- * Design doc: docs/plans/06-r3-compression-results.md.
+ * Design doc: docs/planning/viz-components/v0/workstreams/r3-compression-results.md.
  */
 
 import type { CompressionMetric, CompressionResultRow } from '@/fixtures/compression'

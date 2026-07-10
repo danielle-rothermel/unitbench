@@ -2,7 +2,7 @@
 
 Status: PLAN — implementation not started. Written against the frozen fixture contract
 (`src/fixtures/extraction.ts`, `src/fixtures/primitives.ts`,
-`docs/plans/05-r0-fixture-shapes.md`). No shared files are edited; every file below is new.
+`docs/planning/viz-components/v0/plan.md`). No shared files are edited; every file below is new.
 
 Purpose: a single-sample visualizer of the code → extraction → tests journey, used to
 validate infra behavior against fake data. It renders the code input, the
@@ -141,7 +141,7 @@ src/components/extraction-flow/
   ExtractionFlowDemo.tsx          'use client' scenario picker wrapping ExtractionFlowView
 src/app/dev/extraction-flow/
   page.tsx                        server component: metadata + <ExtractionFlowDemo />
-docs/plans/
+docs/planning/viz-components/v0/workstreams/
   06-r2-extraction-flow.md        this plan
 ```
 
