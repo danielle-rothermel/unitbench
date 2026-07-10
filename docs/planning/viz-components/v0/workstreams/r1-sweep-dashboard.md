@@ -122,7 +122,7 @@ Value formatting reuses `formatCostCell` / `formatNumber` from `@/lib/format` an
 ## 3. File map (all NEW files; no existing file is touched)
 
 ```
-docs/plans/06-r1-sweep-dashboard.md                     ← this plan
+docs/planning/viz-components/v0/workstreams/r1-sweep-dashboard.md ← this plan
 src/components/sweep/SweepDashboard.tsx                 + SweepDashboard.test.tsx
 src/components/sweep/SweepSummaryStrip.tsx              + SweepSummaryStrip.test.tsx
 src/components/sweep/ErrorRateChart.tsx                 + ErrorRateChart.test.tsx

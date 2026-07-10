@@ -92,7 +92,7 @@ and `SECTION_LABEL` from `@/components/primitives`, `StatCell` from
 ## 2. File map (all new)
 
 ```
-docs/plans/06-r3-compression-results.md                      # this plan
+docs/planning/viz-components/v0/workstreams/r3-compression-results.md # this plan
 src/lib/compression-view.ts                                  # pure view-model helpers
 src/lib/compression-view.test.ts
 src/components/compression/CompressionResultCard.tsx         # per-sample card (composes the three below)

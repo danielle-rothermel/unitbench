@@ -5,7 +5,7 @@
  * — it always fills every field and only uses passed/failed — so the rows are
  * written by hand against the frozen fixture type (constructing values of a
  * fixture type is not a fixture modification). Doc:
- * docs/plans/06-r3-compression-results.md §4.
+ * docs/planning/viz-components/v0/workstreams/r3-compression-results.md §4.
  */
 
 import type { CompressionMetric, CompressionResultRow } from '@/fixtures/compression'

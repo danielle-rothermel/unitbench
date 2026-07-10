@@ -10,7 +10,7 @@
  * `config.seed` xor an fnv1a hash of the group key, and rows are pre-sorted by
  * (model, task_id, sample_index). Results are therefore independent of input
  * row order and of which other groups are present in `rows`.
- * Design doc: docs/plans/06-r5-bootstrap-variance.md.
+ * Design doc: docs/planning/viz-components/v0/workstreams/r5-bootstrap-variance.md.
  */
 
 import type { BootstrapCiSummary, BootstrapSampleRow } from '@/fixtures/bootstrap'

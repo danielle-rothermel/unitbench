@@ -9,7 +9,7 @@ the rendering section below spends real effort on polish.
 
 Contract inputs are frozen: `HeadroomPoint`, `HeadroomBinConfig`, and
 `HeadroomHeatmapCell` from `src/fixtures/heatmap.ts` (Shape 6 + Decision 2 in
-`docs/plans/05-r0-fixture-shapes.md`). Binning runs client-side over raw
+`docs/planning/viz-components/v0/plan.md`). Binning runs client-side over raw
 `HeadroomPoint[]`. **Important discovery:** the merged fixture already exports
 `binHeadroomPoints(points, config): HeadroomHeatmapCell[]` (sparse cells, per-model
 facets plus the `UNFACETED_KEY = 'all'` facet, one shared domain, out-of-domain
@@ -141,7 +141,7 @@ Every file is NEW. Nothing existing is edited.
 | `src/components/headroom/HeadroomColorLegend.tsx` | Sequential count legend (0 → max gradient bar) |
 | `src/components/headroom/HeadroomHeatmap.test.tsx` | Component tests (multiple seeds, faceting, order, overlay, empty state) |
 | `src/app/dev/headroom-heatmap/page.tsx` | Demo route: parses `searchParams`, generates fixture points, renders the component |
-| `docs/plans/06-r6-headroom-heatmap.md` | This plan |
+| `docs/planning/viz-components/v0/workstreams/r6-headroom-heatmap.md` | This plan |
 
 ### Reuse-by-import vs pattern-copy (and why)
 

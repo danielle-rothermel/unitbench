@@ -2,7 +2,7 @@
  * Shared fake-data fixtures for the six viz components (REL-13).
  * Shapes double as the component API contract; field names match the Neon
  * columns / JSONB payload keys so D3's real-data swap is a pass-through.
- * Design doc: docs/plans/05-r0-fixture-shapes.md.
+ * Design doc: docs/planning/viz-components/v0/plan.md.
  */
 export * from '@/fixtures/primitives'
 export * from '@/fixtures/rng'
