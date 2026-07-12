@@ -28,7 +28,7 @@ export function AggregatePageShell({
 
       <header className="mb-7 max-w-[980px]">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-          <Tag mono>published_predictions</Tag>
+          <Tag mono>pinned predictions</Tag>
           <Dot />
           <span>Analysis</span>
         </div>

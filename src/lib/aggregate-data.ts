@@ -15,7 +15,8 @@ import {
   type HeatmapAxis,
 } from '@/lib/heatmap-config'
 import type { HeatmapState } from '@/lib/heatmap-params'
-import { BundleReadError, withAnalysisBundle } from '@/lib/bundle-adapter.server'
+import { withAnalysisBundle } from '@/lib/bundle-adapter.server'
+import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { totalPages } from '@/lib/pagination'
 import {
   orderByForSort,
@@ -61,15 +62,10 @@ export type AggregatePage =
       totalPages: number
     }
   | {
-      status: 'missing-url'
+      status: 'failure'
       state: AggregateState
       tableConfig: ReturnType<typeof buildAggregateTableConfig>
-    }
-  | {
-      status: 'error'
-      state: AggregateState
-      tableConfig: ReturnType<typeof buildAggregateTableConfig>
-      message: string
+      failure: BundleViewFailure
     }
 
 export class InvalidAggregateQueryError extends Error {
@@ -455,14 +451,11 @@ export async function getAggregatePage(
       totalPages: totalPages(total, state.pageSize),
     }
   } catch (error) {
-    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
-      return { status: 'missing-url', state, tableConfig }
-    }
     return {
-      status: 'error',
+      status: 'failure',
       state,
       tableConfig,
-      message: error instanceof Error ? error.message : String(error),
+      failure: bundleFailure(error),
     }
   }
 }

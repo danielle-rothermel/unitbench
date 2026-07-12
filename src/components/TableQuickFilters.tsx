@@ -76,8 +76,8 @@ const EXPERIMENTS_PRESETS: QuickFilterPreset[] = [
 ]
 
 const PRESETS_BY_TABLE: Record<string, QuickFilterPreset[]> = {
-  'published-predictions': PREDICTIONS_PRESETS,
-  'published-experiments': EXPERIMENTS_PRESETS,
+  predictions: PREDICTIONS_PRESETS,
+  experiments: EXPERIMENTS_PRESETS,
 }
 
 const CHIP_CLASS =

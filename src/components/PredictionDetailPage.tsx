@@ -10,7 +10,8 @@ import { TextPanel } from '@/components/panels/TextPanel'
 import { Dot, ResultBadge, SECTION_LABEL, Tag } from '@/components/primitives'
 import { StatCell } from '@/components/stats/StatCell'
 import { formatCost, shortDate } from '@/lib/format'
-import type { PredictionDetail } from '@/lib/prediction-detail'
+import type { BundleIdentity } from '@/lib/bundle-view'
+import type { DetailProvenance, PredictionDetail } from '@/lib/prediction-detail'
 import {
   buildEncdecPipeline,
   buildOutcomeBanner,
@@ -22,6 +23,8 @@ import {
 
 type PredictionDetailPageProps = {
   detail: PredictionDetail
+  provenance?: readonly DetailProvenance[]
+  bundle?: BundleIdentity
   backHref: string
 }
 
@@ -31,6 +34,8 @@ function formatScore(score: number | null): string | null {
 
 export function PredictionDetailPage({
   detail,
+  provenance = [],
+  bundle = { bundle_id: 'fixture-detail-bundle', snapshot_seq: 0 },
   backHref,
 }: PredictionDetailPageProps) {
   const diagnostics = buildPredictionDiagnostics(detail)
@@ -38,7 +43,7 @@ export function PredictionDetailPage({
   const runConfigFields = buildRunConfigFields(detail)
   const reference = buildReferenceFields(detail.request_json)
   const encdecPipeline = buildEncdecPipeline(detail)
-  const experimentHref = `/tables/published-experiments?experiment_id=${encodeURIComponent(detail.experiment_id)}`
+  const experimentHref = `/tables/experiments?experiment_id=${encodeURIComponent(detail.experiment_id)}`
   const jsonPanels: { label: string; value: unknown }[] = [
     { label: 'Metrics', value: detail.metrics_json },
     { label: 'Validation', value: detail.validation_json },
@@ -100,6 +105,12 @@ export function PredictionDetailPage({
 
       <PredictionRunConfigStrip fields={runConfigFields} />
 
+      <section className="mb-7 max-w-[1280px] rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3" aria-label="Pinned detail version">
+        <p className={SECTION_LABEL}>Pinned Detail bundle</p>
+        <p className="mt-1 font-mono text-xs text-[var(--text-secondary)]">{bundle.bundle_id} · snapshot {bundle.snapshot_seq}</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">This page is a fixed root-cascade view, not the current operational record.</p>
+      </section>
+
       <PredictionDiagnosticsPanel detail={detail} diagnostics={diagnostics} />
 
       <div className="mb-8">
@@ -128,6 +139,14 @@ export function PredictionDetailPage({
       </div>
 
       <PredictionReferenceSection reference={reference} />
+
+      <section className="mb-8 max-w-[1280px]" aria-labelledby="provenance-heading">
+        <h2 id="provenance-heading" className={SECTION_LABEL}>Pinned provenance</h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">Generation, scoring, harness, and platform attempts are selected from this prediction’s one Detail bundle.</p>
+        <div className="mt-3 grid grid-cols-5 gap-px overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--border)] max-lg:grid-cols-2 max-sm:grid-cols-1">
+          {provenance.map(item => <div key={item.member} className="bg-[var(--bg-primary)] px-3 py-2.5"><p className="font-mono text-[11px] text-[var(--text-secondary)]">{item.member.replaceAll('_', ' ')}</p><p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">{item.rows.length}</p></div>)}
+        </div>
+      </section>
 
       <div className="flex flex-col gap-5">
         {!encdecPipeline && (

@@ -1,7 +1,7 @@
 import { AggregateControls } from '@/components/AggregateControls'
 import { AggregatePageShell } from '@/components/AggregatePageShell'
 import { AggregateTable } from '@/components/AggregateTable'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { getAggregateFacets, getAggregatePage } from '@/lib/aggregate-data'
 import { parseAggregateState } from '@/lib/aggregate-params'
 
@@ -28,20 +28,7 @@ export default async function Page({ searchParams }: PageProps) {
         label: 'View model × experiment kind heatmap →',
       }}
     >
-      {aggregatePage.status === 'missing-url' && (
-        <ErrorSection
-          tone="setup"
-          title="DATABASE_URL not configured"
-          message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-        />
-      )}
-
-      {aggregatePage.status === 'error' && (
-        <ErrorSection
-          title="Failed to load aggregates"
-          message={aggregatePage.message}
-        />
-      )}
+      {aggregatePage.status === 'failure' && <BundleState plane="Analysis" failure={aggregatePage.failure} />}
 
       {aggregatePage.status === 'ok' && (
         <>

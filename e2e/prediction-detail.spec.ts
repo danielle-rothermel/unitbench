@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('prediction detail collapses debug payloads by default', async ({
   page,
 }) => {
-  await page.goto('/tables/published-predictions')
+  await page.goto('/tables/predictions')
   const detailLink = page.locator('a[href^="/predictions/"]').first()
   await expect(detailLink).toBeVisible()
   await detailLink.click()

@@ -59,7 +59,7 @@ describe('PredictionDetailPage', () => {
       screen.getByRole('link', { name: 'dr-dspy/direct/sweep-1' }),
     ).toHaveAttribute(
       'href',
-      '/tables/published-experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
+      '/tables/experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
     )
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
     expect(screen.queryByText('Raw generation')).not.toBeInTheDocument()

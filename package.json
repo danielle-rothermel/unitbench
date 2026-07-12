@@ -21,7 +21,6 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@dr-code/viewer": "github:danielle-rothermel/dr-code#4bdb5d423cafa8f6ce947ed8419b214acc2c4912&path:/viewer/packages/viewer",
-    "@neondatabase/serverless": "^1.0.2",
     "@tanstack/react-table": "^8.21.3",
     "@visx/axis": "^4.0.0",
     "@visx/grid": "^4.0.0",
