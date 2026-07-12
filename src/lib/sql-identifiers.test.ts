@@ -26,18 +26,18 @@ describe('SQL identifier helpers', () => {
   })
 
   it('builds query fragments from allowlisted config values', () => {
-    const config = getTableConfig('published-predictions')
-    expect(qualifiedTableName(config.table)).toBe('"published_predictions"')
+    const config = getTableConfig('predictions')
+    expect(qualifiedTableName(config.table)).toBe('"predictions"')
     expect(selectedColumnSql(config)).toContain('"prediction_id"')
     expect(orderBySql(config)).toBe('"updated_at" DESC')
   })
 
   it('builds paginated select and count SQL', () => {
-    const config = getTableConfig('published-experiments')
+    const config = getTableConfig('experiments')
     const state = parseTableState(config, {})
     expect(buildCountQuery(config, state)).toEqual({
       text:
-        'SELECT count(*)::int AS total FROM "published_experiments" WHERE NOT ("experiment_id" ILIKE ANY($1::text[]) OR "display_name" ILIKE ANY($1::text[]))',
+        'SELECT count(*)::int AS total FROM "experiments" WHERE NOT ("experiment_id" ILIKE ANY($1::text[]) OR "display_name" ILIKE ANY($1::text[]))',
       params: [patterns],
     })
     const select = buildSelectQuery(config, state)

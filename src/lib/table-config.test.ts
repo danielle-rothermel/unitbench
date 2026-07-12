@@ -7,35 +7,32 @@ import {
 } from '@/lib/table-config'
 
 describe('table config allowlist', () => {
-  it('exposes the initial published table configs', () => {
+  it('exposes only pinned-bundle table configs', () => {
     expect(getTableConfigs().map(config => config.id)).toEqual([
-      'published-experiments',
-      'published-predictions',
-      'published-prediction-details',
-      'published-v1-experiments',
-      'published-v1-predictions',
-      'published-v1-prediction-details',
+      'experiments',
+      'predictions',
+      'detail-predictions',
     ])
   })
 
   it('resolves known tables and rejects unknown tables', () => {
-    expect(getTableConfig('published-experiments').table.name).toBe(
-      'published_experiments',
+    expect(getTableConfig('experiments').table.name).toBe(
+      'experiments',
     )
-    expect(getTableConfig('published-v1-predictions').table.name).toBe(
-      'published_v1_predictions',
+    expect(getTableConfig('predictions').table.name).toBe(
+      'predictions',
     )
     expect(() => getTableConfig('raw-local-table')).toThrow(UnknownTableError)
   })
 
   it('checks configured columns against a table config', () => {
-    const config = getTableConfig('published-predictions')
+    const config = getTableConfig('predictions')
     expect(isConfiguredColumn(config, 'prediction_id')).toBe(true)
     expect(isConfiguredColumn(config, 'drop table')).toBe(false)
   })
 
   it('exposes enriched prediction browse columns and facet filters', () => {
-    const config = getTableConfig('published-predictions')
+    const config = getTableConfig('predictions')
     const keys = config.columns.map(column => column.key)
     expect(keys).toEqual(
       expect.arrayContaining([

@@ -53,7 +53,7 @@ describe('PipelineFlow', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders unknown for null totals', () => {
+  it('renders an em dash for null totals', () => {
     const base = makePipelineTrace({ seed: 2 })
     const trace: PipelineTrace = {
       ...base,
@@ -62,7 +62,7 @@ describe('PipelineFlow', () => {
     }
     render(<PipelineFlow trace={trace} />)
 
-    expect(screen.getAllByText('unknown')).toHaveLength(2)
+    expect(screen.getAllByText('—')).toHaveLength(2)
   })
 
   it('renders an error stage plus skipped downstream stages for a mid-pipeline failure', () => {

@@ -7,6 +7,8 @@ import {
   type BundleContract,
   type BundleMember,
   type BundlePlane,
+  type AnalysisBundleMember,
+  type DetailBundleMember,
 } from '@/lib/bundle-contract'
 import { publicationStoreConfiguration } from '@/lib/store-environment.server'
 
@@ -36,10 +38,10 @@ export type BundlePin = Readonly<{
   expiresAtMs: number
 }>
 
-export type PinnedBundle = Readonly<{
+export type PinnedBundle<Member extends BundleMember = BundleMember> = Readonly<{
   bundleId: string
   snapshotSeq: number
-  members: Readonly<Record<BundleMember, string>>
+  members: Readonly<Record<Member, string>>
 }>
 
 type ManifestMember = Readonly<{
@@ -202,11 +204,11 @@ async function rowsForMember(
   )
 }
 
-async function verifyPinnedBundle(
+async function verifyPinnedBundle<Member extends BundleMember>(
   database: PublicationDatabase,
-  contract: BundleContract,
+  contract: BundleContract<BundlePlane, Member>,
   row: PublishedBundleRow,
-): Promise<PinnedBundle> {
+): Promise<PinnedBundle<Member>> {
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
   const manifest = parseManifest(row.manifest_json)
@@ -226,7 +228,7 @@ async function verifyPinnedBundle(
     snapshotSeq,
     members: Object.fromEntries(
       contract.members.map((member) => [member, physicalTable(members[member])]),
-    ) as Readonly<Record<BundleMember, string>>,
+    ) as Readonly<Record<Member, string>>,
   }
 }
 
@@ -295,11 +297,11 @@ export async function acquireBundlePin(
   })
 }
 
-export async function resolveBundlePin(
+export async function resolveBundlePin<Member extends BundleMember>(
   database: PublicationDatabase,
-  contract: BundleContract,
+  contract: BundleContract<BundlePlane, Member>,
   pin: BundlePin,
-): Promise<PinnedBundle> {
+): Promise<PinnedBundle<Member>> {
   if (pin.bundleKey !== contract.bundleKey) {
     throw new BundlePinError('PIN_EXPIRED_OR_GONE')
   }
@@ -311,16 +313,32 @@ export async function resolveBundlePin(
   return verifyPinnedBundle(database, contract, published)
 }
 
-export async function pinConfiguredBundle(
-  plane: BundlePlane,
-): Promise<PinnedBundle> {
+export async function withConfiguredPinnedBundle<
+  Plane extends BundlePlane,
+  Result,
+>(
+  plane: Plane,
+  operation: (
+    database: PublicationDatabase,
+    bundle: PinnedBundle<
+      Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember
+    >,
+  ) => Promise<Result>,
+): Promise<Result> {
   const configuration = publicationStoreConfiguration(plane)
   const database = nativePublicationDatabase(configuration.databaseUrl)
   const contract = bundleContract(plane)
   try {
     const pin = await acquireBundlePin(database, contract, configuration.destinationId)
-    return await resolveBundlePin(database, contract, pin)
+    const bundle = await resolveBundlePin(database, contract, pin)
+    return await operation(database, bundle as Parameters<typeof operation>[1])
   } finally {
     await database.close?.()
   }
+}
+
+export async function pinConfiguredBundle(
+  plane: BundlePlane,
+): Promise<PinnedBundle> {
+  return withConfiguredPinnedBundle(plane, async (_database, bundle) => bundle)
 }

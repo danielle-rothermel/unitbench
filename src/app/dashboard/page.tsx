@@ -1,6 +1,6 @@
 import { ErrorSection } from '@/components/panels/ErrorSection'
 import { Tag } from '@/components/primitives'
-import { MissingDatabaseUrlError } from '@/lib/neon'
+import { BundleReadError } from '@/lib/bundle-adapter.server'
 import {
   fetchCompressionDistribution,
   fetchCorrectnessCompressionPoints,
@@ -23,7 +23,7 @@ export default async function DashboardPage() {
       fetchCompressionDistribution(),
     ])
   } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
+    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
       status = 'missing-url'
     } else {
       status = 'error'
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
     <div className="mx-auto w-full max-w-[1100px]">
       <header className="mb-8">
         <div className="mb-2 flex items-center gap-2">
-          <Tag mono>published_predictions</Tag>
+          <Tag mono>predictions</Tag>
           <Tag>enc-dec runs</Tag>
         </div>
         <h1 className="font-display text-[30px] leading-tight font-bold text-[var(--text-primary)]">
@@ -51,14 +51,14 @@ export default async function DashboardPage() {
       {status === 'missing-url' && (
         <ErrorSection
           tone="setup"
-          title="DATABASE_URL not configured"
-          message="Set DATABASE_URL locally to render the dashboard from Neon."
+          title="Analysis store not configured"
+          message="Set ANALYSIS_DATABASE_URL and ANALYSIS_PUBLICATION_DESTINATION_ID before reading a pinned bundle."
         />
       )}
       {status === 'error' && (
         <ErrorSection
           tone="error"
-          title="Neon query failed"
+          title="Pinned Analysis bundle read failed"
           message={errorMessage}
         />
       )}

@@ -77,6 +77,34 @@ describe('resolveBundlePin', () => {
     })
   })
 
+  it('reads every member from the resolved pinned table, never from a current pointer', async () => {
+    const statements: string[] = []
+    const database = databaseFor({
+      bundle_id: 'bundle-1',
+      snapshot_seq: 4,
+      manifest_json: manifest(),
+    })
+    const recordingDatabase: PublicationDatabase = {
+      ...database,
+      query: async <Row extends Record<string, unknown>>(
+        statement: string,
+        values: readonly unknown[],
+      ) => {
+        statements.push(statement)
+        return database.query<Row>(statement, values)
+      },
+    }
+
+    await resolveBundlePin(recordingDatabase, ANALYSIS_BUNDLE_CONTRACT, pin)
+
+    expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual(
+      ANALYSIS_BUNDLE_CONTRACT.members.map(
+        member => `SELECT * FROM "public"."bundle_${member}" ORDER BY "bundle_id"`,
+      ),
+    )
+    expect(statements.join('\n')).not.toContain('dr_platform_publication_state WHERE')
+  })
+
   it('fails closed for an expired or missing pin', async () => {
     await expect(
       resolveBundlePin(databaseFor(undefined), ANALYSIS_BUNDLE_CONTRACT, pin),
@@ -120,6 +148,22 @@ describe('resolveBundlePin', () => {
     ).rejects.toMatchObject({
       code: 'BUNDLE_INTEGRITY_FAILED',
     })
+  })
+
+  it('rejects a row-count mismatch even when the member checksum is otherwise valid', async () => {
+    const members = JSON.parse(manifest()).members
+    members[0].row_count = 1
+    await expect(
+      resolveBundlePin(
+        databaseFor({
+          bundle_id: 'bundle-1',
+          snapshot_seq: 4,
+          manifest_json: JSON.stringify({ source_families: ['application'], members }),
+        }),
+        ANALYSIS_BUNDLE_CONTRACT,
+        pin,
+      ),
+    ).rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
   })
 })
 

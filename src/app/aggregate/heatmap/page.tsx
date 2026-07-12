@@ -4,7 +4,7 @@ import { ErrorSection } from '@/components/panels/ErrorSection'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
 import { getHeatmapFacets, getHeatmapRows } from '@/lib/aggregate-data'
 import { heatmapTitle } from '@/lib/heatmap-config'
-import { MissingDatabaseUrlError } from '@/lib/neon'
+import { BundleReadError } from '@/lib/bundle-adapter.server'
 import { parseHeatmapState } from '@/lib/heatmap-params'
 
 export const dynamic = 'force-dynamic'
@@ -26,7 +26,7 @@ export default async function Page({ searchParams }: PageProps) {
     facets = await getHeatmapFacets(state)
     heatmapRows = await getHeatmapRows(state)
   } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
+    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
       status = 'missing-url'
     } else {
       status = 'error'
