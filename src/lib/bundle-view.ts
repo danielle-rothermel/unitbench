@@ -6,7 +6,7 @@ export type BundleIdentity = Readonly<{
   snapshot_seq: number
 }>
 
-export type BundleViewFailure = Exclude<BundleReadError['code'], 'STORE_NOT_CONFIGURED'> | 'STORE_NOT_CONFIGURED'
+export type BundleViewFailure = BundleReadError['code']
 
 export function bundleIdentity(bundle: Pick<PinnedBundle, 'bundleId' | 'snapshotSeq'>): BundleIdentity {
   return { bundle_id: bundle.bundleId, snapshot_seq: bundle.snapshotSeq }
@@ -21,8 +21,10 @@ export function bundleFailure(error: unknown): BundleViewFailure {
       code === 'PIN_EXPIRED_OR_GONE' ||
       code === 'BUNDLE_MANIFEST_INVALID' ||
       code === 'BUNDLE_INTEGRITY_FAILED' ||
-      code === 'DESTINATION_UNAVAILABLE'
+      code === 'DESTINATION_UNAVAILABLE' ||
+      code === 'BUNDLE_CONTRACT_INCOMPATIBLE' ||
+      code === 'INTERNAL_READ_ERROR'
     ) return code
   }
-  return 'DESTINATION_UNAVAILABLE'
+  return 'INTERNAL_READ_ERROR'
 }
