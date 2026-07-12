@@ -17,6 +17,9 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
 const PUBLICATION_STATE_TABLE = 'dr_platform_publication_state'
 const PUBLICATION_BUNDLES_TABLE = 'dr_platform_publication_state_bundles'
 const PUBLICATION_PINS_TABLE = 'dr_platform_publication_state_pins'
+const LOCAL_PUBLICATION_STATE_TABLE = '__dr_platform_export_state'
+const LOCAL_PUBLICATION_BUNDLES_TABLE = '__dr_platform_export_bundles'
+const LOCAL_PUBLICATION_PINS_TABLE = '__dr_platform_export_pins'
 
 type QueryRow = Record<string, unknown>
 
@@ -54,6 +57,7 @@ type ManifestMember = Readonly<{
   row_count: number
   checksum: string
   column_schema?: readonly Readonly<{ name: string, type: string }>[]
+  columns?: readonly string[]
   physical_digest?: string
 }>
 
@@ -71,6 +75,7 @@ type PublishedBundleRow = QueryRow & {
   integrity_payload_json: string | null
   integrity_signature: string | null
   physical_digest_algorithm: string | null
+  source_coordinates_json?: string
 }
 
 export class BundlePinError extends Error {
@@ -242,6 +247,21 @@ function parseManifestMember(value: unknown): ManifestMember | null {
     key_columns: keyColumns as string[],
     row_count: rowCount,
     checksum: memberChecksum,
+    column_schema: Array.isArray(record.column_schema)
+      ? record.column_schema.flatMap(column => {
+        if (column === null || typeof column !== 'object') return []
+        const name = asNonEmptyString((column as Record<string, unknown>).name)
+        const type = asNonEmptyString((column as Record<string, unknown>).type)
+        return name && type ? [{ name, type }] : []
+      })
+      : undefined,
+    columns: Array.isArray(record.columns)
+      ? record.columns.flatMap(value => {
+        const column = asNonEmptyString(value)
+        return column ? [column] : []
+      })
+      : undefined,
+    physical_digest: asNonEmptyString(record.physical_digest) ?? undefined,
   }
 }
 
@@ -290,6 +310,34 @@ function manifestMembers(
   ) as Readonly<Record<BundleMember, ManifestMember>>
 }
 
+function authenticatedSourceFamilies(sourceCoordinatesJson: string, expectedDigest: unknown): readonly string[] {
+  let coordinates: unknown
+  try {
+    coordinates = JSON.parse(sourceCoordinatesJson)
+  } catch {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  if (!Array.isArray(coordinates) || typeof expectedDigest !== 'string') {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  if (createHash('sha256').update(integrityCanonicalJson(coordinates)).digest('hex') !== expectedDigest) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  const families = coordinates.map(coordinate => {
+    if (coordinate === null || typeof coordinate !== 'object' || Array.isArray(coordinate)) {
+      throw new BundlePinError('PINNED_BUNDLE_GONE')
+    }
+    const sourceId = asNonEmptyString((coordinate as Record<string, unknown>).source_id)
+    const [family, identity] = sourceId?.split(':', 2) ?? []
+    if ((family !== 'application' && family !== 'dbos') || !identity) {
+      throw new BundlePinError('PINNED_BUNDLE_GONE')
+    }
+    return family
+  })
+  if (new Set(families).size !== families.length) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  return families
+}
+
 function signedPayload<Member extends BundleMember>(
   contract: BundleContract<BundlePlane, Member>,
   row: PublishedBundleRow,
@@ -331,8 +379,8 @@ function signedPayload<Member extends BundleMember>(
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
   const attested = new Map(members.map(member => {
-    if (member === null || typeof member !== 'object') return ['', null]
-    return [(member as Record<string, unknown>).member, member as IntegrityMember]
+    const parsed = parseManifestMember(member)
+    return [parsed?.member ?? '', parsed && parsed.physical_digest ? parsed as IntegrityMember : null]
   }))
   if (attested.size !== contract.members.length) throw new BundlePinError('PINNED_BUNDLE_GONE')
   for (const name of contract.members) {
@@ -384,8 +432,23 @@ async function verifyPinnedBundle<Member extends BundleMember>(
 ): Promise<PinnedBundle<Member>> {
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
-  const manifest = manifestMembers(contract, parseManifest(row.manifest_json))
+  const parsedManifest = parseManifest(row.manifest_json)
+  if (
+    parsedManifest.members.length !== contract.members.length
+    || new Set(parsedManifest.members.map(member => member.member)).size !== contract.members.length
+    || contract.members.some(member => !parsedManifest.members.some(candidate => candidate.member === member))
+  ) {
+    manifestMembers(contract, parsedManifest)
+  }
   const payload = signedPayload(contract, row, pin, snapshotSeq)
+  const families = authenticatedSourceFamilies(row.source_coordinates_json ?? '', payload.source_coordinates_sha256)
+  if (
+    parsedManifest.source_families.length !== families.length
+    || [...parsedManifest.source_families].sort().some((family, index) => family !== [...families].sort()[index])
+  ) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  const manifest = manifestMembers(contract, parsedManifest)
   if (!['duckdb-json-length-framed-sha256-v1', 'postgres-pgcrypto-row-json-length-framed-sha256-v1'].includes(payload.physical_digest_algorithm)) {
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
@@ -491,7 +554,7 @@ export async function resolveBundlePin<Member extends BundleMember>(
   }
   let published: PublishedBundleRow | undefined
   try { [published] = await database.query<PublishedBundleRow>(
-    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json, b.integrity_version, b.integrity_key_id, b.integrity_payload_json, b.integrity_signature, b.physical_digest_algorithm FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
+    `SELECT b.bundle_id, b.snapshot_seq, b.source_coordinates_json, b.manifest_json, b.integrity_version, b.integrity_key_id, b.integrity_payload_json, b.integrity_signature, b.physical_digest_algorithm FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
     [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
   ) } catch { throw new BundlePinError('PINNED_BUNDLE_GONE') }
   if (!published) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
@@ -500,6 +563,34 @@ export async function resolveBundlePin<Member extends BundleMember>(
     if (error instanceof BundlePinError) throw error
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
+}
+
+async function acquireLocalBundlePin(
+  database: PublicationDatabase,
+  contract: BundleContract,
+  destinationId: string,
+  ttlSeconds: number,
+): Promise<BundlePin> {
+  return database.transaction(async transaction => {
+    const [state] = await transaction.query<{ bundle_id: string | null }>(
+      `SELECT bundle_id FROM ${LOCAL_PUBLICATION_STATE_TABLE} WHERE destination_id = ? AND bundle_key = ?`,
+      [destinationId, contract.bundleKey],
+    )
+    if (!state?.bundle_id) throw new BundlePinError('BUNDLE_NOT_PUBLISHED')
+    const [published] = await transaction.query<{ bundle_id: string }>(
+      `SELECT bundle_id FROM ${LOCAL_PUBLICATION_BUNDLES_TABLE} WHERE destination_id = ? AND bundle_key = ? AND bundle_id = ?`,
+      [destinationId, contract.bundleKey, state.bundle_id],
+    )
+    if (!published) throw new BundlePinError('BUNDLE_NOT_PUBLISHED')
+    const pinId = randomUUID()
+    const [pin] = await transaction.query<{ expires_at_ms: number | string }>(
+      `INSERT INTO ${LOCAL_PUBLICATION_PINS_TABLE} (destination_id, bundle_key, pin_id, bundle_id, expires_at, created_at) VALUES (?, ?, ?, ?, epoch_ms(now()) + ?, epoch_ms(now())) RETURNING expires_at AS expires_at_ms`,
+      [destinationId, contract.bundleKey, pinId, state.bundle_id, ttlSeconds * 1000],
+    )
+    const expiresAtMs = asNonNegativeInteger(pin?.expires_at_ms)
+    if (expiresAtMs === null) throw new BundlePinError('BUNDLE_NOT_PUBLISHED')
+    return { destinationId, bundleKey: contract.bundleKey, pinId, bundleId: state.bundle_id, expiresAtMs }
+  })
 }
 
 export async function releaseBundlePin(
@@ -531,19 +622,30 @@ export async function withConfiguredPinnedBundle<
   const contract = bundleContract(plane)
   let pin: BundlePin | undefined
   try {
-    pin = await acquireBundlePin(database, contract, configuration.destinationId)
+    pin = database.kind === 'duckdb'
+      ? await acquireLocalBundlePin(database, contract, configuration.destinationId, 300)
+      : await acquireBundlePin(database, contract, configuration.destinationId)
     return await database.transaction(async transaction => {
       // This connection and snapshot also serve the page operation below.
       if (transaction.kind === 'postgres') {
         await transaction.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ', [])
       }
-      const bundle = await resolveBundlePin(transaction, contract, pin!)
+      const bundle = database.kind === 'duckdb'
+        ? await resolveLocalBundlePin(transaction, contract, pin!)
+        : await resolveBundlePin(transaction, contract, pin!)
       return operation(transaction, bundle as Parameters<typeof operation>[1])
     })
   } finally {
-    if (pin) await releaseBundlePin(database, pin)
+    if (pin) await (database.kind === 'duckdb' ? releaseLocalBundlePin(database, pin) : releaseBundlePin(database, pin))
     await database.close?.()
   }
+}
+
+async function releaseLocalBundlePin(database: PublicationDatabase, pin: BundlePin): Promise<void> {
+  await database.query(
+    `DELETE FROM ${LOCAL_PUBLICATION_PINS_TABLE} WHERE destination_id = ? AND bundle_key = ? AND pin_id = ? AND bundle_id = ?`,
+    [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
+  )
 }
 
 export type ResolveOnlyPin = Readonly<{
@@ -591,7 +693,83 @@ export function resolveOnlyRemoteAdapter(plane: BundlePlane, url: string): Publi
   return plane === 'analysis' ? postgresPublicationAdapter(url) : nativePublicationDatabase(url)
 }
 
-/** DuckDB's local pin manifest predates the remote signed-integrity envelope. */
+function localManifestMembers<Member extends BundleMember>(
+  contract: BundleContract<BundlePlane, Member>,
+  manifestJson: string,
+  payload: SignedIntegrityPayload,
+): Readonly<Record<Member, IntegrityMember>> {
+  let manifest: unknown
+  try { manifest = JSON.parse(manifestJson) } catch { throw new BundlePinError('PINNED_BUNDLE_GONE') }
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  const signed = new Map(payload.members.map(member => [member.member, member]))
+  const resolved = {} as Record<Member, IntegrityMember>
+  for (const member of contract.members) {
+    const proof = signed.get(member)
+    const facts = (manifest as Record<string, unknown>)[member]
+    if (!proof || facts === null || typeof facts !== 'object' || Array.isArray(facts)) throw new BundlePinError('PINNED_BUNDLE_GONE')
+    const record = facts as Record<string, unknown>
+    const columns = proof.column_schema?.length
+      ? proof.column_schema
+      : proof.columns
+    const manifestColumns = Array.isArray(record.column_schema) ? record.column_schema : record.columns
+    if (
+      record.table !== proof.table_name
+      || record.checksum !== proof.checksum
+      || !Array.isArray(record.unique_key)
+      || record.unique_key.length !== proof.key_columns.length
+      || record.unique_key.some((key, index) => key !== proof.key_columns[index])
+      || integrityCanonicalJson(manifestColumns) !== integrityCanonicalJson(columns)
+    ) throw new BundlePinError('PINNED_BUNDLE_GONE')
+    resolved[member] = proof
+  }
+  return resolved
+}
+
+async function verifyLocalLogicalMember(database: PublicationDatabase, member: IntegrityMember): Promise<void> {
+  const columns = member.column_schema?.length ? member.column_schema.map(column => column.name) : member.columns
+  if (!columns?.length) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  const table = quoteIdentifier(member.table_name)
+  const ordering = member.key_columns.map(quoteIdentifier).join(', ')
+  try {
+    const rows = await database.query<QueryRow>(
+      `SELECT ${columns.map(quoteIdentifier).join(', ')} FROM ${table} ORDER BY ${ordering}`,
+      [],
+    )
+    if (platformChecksum(rows) !== member.checksum) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  } catch (error) {
+    if (error instanceof BundlePinError) throw error
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+}
+
+async function resolveLocalBundlePin<Member extends BundleMember>(
+  database: PublicationDatabase,
+  contract: BundleContract<BundlePlane, Member>,
+  pin: BundlePin,
+): Promise<PinnedBundle<Member>> {
+  let row: PublishedBundleRow | undefined
+  try { [row] = await database.query<PublishedBundleRow>(
+    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json, b.integrity_version, b.integrity_key_id, b.integrity_payload_json, b.integrity_signature, b.physical_digest_algorithm FROM ${LOCAL_PUBLICATION_PINS_TABLE} p JOIN ${LOCAL_PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = ? AND p.bundle_key = ? AND p.pin_id = ? AND p.bundle_id = ? AND p.expires_at > epoch_ms(now())`,
+    [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
+  ) } catch { throw new BundlePinError('PINNED_BUNDLE_GONE') }
+  if (!row) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
+  const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
+  if (snapshotSeq === null) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  const payload = signedPayload(contract, row, pin, snapshotSeq)
+  if (payload.physical_digest_algorithm !== 'duckdb-json-length-framed-sha256-v1') throw new BundlePinError('PINNED_BUNDLE_GONE')
+  const members = localManifestMembers(contract, row.manifest_json, payload)
+  for (const member of contract.members) {
+    await verifyLocalLogicalMember(database, members[member])
+    await verifyPhysicalMember(database, members[member], payload.physical_digest_algorithm)
+  }
+  return {
+    bundleId: pin.bundleId,
+    snapshotSeq,
+    members: Object.fromEntries(contract.members.map(member => [member, quoteIdentifier(members[member].table_name)])) as Readonly<Record<Member, string>>,
+  }
+}
+
+/** Resolves a producer-created Platform DuckDB pin without changing its lifecycle. */
 export async function resolveOnlyLocalBundle<Plane extends BundlePlane>(
   plane: Plane,
   database: PublicationDatabase,
@@ -599,46 +777,17 @@ export async function resolveOnlyLocalBundle<Plane extends BundlePlane>(
 ): Promise<PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>> {
   const contract = bundleContract(plane)
   if (evidence.bundle_key !== contract.bundleKey) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  const [pinRow] = await database.query<{ bundle_id: string }>(
-    `SELECT bundle_id FROM ${PUBLICATION_PINS_TABLE} WHERE destination_id = $1 AND bundle_key = $2 AND pin_id = $3 AND expires_at > CURRENT_TIMESTAMP`,
-    ['local-duckdb', evidence.bundle_key, evidence.pin.pin_id],
-  )
-  const [bundleRow] = await database.query<{ snapshot_seq: number | string; manifest_json: string }>(
-    `SELECT snapshot_seq, manifest_json FROM ${PUBLICATION_BUNDLES_TABLE} WHERE destination_id = $1 AND bundle_key = $2 AND bundle_id = $3`,
-    ['local-duckdb', evidence.bundle_key, evidence.pin.bundle_id],
-  )
-  if (!pinRow || pinRow.bundle_id !== evidence.pin.bundle_id || !bundleRow) {
-    throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  }
-  const snapshotSeq = asNonNegativeInteger(bundleRow.snapshot_seq)
-  if (snapshotSeq === null || snapshotSeq !== evidence.snapshot_seq) {
-    throw new BundlePinError('PINNED_BUNDLE_GONE')
-  }
-  let manifest: unknown
-  try {
-    manifest = JSON.parse(bundleRow.manifest_json)
-  } catch {
-    throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
-  }
-  if (!manifest || Array.isArray(manifest) || typeof manifest !== 'object') {
-    throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
-  }
-  const entries = manifest as Record<string, unknown>
-  const resolved: Record<string, string> = {}
+  const resolved = await resolveLocalBundlePin(database, contract, {
+    destinationId: 'local-duckdb', bundleKey: evidence.bundle_key, pinId: evidence.pin.pin_id,
+    bundleId: evidence.pin.bundle_id, expiresAtMs: evidence.pin.expires_at_ms,
+  })
+  if (resolved.snapshotSeq !== evidence.snapshot_seq) throw new BundlePinError('PINNED_BUNDLE_GONE')
   for (const member of contract.members) {
-    const facts = entries[member]
-    if (!facts || Array.isArray(facts) || typeof facts !== 'object' || typeof (facts as Record<string, unknown>).table !== 'string') {
-      throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
-    }
-    resolved[member] = (facts as Record<string, unknown>).table as string
-    if (resolved[member] !== evidence.members[member]) {
-      throw new BundlePinError('PINNED_BUNDLE_GONE')
-    }
+    if (resolved.members[member] !== evidence.members[member]) throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
   return {
-    bundleId: evidence.pin.bundle_id,
-    snapshotSeq,
-    members: resolved as PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>['members'],
+    ...resolved,
+    members: resolved.members as PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>['members'],
   }
 }
 

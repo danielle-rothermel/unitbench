@@ -6,6 +6,7 @@ import {
   BundlePinError,
   releaseBundlePin,
   resolveBundlePin,
+  resolveOnlyLocalBundle,
   integrityCanonicalJson,
   platformChecksum,
   type PublicationDatabase,
@@ -18,6 +19,14 @@ const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEID4v6djRiugbIu3mOJMBQLqV5QGHI1V2AkVe/hp4OyAR
 -----END PRIVATE KEY-----`
 const TEST_PUBLIC_KEY = 'MCowBQYDK2VwAyEA0ezQwg8kdwyTQPHwHKuqmndPWfGfc8NuYCFsbma+y/Y='
+const SOURCE_COORDINATES = [{
+  source_id: 'application:unitbench',
+  database_server: 'unitbench',
+  captured_at: '2026-07-12T12:00:00Z',
+  snapshot_seq: 0,
+}]
+const SOURCE_COORDINATES_JSON = JSON.stringify(SOURCE_COORDINATES)
+const SOURCE_COORDINATES_SHA256 = createHash('sha256').update(integrityCanonicalJson(SOURCE_COORDINATES)).digest('hex')
 
 function manifest(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -42,7 +51,7 @@ function signedPayload(manifestJson: string, overrides: Record<string, unknown> 
     bundle_id: pin.bundleId,
     snapshot_seq: 0,
     integrity_version: 'dr-platform.bundle-integrity.v1',
-    source_coordinates_sha256: EMPTY_CHECKSUM,
+    source_coordinates_sha256: SOURCE_COORDINATES_SHA256,
     physical_digest_algorithm: 'postgres-pgcrypto-row-json-length-framed-sha256-v1',
     members: parsed.members.map((member: Record<string, unknown>) => ({
       ...member,
@@ -73,6 +82,7 @@ function databaseFor(
           snapshot_seq: Number(published.snapshot_seq),
         })
         return [{
+          source_coordinates_json: SOURCE_COORDINATES_JSON,
           integrity_version: 'dr-platform.bundle-integrity.v1',
           integrity_key_id: KEY_ID,
           integrity_payload_json: payload.payload,
@@ -270,12 +280,107 @@ describe('resolveBundlePin', () => {
     await expect(resolveBundlePin(tampered, ANALYSIS_BUNDLE_CONTRACT, pin)).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
   })
 
+  it.each([
+    ['coordinates', { source_coordinates_json: JSON.stringify([{ ...SOURCE_COORDINATES[0], database_server: 'forged' }]) }],
+    ['source families', { manifest_json: manifest({ source_families: ['dbos'] }) }],
+  ])('rejects mutated remote %s provenance', async (_name, mutation) => {
+    await expect(resolveBundlePin(
+      databaseFor({ bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest(), ...mutation }),
+      ANALYSIS_BUNDLE_CONTRACT,
+      pin,
+    )).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+  })
+
   it('fails closed after key revocation', async () => {
     const database = databaseFor({ bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest() })
     await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin)).resolves.toMatchObject({ bundleId: 'bundle-1' })
     process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({})
     await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin)).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
     process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({ [KEY_ID]: TEST_PUBLIC_KEY })
+  })
+})
+
+function localManifest(): string {
+  return JSON.stringify(Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, {
+    table: `bundle_${member}`,
+    columns: ['bundle_id'],
+    unique_key: ['bundle_id'],
+    checksum: EMPTY_CHECKSUM,
+  }])))
+}
+
+function localSignedPayload(): ReturnType<typeof signedPayload> {
+  const payload = {
+    destination_id: 'local-duckdb',
+    bundle_key: ANALYSIS_BUNDLE_CONTRACT.bundleKey,
+    bundle_id: 'bundle-local',
+    snapshot_seq: 0,
+    integrity_version: 'dr-platform.bundle-integrity.v1',
+    source_coordinates_sha256: EMPTY_CHECKSUM,
+    physical_digest_algorithm: 'duckdb-json-length-framed-sha256-v1',
+    members: ANALYSIS_BUNDLE_CONTRACT.members.map(member => ({
+      member,
+      schema_name: 'main',
+      table_name: `bundle_${member}`,
+      key_columns: ['bundle_id'],
+      row_count: 0,
+      checksum: EMPTY_CHECKSUM,
+      physical_digest: PHYSICAL_DIGEST,
+      columns: ['bundle_id'],
+    })),
+  }
+  const canonical = integrityCanonicalJson(payload)
+  return {
+    payload: JSON.stringify(payload),
+    signature: signPayload(null, Buffer.from(`dr-platform.bundle-integrity.v1\0${canonical}`), createPrivateKey(TEST_PRIVATE_KEY)).toString('base64'),
+  }
+}
+
+function platformLocalContractFixture(
+  mutation: 'none' | 'expired' | 'missing-table' | 'tampered' = 'none',
+): PublicationDatabase {
+  const signed = localSignedPayload()
+  const row = {
+    bundle_id: 'bundle-local', snapshot_seq: 0, manifest_json: localManifest(),
+    integrity_version: 'dr-platform.bundle-integrity.v1', integrity_key_id: KEY_ID,
+    integrity_payload_json: signed.payload, integrity_signature: signed.signature,
+    physical_digest_algorithm: 'duckdb-json-length-framed-sha256-v1',
+  }
+  const fixture: PublicationDatabase = {
+    query: async <Row extends Record<string, unknown>>(statement: string) => {
+      if (statement.includes('__dr_platform_export_pins')) return mutation === 'expired' ? [] as Row[] : [row] as unknown as Row[]
+      if (statement.startsWith('SELECT "bundle_id"') && mutation === 'missing-table') throw new Error('missing Platform table')
+      if (statement.startsWith('SELECT "bundle_id"')) return [] as Row[]
+      if (statement.startsWith('SELECT COUNT(*)')) return [{ row_count: mutation === 'tampered' ? 1 : 0, physical_digest: PHYSICAL_DIGEST }] as unknown as Row[]
+      throw new Error(`unexpected Platform local contract query: ${statement}`)
+    },
+    transaction: async operation => operation(fixture),
+  }
+  return fixture
+}
+
+describe('Platform DuckDB local bundle contract', () => {
+  it('resolves Platform local schema, signed payload, logical, and physical contracts', async () => {
+      const parity = await resolveOnlyLocalBundle('analysis', platformLocalContractFixture(), {
+        bundle_key: ANALYSIS_BUNDLE_CONTRACT.bundleKey,
+        pin: { pin_id: 'pin-local', bundle_id: 'bundle-local', expires_at_ms: 0 },
+        snapshot_seq: 0,
+        members: Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, `"bundle_${member}"`])),
+      })
+      expect(parity.members.experiments).toBe('"bundle_experiments"')
+  })
+
+  it.each([
+    ['expired pin', 'expired', 'PIN_EXPIRED_OR_GONE'],
+    ['missing signed table', 'missing-table', 'PINNED_BUNDLE_GONE'],
+    ['tampered physical member', 'tampered', 'PINNED_BUNDLE_GONE'],
+  ] as const)('fails closed for %s', async (_name, mutation, code) => {
+      await expect(resolveOnlyLocalBundle('analysis', platformLocalContractFixture(mutation), {
+        bundle_key: ANALYSIS_BUNDLE_CONTRACT.bundleKey,
+        pin: { pin_id: 'pin-local', bundle_id: 'bundle-local', expires_at_ms: 0 },
+        snapshot_seq: 0,
+        members: {},
+      })).rejects.toMatchObject({ code })
   })
 })
 
