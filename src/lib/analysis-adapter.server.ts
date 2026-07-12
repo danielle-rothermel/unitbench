@@ -50,6 +50,7 @@ export function postgresPublicationAdapter(url: string): AnalysisAdapter {
     transaction: async operation => sql.begin(async transaction => operation({
       query: async <Row extends Record<string, unknown>>(statement: string, values: readonly unknown[]) =>
         transaction.unsafe(statement, values as never[]) as Promise<readonly Row[]>,
+      kind: 'postgres',
       transaction: async nested => nested(adapter),
     })) as Promise<Awaited<ReturnType<typeof operation>>>,
     close: () => sql.end({ timeout: 5 }),
