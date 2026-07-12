@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { PredictionDetailPage } from '@/components/PredictionDetailPage'
 import { getPredictionDetail } from '@/lib/prediction-detail'
 import {
@@ -35,7 +35,8 @@ export default async function Page({ params, searchParams }: PageProps) {
     params,
     searchParams,
   ])
-  const id = predictionId.map(decodeURIComponent).join('/')
+  if (predictionId.length !== 1 || !predictionId[0]) notFound()
+  const id = decodeURIComponent(predictionId[0])
   const tableId = tableIdFrom(resolvedSearchParams)
 
   try {
@@ -50,24 +51,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 
   const backHref = backHrefFrom(tableId, resolvedSearchParams.return)
 
-  if (result.status === 'missing-url') {
-    return (
-      <ErrorSection
-        tone="setup"
-        title="DATABASE_URL not configured"
-        message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-      />
-    )
-  }
+  if (result.status === 'failure') return <BundleState plane="Detail" failure={result.failure} />
 
-  if (result.status === 'error') {
-    return (
-      <ErrorSection
-        title="Failed to load prediction"
-        message={result.message}
-      />
-    )
-  }
-
-  return <PredictionDetailPage detail={result.detail} backHref={backHref} />
+  return <PredictionDetailPage detail={result.detail} provenance={result.provenance} bundle={result.bundle} backHref={backHref} />
 }

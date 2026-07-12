@@ -1,10 +1,10 @@
 import { AggregatePageShell } from '@/components/AggregatePageShell'
 import { HeatmapFilters } from '@/components/HeatmapFilters'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
 import { getHeatmapFacets, getHeatmapRows } from '@/lib/aggregate-data'
 import { heatmapTitle } from '@/lib/heatmap-config'
-import { BundleReadError } from '@/lib/bundle-adapter.server'
+import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { parseHeatmapState } from '@/lib/heatmap-params'
 
 export const dynamic = 'force-dynamic'
@@ -19,19 +19,13 @@ export default async function Page({ searchParams }: PageProps) {
 
   let facets: Awaited<ReturnType<typeof getHeatmapFacets>> = {}
   let heatmapRows: Awaited<ReturnType<typeof getHeatmapRows>> = []
-  let status: 'ok' | 'missing-url' | 'error' = 'ok'
-  let errorMessage = ''
+  let failure: BundleViewFailure | null = null
 
   try {
     facets = await getHeatmapFacets(state)
     heatmapRows = await getHeatmapRows(state)
   } catch (error) {
-    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
-      status = 'missing-url'
-    } else {
-      status = 'error'
-      errorMessage = error instanceof Error ? error.message : String(error)
-    }
+    failure = bundleFailure(error)
   }
 
   return (
@@ -43,19 +37,8 @@ export default async function Page({ searchParams }: PageProps) {
         label: 'View flexible aggregation →',
       }}
     >
-      {status === 'missing-url' && (
-        <ErrorSection
-          tone="setup"
-          title="DATABASE_URL not configured"
-          message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-        />
-      )}
-
-      {status === 'error' && (
-        <ErrorSection title="Failed to load heatmap" message={errorMessage} />
-      )}
-
-      {status === 'ok' && (
+      {failure && <BundleState plane="Analysis" failure={failure} />}
+      {!failure && (
         <>
           <HeatmapFilters state={state} facets={facets} />
           <ScoreHeatmap rows={heatmapRows} state={state} />

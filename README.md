@@ -1,8 +1,7 @@
 # unitbench
 
-A hosted viewer for published benchmark and experiment results. A local Python CLI
-(`tools/unitbench_publish`) curates experiment tables into Neon; the Next.js app reads
-those tables server-side, with filterable/sortable browse tables, per-prediction
+A hosted viewer for accepted benchmark and experiment results. The Next.js app reads
+validated, pinned Analysis and Detail publication bundles server-side, with filterable/sortable browse tables, per-prediction
 detail pages, an aggregate view (`/aggregate`), and a score heatmap
 (`/aggregate/heatmap`).
 
@@ -24,10 +23,9 @@ The dev server runs at http://localhost:3000.
 
 - Use **pnpm**, not `npm`/`yarn` — the repo is pinned via the `packageManager`
   field and uses `pnpm-lock.yaml`.
-- The database connection is configured in `.env` via `DATABASE_URL`
-  (Neon Postgres) — see `.env.example`. The app reads its tables
-  server-side, so no Python tooling is needed just to view the dev server — the
-  tables are populated separately by the `tools/unitbench_publish` CLI.
+- Configure the server-only stores in `.env`: `ANALYSIS_DATABASE_URL` for the
+  Analysis bundle and `DATABASE_URL` for the Neon Detail bundle. See
+  `.env.example`; each bundle has its own publication destination ID.
 
 ### Other scripts
 

@@ -1,34 +1,19 @@
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { Tag } from '@/components/primitives'
-import { BundleReadError } from '@/lib/bundle-adapter.server'
-import {
-  fetchCompressionDistribution,
-  fetchCorrectnessCompressionPoints,
-  type CompressionDistributionBin,
-  type CorrectnessCompressionPoint,
-} from '@/lib/read-layer'
+import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
+import { fetchDashboardRead, type DashboardRead } from '@/lib/read-layer'
 import { DashboardCharts } from './DashboardCharts'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  let points: CorrectnessCompressionPoint[] = []
-  let distribution: CompressionDistributionBin[] = []
-  let status: 'ok' | 'missing-url' | 'error' = 'ok'
-  let errorMessage = ''
+  let read: DashboardRead | null = null
+  let failure: BundleViewFailure | null = null
 
   try {
-    ;[points, distribution] = await Promise.all([
-      fetchCorrectnessCompressionPoints(),
-      fetchCompressionDistribution(),
-    ])
+    read = await fetchDashboardRead()
   } catch (error) {
-    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
-      status = 'missing-url'
-    } else {
-      status = 'error'
-      errorMessage = error instanceof Error ? error.message : String(error)
-    }
+    failure = bundleFailure(error)
   }
 
   return (
@@ -48,23 +33,8 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {status === 'missing-url' && (
-        <ErrorSection
-          tone="setup"
-          title="Analysis store not configured"
-          message="Set ANALYSIS_DATABASE_URL and ANALYSIS_PUBLICATION_DESTINATION_ID before reading a pinned bundle."
-        />
-      )}
-      {status === 'error' && (
-        <ErrorSection
-          tone="error"
-          title="Pinned Analysis bundle read failed"
-          message={errorMessage}
-        />
-      )}
-      {status === 'ok' && (
-        <DashboardCharts points={points} distribution={distribution} />
-      )}
+      {failure && <BundleState plane="Analysis" failure={failure} />}
+      {!failure && read && <><p className="mb-3 font-mono text-[11px] text-[var(--text-muted)]">Pinned Analysis bundle {read.bundle.bundle_id} · snapshot {read.bundle.snapshot_seq}</p><DashboardCharts points={[...read.points]} distribution={[...read.distribution]} /></>}
     </div>
   )
 }

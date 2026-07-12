@@ -16,7 +16,7 @@ export function TableExploreAggregatesLink({
   tableId,
   state,
 }: TableExploreAggregatesLinkProps) {
-  if (tableId !== 'published-predictions') return null
+  if (tableId !== 'predictions') return null
   if (!hasActiveTableFilters(state)) return null
 
   return (
