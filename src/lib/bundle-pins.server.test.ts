@@ -7,6 +7,7 @@ import {
   releaseBundlePin,
   resolveBundlePin,
   resolveOnlyLocalBundle,
+  resolveOnlyPinnedBundle,
   integrityCanonicalJson,
   platformChecksum,
   type PublicationDatabase,
@@ -111,6 +112,30 @@ const pin = {
 process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({ [KEY_ID]: TEST_PUBLIC_KEY })
 
 describe('resolveBundlePin', () => {
+  it('accepts Platform bare remote descriptor members while returning quoted SQL identifiers', async () => {
+    const resolved = await resolveOnlyPinnedBundle('analysis', databaseFor({
+      bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest(),
+    }), {
+      destination_id: pin.destinationId,
+      bundle_key: pin.bundleKey,
+      pin: { pin_id: pin.pinId, bundle_id: pin.bundleId, expires_at_ms: pin.expiresAtMs },
+      snapshot_seq: 0,
+      members: Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, `public.bundle_${member}`])),
+    })
+    expect(resolved.members.experiments).toBe('"public"."bundle_experiments"')
+  })
+
+  it('rejects malformed or SQL-shaped descriptor members', async () => {
+    await expect(resolveOnlyPinnedBundle('analysis', databaseFor({
+      bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest(),
+    }), {
+      destination_id: pin.destinationId,
+      bundle_key: pin.bundleKey,
+      pin: { pin_id: pin.pinId, bundle_id: pin.bundleId, expires_at_ms: pin.expiresAtMs },
+      snapshot_seq: 0,
+      members: { ...Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, `public.bundle_${member}`])), experiments: 'public.bundle_experiments; DROP TABLE pins' },
+    })).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+  })
   it('fails closed when a legacy unsigned promoted row is pinned', async () => {
     await expect(
       resolveBundlePin(
@@ -365,7 +390,7 @@ describe('Platform DuckDB local bundle contract', () => {
         bundle_key: ANALYSIS_BUNDLE_CONTRACT.bundleKey,
         pin: { pin_id: 'pin-local', bundle_id: 'bundle-local', expires_at_ms: 0 },
         snapshot_seq: 0,
-        members: Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, `"bundle_${member}"`])),
+        members: Object.fromEntries(ANALYSIS_BUNDLE_CONTRACT.members.map(member => [member, `bundle_${member}`])),
       })
       expect(parity.members.experiments).toBe('"bundle_experiments"')
   })

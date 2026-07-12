@@ -103,6 +103,44 @@ function physicalTable(member: ManifestMember): string {
   return `${quoteIdentifier(member.schema_name)}.${quoteIdentifier(member.table_name)}`
 }
 
+type DescriptorMemberIdentity = Readonly<{
+  schemaName?: string
+  tableName: string
+}>
+
+/**
+ * Platform descriptors carry reader-facing identifiers, not SQL fragments:
+ * remote members are `schema.table`, while local members are `table`.
+ * Parse that wire contract before rendering (or comparing) any SQL.
+ */
+function parseDescriptorMemberIdentity(value: unknown, local: boolean): DescriptorMemberIdentity {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  const parts = value.split('.')
+  if ((local && parts.length !== 1) || (!local && parts.length !== 2)) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  if (parts.some(part => !IDENTIFIER.test(part))) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
+  return local ? { tableName: parts[0]! } : { schemaName: parts[0]!, tableName: parts[1]! }
+}
+
+function matchesDescriptorMember(
+  evidence: unknown,
+  member: IntegrityMember,
+  local: boolean,
+): boolean {
+  try {
+    const descriptor = parseDescriptorMemberIdentity(evidence, local)
+    return descriptor.tableName === member.table_name
+      && (local || descriptor.schemaName === member.schema_name)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Mirrors dr-platform's `_canonical`: compact JSON, sorted object keys, and
  * ISO temporal values.  postgres.js returns int8/numeric as strings while
@@ -176,6 +214,7 @@ export function integrityCanonicalJson(value: unknown): string {
 }
 
 type IntegrityMember = ManifestMember & Readonly<{ physical_digest: string }>
+const pinnedBundleMemberIdentities = new WeakMap<object, Readonly<Record<string, IntegrityMember>>>()
 type SignedIntegrityPayload = Readonly<{
   destination_id: string
   bundle_key: string
@@ -468,13 +507,15 @@ async function verifyPinnedBundle<Member extends BundleMember>(
     }
     await verifyPhysicalMember(database, signed, payload.physical_digest_algorithm)
   }
-  return {
+  const resolved = {
     bundleId: row.bundle_id,
     snapshotSeq,
     members: Object.fromEntries(
       contract.members.map((member) => [member, physicalTable(members[member])]),
     ) as Readonly<Record<Member, string>>,
   }
+  pinnedBundleMemberIdentities.set(resolved, members)
+  return resolved
 }
 
 function nativePublicationDatabase(url: string): PublicationDatabase {
@@ -678,7 +719,8 @@ export async function resolveOnlyPinnedBundle<Plane extends BundlePlane>(
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
   for (const member of contract.members) {
-    if (resolved.members[member] !== evidence.members[member]) {
+    const signed = pinnedBundleMemberIdentities.get(resolved)?.[member]
+    if (!signed || !matchesDescriptorMember(evidence.members[member], signed, false)) {
       throw new BundlePinError('PINNED_BUNDLE_GONE')
     }
   }
@@ -762,11 +804,13 @@ async function resolveLocalBundlePin<Member extends BundleMember>(
     await verifyLocalLogicalMember(database, members[member])
     await verifyPhysicalMember(database, members[member], payload.physical_digest_algorithm)
   }
-  return {
+  const resolved = {
     bundleId: pin.bundleId,
     snapshotSeq,
     members: Object.fromEntries(contract.members.map(member => [member, quoteIdentifier(members[member].table_name)])) as Readonly<Record<Member, string>>,
   }
+  pinnedBundleMemberIdentities.set(resolved, members)
+  return resolved
 }
 
 /** Resolves a producer-created Platform DuckDB pin without changing its lifecycle. */
@@ -783,7 +827,10 @@ export async function resolveOnlyLocalBundle<Plane extends BundlePlane>(
   })
   if (resolved.snapshotSeq !== evidence.snapshot_seq) throw new BundlePinError('PINNED_BUNDLE_GONE')
   for (const member of contract.members) {
-    if (resolved.members[member] !== evidence.members[member]) throw new BundlePinError('PINNED_BUNDLE_GONE')
+    const signed = pinnedBundleMemberIdentities.get(resolved)?.[member]
+    if (!signed || !matchesDescriptorMember(evidence.members[member], signed, true)) {
+      throw new BundlePinError('PINNED_BUNDLE_GONE')
+    }
   }
   return {
     ...resolved,
