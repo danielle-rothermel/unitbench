@@ -4,8 +4,9 @@ Status: executable preflight for the Platform v6 Unitbench cut; 2026-07-11.
 
 This matrix fixes the delivery boundary before the Analysis and Detail adapters
 land. A live same-physical-fixture probe now proves the two available driver
-representations normalize equally, but permanent every-query adapter parity
-remains a blocking U2/U5 gate.
+representations normalize equally. The production dashboard point and
+distribution reads now also have non-empty local DuckDB/MotherDuck parity, but
+permanent every-query adapter parity remains a blocking U2/U5 gate.
 
 ## Runtime and secret scenarios
 
@@ -52,6 +53,15 @@ string was printed. This establishes driver and endpoint feasibility; U1/U2
 must turn the probe into the permanent adapter contract/query-fixture suite
 once those adapters and their declared dependencies exist. A mock or two
 separately authored expected outputs cannot satisfy that gate.
+
+The 2026-07-12 application gate exported one accepted Whetstone prediction and
+executed the dashboard's production point and distribution SQL against both
+the local DuckDB bundle and its MotherDuck publication. Both normalized to the
+same point (`passed`, score `1.0`, provider cost `0.125`, compression ratio
+`0.5`) and the same distribution row (bucket `3`, count `1`). The portable
+bucket expression explicitly casts remotely stored text and prepared
+parameters; DuckDB does not implement PostgreSQL's `width_bucket` function.
+All temporary publication tables and metadata were verified absent afterward.
 
 ## Live Vercel inspection
 

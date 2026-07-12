@@ -26,6 +26,15 @@ export type {
 
 export const DASHBOARD_POINT_LIMIT = 1500
 
+// DuckDB has no width_bucket function, and remote Analysis columns are
+// intentionally stored as text. This expression preserves PostgreSQL's
+// width_bucket(value, 0, max, count) boundaries on both adapters.
+export const COMPRESSION_BUCKET_SQL = `CASE
+  WHEN CAST(compression_ratio AS DOUBLE PRECISION) < 0 THEN 0
+  WHEN CAST(compression_ratio AS DOUBLE PRECISION) >= CAST($1 AS DOUBLE PRECISION) THEN CAST($2 AS INTEGER) + 1
+  ELSE CAST(FLOOR(CAST(compression_ratio AS DOUBLE PRECISION) * CAST($2 AS INTEGER) / CAST($1 AS DOUBLE PRECISION)) AS INTEGER) + 1
+END`
+
 export type DashboardRead = Readonly<{
   points: readonly CorrectnessCompressionPoint[]
   distribution: readonly CompressionDistributionBin[]
@@ -39,7 +48,7 @@ async function readDashboard(
 ): Promise<Pick<DashboardRead, 'points' | 'distribution'>> {
   const [distributionRows, pointRows] = await Promise.all([
     database.query(
-      `SELECT width_bucket(compression_ratio, 0, $1, $2) AS bucket, result_state, count(*)::int AS count FROM ${predictions} WHERE experiment_kind = 'humaneval_encdec' AND compression_ratio IS NOT NULL AND result_state IN ('passed', 'failed') GROUP BY bucket, result_state ORDER BY bucket`,
+      `SELECT ${COMPRESSION_BUCKET_SQL} AS bucket, result_state, count(*)::int AS count FROM ${predictions} WHERE experiment_kind = 'humaneval_encdec' AND compression_ratio IS NOT NULL AND result_state IN ('passed', 'failed') GROUP BY bucket, result_state ORDER BY bucket`,
       [DISTRIBUTION_MAX_RATIO, DISTRIBUTION_BUCKETS],
     ),
     database.query(
@@ -69,12 +78,7 @@ export async function fetchCompressionDistribution(): Promise<
     const rows = await database.query(
       `
     SELECT
-      width_bucket(
-        compression_ratio,
-        0,
-        $1,
-        $2
-      ) AS bucket,
+      ${COMPRESSION_BUCKET_SQL} AS bucket,
       result_state,
       count(*)::int AS count
     FROM ${bundle.members.predictions}
