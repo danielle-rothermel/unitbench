@@ -497,6 +497,54 @@
     }
   },
   {
+    "id": "table/predictions/range/harness_failure_count/min",
+    "plane": "analysis",
+    "loader": "table",
+    "table": "predictions",
+    "input": {
+      "harness_failure_count_min": "0"
+    }
+  },
+  {
+    "id": "table/predictions/range/harness_failure_count/max",
+    "plane": "analysis",
+    "loader": "table",
+    "table": "predictions",
+    "input": {
+      "harness_failure_count_max": "1"
+    }
+  },
+  {
+    "id": "table/predictions/range/harness_failure_count/min-max",
+    "plane": "analysis",
+    "loader": "table",
+    "table": "predictions",
+    "input": {
+      "harness_failure_count_min": "0",
+      "harness_failure_count_max": "1"
+    }
+  },
+  {
+    "id": "table/predictions/sort/harness_failure_count/asc",
+    "plane": "analysis",
+    "loader": "table",
+    "table": "predictions",
+    "input": {
+      "sort": "harness_failure_count",
+      "dir": "asc"
+    }
+  },
+  {
+    "id": "table/predictions/sort/harness_failure_count/desc",
+    "plane": "analysis",
+    "loader": "table",
+    "table": "predictions",
+    "input": {
+      "sort": "harness_failure_count",
+      "dir": "desc"
+    }
+  },
+  {
     "id": "table/predictions/range/score/min",
     "plane": "analysis",
     "loader": "table",
@@ -1240,6 +1288,54 @@
     "table": "detail-predictions",
     "input": {
       "sort": "scoring_status",
+      "dir": "desc"
+    }
+  },
+  {
+    "id": "table/detail-predictions/range/harness_failure_count/min",
+    "plane": "detail",
+    "loader": "table",
+    "table": "detail-predictions",
+    "input": {
+      "harness_failure_count_min": "0"
+    }
+  },
+  {
+    "id": "table/detail-predictions/range/harness_failure_count/max",
+    "plane": "detail",
+    "loader": "table",
+    "table": "detail-predictions",
+    "input": {
+      "harness_failure_count_max": "1"
+    }
+  },
+  {
+    "id": "table/detail-predictions/range/harness_failure_count/min-max",
+    "plane": "detail",
+    "loader": "table",
+    "table": "detail-predictions",
+    "input": {
+      "harness_failure_count_min": "0",
+      "harness_failure_count_max": "1"
+    }
+  },
+  {
+    "id": "table/detail-predictions/sort/harness_failure_count/asc",
+    "plane": "detail",
+    "loader": "table",
+    "table": "detail-predictions",
+    "input": {
+      "sort": "harness_failure_count",
+      "dir": "asc"
+    }
+  },
+  {
+    "id": "table/detail-predictions/sort/harness_failure_count/desc",
+    "plane": "detail",
+    "loader": "table",
+    "table": "detail-predictions",
+    "input": {
+      "sort": "harness_failure_count",
       "dir": "desc"
     }
   },
