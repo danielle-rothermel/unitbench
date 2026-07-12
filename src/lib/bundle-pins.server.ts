@@ -188,8 +188,10 @@ function configuredPublicKeys(environment: NodeJS.ProcessEnv = process.env): Rea
   try {
     const parsed: unknown = JSON.parse(encoded)
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not a key ring')
-    const keys = Object.entries(parsed as Record<string, unknown>).filter(
-      ([key, value]) => IDENTIFIER.test(key) && typeof value === 'string' && value.length > 0,
+    const keys: [string, string][] = Object.entries(parsed as Record<string, unknown>).flatMap(
+      ([key, value]) => IDENTIFIER.test(key) && typeof value === 'string' && value.length > 0
+        ? [[key, value]]
+        : [],
     )
     if (keys.length === 0) throw new Error('empty key ring')
     return Object.fromEntries(keys)
@@ -382,12 +384,27 @@ async function verifyPinnedBundle<Member extends BundleMember>(
 ): Promise<PinnedBundle<Member>> {
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
+  const manifest = manifestMembers(contract, parseManifest(row.manifest_json))
   const payload = signedPayload(contract, row, pin, snapshotSeq)
   if (!['duckdb-json-length-framed-sha256-v1', 'postgres-pgcrypto-row-json-length-framed-sha256-v1'].includes(payload.physical_digest_algorithm)) {
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
   const members = Object.fromEntries(payload.members.map(member => [member.member, member])) as Readonly<Record<Member, IntegrityMember>>
-  for (const member of contract.members) await verifyPhysicalMember(database, members[member], payload.physical_digest_algorithm)
+  for (const member of contract.members) {
+    const signed = members[member]
+    const published = manifest[member]
+    if (
+      signed.schema_name !== published.schema_name
+      || signed.table_name !== published.table_name
+      || signed.row_count !== published.row_count
+      || signed.checksum !== published.checksum
+      || signed.key_columns.length !== published.key_columns.length
+      || signed.key_columns.some((key, index) => key !== published.key_columns[index])
+    ) {
+      throw new BundlePinError('PINNED_BUNDLE_GONE')
+    }
+    await verifyPhysicalMember(database, signed, payload.physical_digest_algorithm)
+  }
   return {
     bundleId: row.bundle_id,
     snapshotSeq,

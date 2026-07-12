@@ -13,7 +13,7 @@ import {
 
 const EMPTY_CHECKSUM = createHash('sha256').update('[]').digest('hex')
 const PHYSICAL_DIGEST = createHash('sha256').update('').digest('hex')
-const KEY_ID = 'test-ed25519'
+const KEY_ID = 'test_ed25519'
 const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEID4v6djRiugbIu3mOJMBQLqV5QGHI1V2AkVe/hp4OyAR
 -----END PRIVATE KEY-----`
@@ -257,7 +257,10 @@ describe('resolveBundlePin', () => {
     const base = databaseFor({ bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest() })
     const tampered: PublicationDatabase = {
       ...base,
-      query: async <Row extends Record<string, unknown>>(statement, values) => {
+      query: async <Row extends Record<string, unknown>>(
+        statement: string,
+        values: readonly unknown[],
+      ) => {
         if (statement.startsWith('SELECT COUNT(*)') && statement.includes('bundle_experiments')) {
           return [{ row_count: 1, physical_digest: PHYSICAL_DIGEST }] as unknown as Row[]
         }
