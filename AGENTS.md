@@ -25,9 +25,6 @@ docs swept 2026-07-07
   keys, table column keys (`src/lib/table-config.ts`), and detail fields are
   the Neon column / JSONB payload keys, verbatim. A component built against a
   fixture row must render a SQL result row with zero mapping.
-- **Python side:** `tools/unitbench_publish/` is a Typer CLI (uv-managed,
-  `pyproject.toml`, tests in `tests/`) that publishes curated experiment
-  tables to Neon. It is a separate publish path; the Next.js app only reads.
 
 ## Current app surfaces
 
@@ -47,9 +44,6 @@ docs swept 2026-07-07
 - `src/fixtures/` — fake-data fixture package for the six viz components
   (REL-13): seeded RNG, sweep/extraction/compression/pipeline/bootstrap/heatmap
   generators. Shapes double as the component API contract.
-- `tools/unitbench_publish/` — Python CLI that curates experiment tables into
-  Neon (`published_*` and `published_v1_*` tables); reads
-  `UNITBENCH_SOURCE_DATABASE_URL` / `UNITBENCH_TARGET_DATABASE_URL`.
 
 ## FROZEN fixture contract
 

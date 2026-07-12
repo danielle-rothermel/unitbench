@@ -2,7 +2,7 @@ import { AggregateControls } from '@/components/AggregateControls'
 import { AggregatePageShell } from '@/components/AggregatePageShell'
 import { AggregateTable } from '@/components/AggregateTable'
 import { BundleState } from '@/components/panels/BundleState'
-import { getAggregateFacets, getAggregatePage } from '@/lib/aggregate-data'
+import { getAggregatePage } from '@/lib/aggregate-data'
 import { parseAggregateState } from '@/lib/aggregate-params'
 
 export const dynamic = 'force-dynamic'
@@ -15,9 +15,6 @@ export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const state = parseAggregateState(resolvedSearchParams)
   const aggregatePage = await getAggregatePage(state)
-
-  const facets =
-    aggregatePage.status === 'ok' ? await getAggregateFacets(aggregatePage.state) : {}
 
   return (
     <AggregatePageShell
@@ -32,7 +29,7 @@ export default async function Page({ searchParams }: PageProps) {
 
       {aggregatePage.status === 'ok' && (
         <>
-          <AggregateControls state={aggregatePage.state} facets={facets} />
+          <AggregateControls state={aggregatePage.state} facets={aggregatePage.facets} />
           <AggregateTable
             aggregateState={aggregatePage.state}
             tableConfig={aggregatePage.tableConfig}

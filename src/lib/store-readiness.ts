@@ -3,6 +3,8 @@ export const STORE_ENVIRONMENT_VARIABLES = {
   detail: 'DATABASE_URL',
 } as const
 
+export const LOCAL_ANALYSIS_DATABASE_PATH = 'LOCAL_ANALYSIS_DATABASE_PATH'
+
 export const PUBLICATION_DESTINATION_ENVIRONMENT_VARIABLES = {
   analysis: 'ANALYSIS_PUBLICATION_DESTINATION_ID',
   detail: 'DETAIL_PUBLICATION_DESTINATION_ID',
@@ -19,6 +21,7 @@ export type StoreEnvironment = Readonly<{
   DATABASE_URL?: string
   ANALYSIS_PUBLICATION_DESTINATION_ID?: string
   DETAIL_PUBLICATION_DESTINATION_ID?: string
+  LOCAL_ANALYSIS_DATABASE_PATH?: string
 }>
 
 function isConfigured(value: string | undefined): boolean {
@@ -29,7 +32,7 @@ export function resolveStoreReadiness(
   environment: StoreEnvironment,
 ): StoreReadiness {
   return {
-    analysis: isConfigured(environment.ANALYSIS_DATABASE_URL)
+    analysis: isConfigured(environment.LOCAL_ANALYSIS_DATABASE_PATH) || isConfigured(environment.ANALYSIS_DATABASE_URL)
       ? 'configured'
       : 'missing',
     detail: isConfigured(environment.DATABASE_URL) ? 'configured' : 'missing',

@@ -64,7 +64,9 @@ export function publicationStoreConfiguration(
   }
   return {
     plane,
-    databaseUrl: requiredStoreUrl(plane, environment),
+    databaseUrl: plane === 'analysis' && environment.LOCAL_ANALYSIS_DATABASE_PATH?.trim()
+      ? environment.LOCAL_ANALYSIS_DATABASE_PATH.trim()
+      : requiredStoreUrl(plane, environment),
     destinationId,
   }
 }
