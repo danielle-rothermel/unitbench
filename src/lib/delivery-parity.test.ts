@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { PublicationDatabase } from '@/lib/bundle-pins.server'
-import { assertFrozenParityInventory, FROZEN_PRODUCTION_PARITY_CASES } from '@/lib/delivery-parity-inventory.server'
+import {
+  assertFrozenParityInventory,
+  assertParityInventory,
+  deriveProductionParityInventory,
+  FROZEN_PRODUCTION_PARITY_CASES,
+  FROZEN_PRODUCTION_PARITY_INVENTORY,
+} from '@/lib/delivery-parity-inventory.server'
 
 type Query = Readonly<{ plane: 'analysis' | 'detail'; text: string; params: readonly unknown[] }>
 const members = {
@@ -16,9 +22,15 @@ vi.mock('@/lib/bundle-adapter.server', () => ({
 }))
 
 describe('frozen production parity inventory', () => {
-  it('has an exhaustive, omission-detecting production loader inventory', () => {
+  it('exactly equals the production-config-derived loader cross-product', () => {
+    expect(FROZEN_PRODUCTION_PARITY_INVENTORY).toEqual(deriveProductionParityInventory())
     expect(() => assertFrozenParityInventory()).not.toThrow()
-    expect(FROZEN_PRODUCTION_PARITY_CASES.length).toBeGreaterThanOrEqual(350)
+  })
+
+  it('rejects an omitted frozen case', () => {
+    expect(() => assertParityInventory(FROZEN_PRODUCTION_PARITY_INVENTORY.slice(1))).toThrow(
+      'Frozen parity inventory differs',
+    )
   })
 
   it('captures real SQL and parameters from every production loader path', async () => {
