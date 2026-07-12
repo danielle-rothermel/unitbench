@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "check:delivery-preflight": "node scripts/check-delivery-preflight.mjs",
     "lint": "eslint .",
     "start": "next start",
     "test": "vitest run",
@@ -32,7 +33,8 @@
     "next": "^16.0.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

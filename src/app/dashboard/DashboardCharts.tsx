@@ -15,7 +15,7 @@ import {
   DISTRIBUTION_MAX_RATIO,
   type CompressionDistributionBin,
   type CorrectnessCompressionPoint,
-} from '@/lib/read-layer'
+} from '@/lib/dashboard-model'
 
 const SCATTER_WIDTH = 960
 const SCATTER_HEIGHT = 380
