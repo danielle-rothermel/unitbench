@@ -1,13 +1,12 @@
 # R0 — Shared fixture shapes for the six viz components (REL-13)
 
-Status: DESIGN — awaiting approval before implementation.
+Status: REVIEWED — historical frozen contract; implementation is complete.
 
 One shared contract for the fake-data fixtures that R1–R6 build against. Every shape is
 derived from what the real pipeline produces, so the D3 real-data swap is a pass-through:
 
-- **Neon tables** written by `tools/unitbench_publish` (`models.py`, `schema.py`,
-  `dr_dspy_v1.py`): `published_predictions`, `published_prediction_details`,
-  `published_experiments` — the authoritative field inventory.
+- **Platform v6 published bundles**: the Analysis and Detail projection schemas
+  published by dr-platform are the authoritative field inventory.
 - **whetstone-ai scoring records** (`src/dr_dspy/records/models.py`,
   `humaneval/{scoring,task,compression,code_parsing,parsed_code,metric_models}.py`) —
   the payloads that land in `summary_json` / `metrics_json` / `validation_json` /

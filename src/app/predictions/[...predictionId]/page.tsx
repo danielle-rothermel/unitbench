@@ -30,13 +30,18 @@ function backHrefFrom(
   return raw ? `${base}?${raw}` : base
 }
 
+export function predictionIdFromSegments(predictionId: readonly string[]): string | null {
+  if (predictionId.length === 0 || predictionId.some(segment => !segment)) return null
+  return predictionId.map(decodeURIComponent).join('/')
+}
+
 export default async function Page({ params, searchParams }: PageProps) {
   const [{ predictionId }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ])
-  if (predictionId.length !== 1 || !predictionId[0]) notFound()
-  const id = decodeURIComponent(predictionId[0])
+  const id = predictionIdFromSegments(predictionId)
+  if (!id) notFound()
   const tableId = tableIdFrom(resolvedSearchParams)
 
   try {

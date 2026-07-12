@@ -16,12 +16,12 @@ describe('storeReadiness', () => {
     },
     {
       name: 'keeps Detail available when Analysis is missing',
-      environment: { DATABASE_URL: 'postgres://detail' },
+      environment: { DATABASE_URL: 'postgres://detail', DETAIL_PUBLICATION_DESTINATION_ID: 'neon-detail' },
       expected: { analysis: 'missing', detail: 'configured' },
     },
     {
       name: 'keeps Analysis available when Detail is missing',
-      environment: { ANALYSIS_DATABASE_URL: 'postgres://analysis' },
+      environment: { ANALYSIS_DATABASE_URL: 'postgres://analysis', ANALYSIS_PUBLICATION_DESTINATION_ID: 'motherduck-analysis' },
       expected: { analysis: 'configured', detail: 'missing' },
     },
     {
@@ -29,6 +29,8 @@ describe('storeReadiness', () => {
       environment: {
         ANALYSIS_DATABASE_URL: 'postgres://analysis',
         DATABASE_URL: 'postgres://detail',
+        ANALYSIS_PUBLICATION_DESTINATION_ID: 'motherduck-analysis',
+        DETAIL_PUBLICATION_DESTINATION_ID: 'neon-detail',
       },
       expected: { analysis: 'configured', detail: 'configured' },
     },
