@@ -1,0 +1,3446 @@
+[
+  {
+    "name": "positive-zero",
+    "bits": "0x0000000000000000",
+    "input": "0.0",
+    "expected": "0.0"
+  },
+  {
+    "name": "negative-zero",
+    "bits": "0x8000000000000000",
+    "input": "-0.0",
+    "expected": "-0.0"
+  },
+  {
+    "name": "threshold-0.0001-below",
+    "bits": "0x3f1a36e2eb1c432c",
+    "input": "9.999999999999999e-05",
+    "expected": "9.999999999999999e-05"
+  },
+  {
+    "name": "threshold-negative-0.0001-below",
+    "bits": "0xbf1a36e2eb1c432c",
+    "input": "-9.999999999999999e-05",
+    "expected": "-9.999999999999999e-05"
+  },
+  {
+    "name": "threshold-0.0001-exact",
+    "bits": "0x3f1a36e2eb1c432d",
+    "input": "0.0001",
+    "expected": "0.0001"
+  },
+  {
+    "name": "threshold-negative-0.0001-exact",
+    "bits": "0xbf1a36e2eb1c432d",
+    "input": "-0.0001",
+    "expected": "-0.0001"
+  },
+  {
+    "name": "threshold-0.0001-above",
+    "bits": "0x3f1a36e2eb1c432e",
+    "input": "0.00010000000000000002",
+    "expected": "0.00010000000000000002"
+  },
+  {
+    "name": "threshold-negative-0.0001-above",
+    "bits": "0xbf1a36e2eb1c432e",
+    "input": "-0.00010000000000000002",
+    "expected": "-0.00010000000000000002"
+  },
+  {
+    "name": "threshold-1e+16-below",
+    "bits": "0x4341c37937e07fff",
+    "input": "9999999999999998.0",
+    "expected": "9999999999999998.0"
+  },
+  {
+    "name": "threshold-negative-1e+16-below",
+    "bits": "0xc341c37937e07fff",
+    "input": "-9999999999999998.0",
+    "expected": "-9999999999999998.0"
+  },
+  {
+    "name": "threshold-1e+16-exact",
+    "bits": "0x4341c37937e08000",
+    "input": "1e+16",
+    "expected": "1e+16"
+  },
+  {
+    "name": "threshold-negative-1e+16-exact",
+    "bits": "0xc341c37937e08000",
+    "input": "-1e+16",
+    "expected": "-1e+16"
+  },
+  {
+    "name": "threshold-1e+16-above",
+    "bits": "0x4341c37937e08001",
+    "input": "1.0000000000000002e+16",
+    "expected": "1.0000000000000002e+16"
+  },
+  {
+    "name": "threshold-negative-1e+16-above",
+    "bits": "0xc341c37937e08001",
+    "input": "-1.0000000000000002e+16",
+    "expected": "-1.0000000000000002e+16"
+  },
+  {
+    "name": "power-ten--324",
+    "bits": "0x0000000000000000",
+    "input": "0.0",
+    "expected": "0.0"
+  },
+  {
+    "name": "power-ten-negative--324",
+    "bits": "0x8000000000000000",
+    "input": "-0.0",
+    "expected": "-0.0"
+  },
+  {
+    "name": "power-ten--323",
+    "bits": "0x0000000000000002",
+    "input": "1e-323",
+    "expected": "1e-323"
+  },
+  {
+    "name": "power-ten-negative--323",
+    "bits": "0x8000000000000002",
+    "input": "-1e-323",
+    "expected": "-1e-323"
+  },
+  {
+    "name": "power-ten--308",
+    "bits": "0x000730d67819e8d2",
+    "input": "1e-308",
+    "expected": "1e-308"
+  },
+  {
+    "name": "power-ten-negative--308",
+    "bits": "0x800730d67819e8d2",
+    "input": "-1e-308",
+    "expected": "-1e-308"
+  },
+  {
+    "name": "power-ten--100",
+    "bits": "0x2b2bff2ee48e0530",
+    "input": "1e-100",
+    "expected": "1e-100"
+  },
+  {
+    "name": "power-ten-negative--100",
+    "bits": "0xab2bff2ee48e0530",
+    "input": "-1e-100",
+    "expected": "-1e-100"
+  },
+  {
+    "name": "power-ten--16",
+    "bits": "0x3c9cd2b297d889bc",
+    "input": "1e-16",
+    "expected": "1e-16"
+  },
+  {
+    "name": "power-ten-negative--16",
+    "bits": "0xbc9cd2b297d889bc",
+    "input": "-1e-16",
+    "expected": "-1e-16"
+  },
+  {
+    "name": "power-ten--5",
+    "bits": "0x3ee4f8b588e368f1",
+    "input": "1e-05",
+    "expected": "1e-05"
+  },
+  {
+    "name": "power-ten-negative--5",
+    "bits": "0xbee4f8b588e368f1",
+    "input": "-1e-05",
+    "expected": "-1e-05"
+  },
+  {
+    "name": "power-ten--4",
+    "bits": "0x3f1a36e2eb1c432d",
+    "input": "0.0001",
+    "expected": "0.0001"
+  },
+  {
+    "name": "power-ten-negative--4",
+    "bits": "0xbf1a36e2eb1c432d",
+    "input": "-0.0001",
+    "expected": "-0.0001"
+  },
+  {
+    "name": "power-ten--3",
+    "bits": "0x3f50624dd2f1a9fc",
+    "input": "0.001",
+    "expected": "0.001"
+  },
+  {
+    "name": "power-ten-negative--3",
+    "bits": "0xbf50624dd2f1a9fc",
+    "input": "-0.001",
+    "expected": "-0.001"
+  },
+  {
+    "name": "power-ten--1",
+    "bits": "0x3fb999999999999a",
+    "input": "0.1",
+    "expected": "0.1"
+  },
+  {
+    "name": "power-ten-negative--1",
+    "bits": "0xbfb999999999999a",
+    "input": "-0.1",
+    "expected": "-0.1"
+  },
+  {
+    "name": "power-ten-0",
+    "bits": "0x3ff0000000000000",
+    "input": "1.0",
+    "expected": "1.0"
+  },
+  {
+    "name": "power-ten-negative-0",
+    "bits": "0xbff0000000000000",
+    "input": "-1.0",
+    "expected": "-1.0"
+  },
+  {
+    "name": "power-ten-1",
+    "bits": "0x4024000000000000",
+    "input": "10.0",
+    "expected": "10.0"
+  },
+  {
+    "name": "power-ten-negative-1",
+    "bits": "0xc024000000000000",
+    "input": "-10.0",
+    "expected": "-10.0"
+  },
+  {
+    "name": "power-ten-15",
+    "bits": "0x430c6bf526340000",
+    "input": "1000000000000000.0",
+    "expected": "1000000000000000.0"
+  },
+  {
+    "name": "power-ten-negative-15",
+    "bits": "0xc30c6bf526340000",
+    "input": "-1000000000000000.0",
+    "expected": "-1000000000000000.0"
+  },
+  {
+    "name": "power-ten-16",
+    "bits": "0x4341c37937e08000",
+    "input": "1e+16",
+    "expected": "1e+16"
+  },
+  {
+    "name": "power-ten-negative-16",
+    "bits": "0xc341c37937e08000",
+    "input": "-1e+16",
+    "expected": "-1e+16"
+  },
+  {
+    "name": "power-ten-17",
+    "bits": "0x4376345785d8a000",
+    "input": "1e+17",
+    "expected": "1e+17"
+  },
+  {
+    "name": "power-ten-negative-17",
+    "bits": "0xc376345785d8a000",
+    "input": "-1e+17",
+    "expected": "-1e+17"
+  },
+  {
+    "name": "power-ten-100",
+    "bits": "0x54b249ad2594c37d",
+    "input": "1e+100",
+    "expected": "1e+100"
+  },
+  {
+    "name": "power-ten-negative-100",
+    "bits": "0xd4b249ad2594c37d",
+    "input": "-1e+100",
+    "expected": "-1e+100"
+  },
+  {
+    "name": "power-ten-308",
+    "bits": "0x7fe1ccf385ebc8a0",
+    "input": "1e+308",
+    "expected": "1e+308"
+  },
+  {
+    "name": "power-ten-negative-308",
+    "bits": "0xffe1ccf385ebc8a0",
+    "input": "-1e+308",
+    "expected": "-1e+308"
+  },
+  {
+    "name": "min-subnormal",
+    "bits": "0x0000000000000001",
+    "input": "5e-324",
+    "expected": "5e-324"
+  },
+  {
+    "name": "negative-min-subnormal",
+    "bits": "0x8000000000000001",
+    "input": "-5e-324",
+    "expected": "-5e-324"
+  },
+  {
+    "name": "max-subnormal",
+    "bits": "0x000fffffffffffff",
+    "input": "2.225073858507201e-308",
+    "expected": "2.225073858507201e-308"
+  },
+  {
+    "name": "negative-max-subnormal",
+    "bits": "0x800fffffffffffff",
+    "input": "-2.225073858507201e-308",
+    "expected": "-2.225073858507201e-308"
+  },
+  {
+    "name": "min-normal",
+    "bits": "0x0010000000000000",
+    "input": "2.2250738585072014e-308",
+    "expected": "2.2250738585072014e-308"
+  },
+  {
+    "name": "negative-min-normal",
+    "bits": "0x8010000000000000",
+    "input": "-2.2250738585072014e-308",
+    "expected": "-2.2250738585072014e-308"
+  },
+  {
+    "name": "max-finite",
+    "bits": "0x7fefffffffffffff",
+    "input": "1.7976931348623157e+308",
+    "expected": "1.7976931348623157e+308"
+  },
+  {
+    "name": "negative-max-finite",
+    "bits": "0xffefffffffffffff",
+    "input": "-1.7976931348623157e+308",
+    "expected": "-1.7976931348623157e+308"
+  },
+  {
+    "name": "one-neighbor-down",
+    "bits": "0x3fefffffffffffff",
+    "input": "0.9999999999999999",
+    "expected": "0.9999999999999999"
+  },
+  {
+    "name": "negative-one-neighbor-down",
+    "bits": "0xbfefffffffffffff",
+    "input": "-0.9999999999999999",
+    "expected": "-0.9999999999999999"
+  },
+  {
+    "name": "one-neighbor-up",
+    "bits": "0x3ff0000000000001",
+    "input": "1.0000000000000002",
+    "expected": "1.0000000000000002"
+  },
+  {
+    "name": "negative-one-neighbor-up",
+    "bits": "0xbff0000000000001",
+    "input": "-1.0000000000000002",
+    "expected": "-1.0000000000000002"
+  },
+  {
+    "name": "half-ulp",
+    "bits": "0x3ca0000000000000",
+    "input": "1.1102230246251565e-16",
+    "expected": "1.1102230246251565e-16"
+  },
+  {
+    "name": "negative-half-ulp",
+    "bits": "0xbca0000000000000",
+    "input": "-1.1102230246251565e-16",
+    "expected": "-1.1102230246251565e-16"
+  },
+  {
+    "name": "one-and-half-ulp",
+    "bits": "0x3ff0000000000002",
+    "input": "1.0000000000000004",
+    "expected": "1.0000000000000004"
+  },
+  {
+    "name": "negative-one-and-half-ulp",
+    "bits": "0xbff0000000000002",
+    "input": "-1.0000000000000004",
+    "expected": "-1.0000000000000004"
+  },
+  {
+    "name": "random-54388001dffb4860",
+    "bits": "0x54388001dffb4860",
+    "input": "5.233174348879557e+97",
+    "expected": "5.233174348879557e+97"
+  },
+  {
+    "name": "random-83bc77b1a76fb716",
+    "bits": "0x83bc77b1a76fb716",
+    "input": "-1.1410754417436114e-290",
+    "expected": "-1.1410754417436114e-290"
+  },
+  {
+    "name": "random-4329a36405e8fc8b",
+    "bits": "0x4329a36405e8fc8b",
+    "input": "3608262204489285.5",
+    "expected": "3608262204489285.5"
+  },
+  {
+    "name": "random-2294bdea64d4dbda",
+    "bits": "0x2294bdea64d4dbda",
+    "input": "4.252356904697525e-142",
+    "expected": "4.252356904697525e-142"
+  },
+  {
+    "name": "random-00c8c7e25b26a3ab",
+    "bits": "0x00c8c7e25b26a3ab",
+    "input": "7.057805451138647e-305",
+    "expected": "7.057805451138647e-305"
+  },
+  {
+    "name": "random-e341f98fc1e602f2",
+    "bits": "0xe341f98fc1e602f2",
+    "input": "-1.3567281558034286e+170",
+    "expected": "-1.3567281558034286e+170"
+  },
+  {
+    "name": "random-21f35404a26f369c",
+    "bits": "0x21f35404a26f369c",
+    "input": "3.8696653905401264e-145",
+    "expected": "3.8696653905401264e-145"
+  },
+  {
+    "name": "random-acf5ca0c1d25cba6",
+    "bits": "0xacf5ca0c1d25cba6",
+    "input": "-4.178337958762188e-92",
+    "expected": "-4.178337958762188e-92"
+  },
+  {
+    "name": "random-22affa20d0b19959",
+    "bits": "0x22affa20d0b19959",
+    "input": "1.3111447082413521e-141",
+    "expected": "1.3111447082413521e-141"
+  },
+  {
+    "name": "random-a312e82227f76a7c",
+    "bits": "0xa312e82227f76a7c",
+    "input": "-9.922917686576608e-140",
+    "expected": "-9.922917686576608e-140"
+  },
+  {
+    "name": "random-28f50caefcea244c",
+    "bits": "0x28f50caefcea244c",
+    "input": "2.1881864673840404e-111",
+    "expected": "2.1881864673840404e-111"
+  },
+  {
+    "name": "random-ff47c883ee8d6566",
+    "bits": "0xff47c883ee8d6566",
+    "input": "-1.3047793223814951e+305",
+    "expected": "-1.3047793223814951e+305"
+  },
+  {
+    "name": "random-8f94e18c43834dcf",
+    "bits": "0x8f94e18c43834dcf",
+    "input": "-1.3134563183661388e-233",
+    "expected": "-1.3134563183661388e-233"
+  },
+  {
+    "name": "random-4e1b6441b8aab6f3",
+    "bits": "0x4e1b6441b8aab6f3",
+    "input": "1.846192063442932e+68",
+    "expected": "1.846192063442932e+68"
+  },
+  {
+    "name": "random-ace6e38fd7d89d45",
+    "bits": "0xace6e38fd7d89d45",
+    "input": "-2.1946057869305656e-92",
+    "expected": "-2.1946057869305656e-92"
+  },
+  {
+    "name": "random-3fbd91edd18042bd",
+    "bits": "0x3fbd91edd18042bd",
+    "input": "0.11550794949313122",
+    "expected": "0.11550794949313122"
+  },
+  {
+    "name": "random-95600d88e0300766",
+    "bits": "0x95600d88e0300766",
+    "input": "-1.00001301812676e-205",
+    "expected": "-1.00001301812676e-205"
+  },
+  {
+    "name": "random-a9d35a92e84ac230",
+    "bits": "0xa9d35a92e84ac230",
+    "input": "-3.296308829287356e-107",
+    "expected": "-3.296308829287356e-107"
+  },
+  {
+    "name": "random-230b67cd1f728578",
+    "bits": "0x230b67cd1f728578",
+    "input": "7.191663157252874e-140",
+    "expected": "7.191663157252874e-140"
+  },
+  {
+    "name": "random-2d3558dd20aafe23",
+    "bits": "0x2d3558dd20aafe23",
+    "input": "6.549689226020861e-91",
+    "expected": "6.549689226020861e-91"
+  },
+  {
+    "name": "random-1ae55186d5a45a99",
+    "bits": "0x1ae55186d5a45a99",
+    "input": "4.1100631257618e-179",
+    "expected": "4.1100631257618e-179"
+  },
+  {
+    "name": "random-8208d5590b44912a",
+    "bits": "0x8208d5590b44912a",
+    "input": "-7.416351797767751e-299",
+    "expected": "-7.416351797767751e-299"
+  },
+  {
+    "name": "random-90ee76994b942b5e",
+    "bits": "0x90ee76994b942b5e",
+    "input": "-4.0185548101066484e-227",
+    "expected": "-4.0185548101066484e-227"
+  },
+  {
+    "name": "random-231ca799f1917e02",
+    "bits": "0x231ca799f1917e02",
+    "input": "1.5038959042971264e-139",
+    "expected": "1.5038959042971264e-139"
+  },
+  {
+    "name": "random-b810960a4f7979a5",
+    "bits": "0xb810960a4f7979a5",
+    "input": "-1.218553798057536e-38",
+    "expected": "-1.218553798057536e-38"
+  },
+  {
+    "name": "random-ca21707c80f81b40",
+    "bits": "0xca21707c80f81b40",
+    "input": "-1.2743855664080543e+49",
+    "expected": "-1.2743855664080543e+49"
+  },
+  {
+    "name": "random-b6c3c0e2c6c72808",
+    "bits": "0xb6c3c0e2c6c72808",
+    "input": "-6.920123407930106e-45",
+    "expected": "-6.920123407930106e-45"
+  },
+  {
+    "name": "random-5c1f89a712e9895b",
+    "bits": "0x5c1f89a712e9895b",
+    "input": "5.730706425475781e+135",
+    "expected": "5.730706425475781e+135"
+  },
+  {
+    "name": "random-d8cc4a533e1bde1d",
+    "bits": "0xd8cc4a533e1bde1d",
+    "input": "-5.70724282170003e+119",
+    "expected": "-5.70724282170003e+119"
+  },
+  {
+    "name": "random-f4b84ab521e31d0f",
+    "bits": "0xf4b84ab521e31d0f",
+    "input": "-1.7809696797363363e+254",
+    "expected": "-1.7809696797363363e+254"
+  },
+  {
+    "name": "random-bcabcbdce28c27b5",
+    "bits": "0xbcabcbdce28c27b5",
+    "input": "-1.928758485347506e-16",
+    "expected": "-1.928758485347506e-16"
+  },
+  {
+    "name": "random-878167a18c69707d",
+    "bits": "0x878167a18c69707d",
+    "input": "-1.6086560220319112e-272",
+    "expected": "-1.6086560220319112e-272"
+  },
+  {
+    "name": "random-abc76f398fe1d39b",
+    "bits": "0xabc76f398fe1d39b",
+    "input": "-8.571297953724972e-98",
+    "expected": "-8.571297953724972e-98"
+  },
+  {
+    "name": "random-3b86e841134e0421",
+    "bits": "0x3b86e841134e0421",
+    "input": "6.06349672749821e-22",
+    "expected": "6.06349672749821e-22"
+  },
+  {
+    "name": "random-ff0a2f1aea7ef5a7",
+    "bits": "0xff0a2f1aea7ef5a7",
+    "input": "-8.978043566316442e+303",
+    "expected": "-8.978043566316442e+303"
+  },
+  {
+    "name": "random-9f8cd42a783e3b08",
+    "bits": "0x9f8cd42a783e3b08",
+    "input": "-1.049877012530865e-156",
+    "expected": "-1.049877012530865e-156"
+  },
+  {
+    "name": "random-3ab6899c0c365e20",
+    "bits": "0x3ab6899c0c365e20",
+    "input": "7.28227107413638e-26",
+    "expected": "7.28227107413638e-26"
+  },
+  {
+    "name": "random-befac899db062034",
+    "bits": "0xbefac899db062034",
+    "input": "-2.5542829179353753e-05",
+    "expected": "-2.5542829179353753e-05"
+  },
+  {
+    "name": "random-add875690ef15f54",
+    "bits": "0xadd875690ef15f54",
+    "input": "-7.684462200229476e-88",
+    "expected": "-7.684462200229476e-88"
+  },
+  {
+    "name": "random-0a4ddf4c3e5673a9",
+    "bits": "0x0a4ddf4c3e5673a9",
+    "input": "4.8571529661928094e-259",
+    "expected": "4.8571529661928094e-259"
+  },
+  {
+    "name": "random-50c68ef3b38249d5",
+    "bits": "0x50c68ef3b38249d5",
+    "input": "1.3373875048866231e+81",
+    "expected": "1.3373875048866231e+81"
+  },
+  {
+    "name": "random-f861dde8120aff65",
+    "bits": "0xf861dde8120aff65",
+    "input": "-7.551155635153025e+271",
+    "expected": "-7.551155635153025e+271"
+  },
+  {
+    "name": "random-74d5994c66260537",
+    "bits": "0x74d5994c66260537",
+    "input": "6.334121863129578e+254",
+    "expected": "6.334121863129578e+254"
+  },
+  {
+    "name": "random-afdbe4807750cb3f",
+    "bits": "0xafdbe4807750cb3f",
+    "input": "-3.7638291803442666e-78",
+    "expected": "-3.7638291803442666e-78"
+  },
+  {
+    "name": "random-3e5c2ef7eda12435",
+    "bits": "0x3e5c2ef7eda12435",
+    "input": "2.6247902386559092e-08",
+    "expected": "2.6247902386559092e-08"
+  },
+  {
+    "name": "random-e770a056990aec4c",
+    "bits": "0xe770a056990aec4c",
+    "input": "-1.851967870513467e+190",
+    "expected": "-1.851967870513467e+190"
+  },
+  {
+    "name": "random-57f10630d130e268",
+    "bits": "0x57f10630d130e268",
+    "input": "4.192418375275352e+115",
+    "expected": "4.192418375275352e+115"
+  },
+  {
+    "name": "random-6487f4faed9c2376",
+    "bits": "0x6487f4faed9c2376",
+    "input": "1.8960905651989508e+176",
+    "expected": "1.8960905651989508e+176"
+  },
+  {
+    "name": "random-5171d3eac7e6ccfa",
+    "bits": "0x5171d3eac7e6ccfa",
+    "input": "2.16459467813657e+84",
+    "expected": "2.16459467813657e+84"
+  },
+  {
+    "name": "random-a79779bcf709b1ff",
+    "bits": "0xa79779bcf709b1ff",
+    "input": "-5.818315837186883e-118",
+    "expected": "-5.818315837186883e-118"
+  },
+  {
+    "name": "random-35ef3987755daf00",
+    "bits": "0x35ef3987755daf00",
+    "input": "6.676507056276737e-49",
+    "expected": "6.676507056276737e-49"
+  },
+  {
+    "name": "random-429557504f8f541d",
+    "bits": "0x429557504f8f541d",
+    "input": "5866188432341.028",
+    "expected": "5866188432341.028"
+  },
+  {
+    "name": "random-d470c81c03e4e120",
+    "bits": "0xd470c81c03e4e120",
+    "input": "-5.735271285509833e+98",
+    "expected": "-5.735271285509833e+98"
+  },
+  {
+    "name": "random-bf4543ac5c89dfc5",
+    "bits": "0xbf4543ac5c89dfc5",
+    "input": "-0.0006489364250929988",
+    "expected": "-0.0006489364250929988"
+  },
+  {
+    "name": "random-ae9384f87350a78b",
+    "bits": "0xae9384f87350a78b",
+    "input": "-2.5119329561401675e-84",
+    "expected": "-2.5119329561401675e-84"
+  },
+  {
+    "name": "random-10f1c2e73b3487d6",
+    "bits": "0x10f1c2e73b3487d6",
+    "input": "4.685964840936801e-227",
+    "expected": "4.685964840936801e-227"
+  },
+  {
+    "name": "random-cba28559d9b2230d",
+    "bits": "0xcba28559d9b2230d",
+    "input": "-2.2706560098448298e+56",
+    "expected": "-2.2706560098448298e+56"
+  },
+  {
+    "name": "random-0c3b6cfd8dff3626",
+    "bits": "0x0c3b6cfd8dff3626",
+    "input": "9.576394409290377e-250",
+    "expected": "9.576394409290377e-250"
+  },
+  {
+    "name": "random-851b346898033f50",
+    "bits": "0x851b346898033f50",
+    "input": "-4.5737074036658533e-284",
+    "expected": "-4.5737074036658533e-284"
+  },
+  {
+    "name": "random-2c66da38bfb94bf2",
+    "bits": "0x2c66da38bfb94bf2",
+    "input": "8.559013902428407e-95",
+    "expected": "8.559013902428407e-95"
+  },
+  {
+    "name": "random-15eae5e8613295d1",
+    "bits": "0x15eae5e8613295d1",
+    "input": "4.289574049453373e-203",
+    "expected": "4.289574049453373e-203"
+  },
+  {
+    "name": "random-19974f7ec503543c",
+    "bits": "0x19974f7ec503543c",
+    "input": "2.1429635900490143e-185",
+    "expected": "2.1429635900490143e-185"
+  },
+  {
+    "name": "random-b47965a5865d596b",
+    "bits": "0xb47965a5865d596b",
+    "input": "-6.473575361260327e-56",
+    "expected": "-6.473575361260327e-56"
+  },
+  {
+    "name": "random-74618f8ea03bd038",
+    "bits": "0x74618f8ea03bd038",
+    "input": "4.0233696492769795e+252",
+    "expected": "4.0233696492769795e+252"
+  },
+  {
+    "name": "random-c9a21c90c9696b0b",
+    "bits": "0xc9a21c90c9696b0b",
+    "input": "-5.169943372322132e+46",
+    "expected": "-5.169943372322132e+46"
+  },
+  {
+    "name": "random-3d4a9d06a195a1bb",
+    "bits": "0x3d4a9d06a195a1bb",
+    "input": "1.8909945562428051e-13",
+    "expected": "1.8909945562428051e-13"
+  },
+  {
+    "name": "random-452c387b316d7fd1",
+    "bits": "0x452c387b316d7fd1",
+    "input": "1.70583239917074e+25",
+    "expected": "1.70583239917074e+25"
+  },
+  {
+    "name": "random-0a8dd0302c06f9a6",
+    "bits": "0x0a8dd0302c06f9a6",
+    "input": "7.7560898000266715e-258",
+    "expected": "7.7560898000266715e-258"
+  },
+  {
+    "name": "random-3ab13ec9b1f2c70d",
+    "bits": "0x3ab13ec9b1f2c70d",
+    "input": "5.572245690705612e-26",
+    "expected": "5.572245690705612e-26"
+  },
+  {
+    "name": "random-ddad7c20fd1440dd",
+    "bits": "0xddad7c20fd1440dd",
+    "input": "-1.79774172451404e+143",
+    "expected": "-1.79774172451404e+143"
+  },
+  {
+    "name": "random-ce61375b85b8d015",
+    "bits": "0xce61375b85b8d015",
+    "input": "-3.713191355958875e+69",
+    "expected": "-3.713191355958875e+69"
+  },
+  {
+    "name": "random-ce5877c417312914",
+    "bits": "0xce5877c417312914",
+    "input": "-2.6386061988465705e+69",
+    "expected": "-2.6386061988465705e+69"
+  },
+  {
+    "name": "random-24ca48c3ccfd742a",
+    "bits": "0x24ca48c3ccfd742a",
+    "input": "1.8515152321227693e-131",
+    "expected": "1.8515152321227693e-131"
+  },
+  {
+    "name": "random-816a8d2457dd7f7b",
+    "bits": "0x816a8d2457dd7f7b",
+    "input": "-7.743561165045274e-302",
+    "expected": "-7.743561165045274e-302"
+  },
+  {
+    "name": "random-ab371b3d2e46d41f",
+    "bits": "0xab371b3d2e46d41f",
+    "input": "-1.650645405027371e-100",
+    "expected": "-1.650645405027371e-100"
+  },
+  {
+    "name": "random-5f220fe280245665",
+    "bits": "0x5f220fe280245665",
+    "input": "1.8476295130469614e+150",
+    "expected": "1.8476295130469614e+150"
+  },
+  {
+    "name": "random-f79db2c2f31428f7",
+    "bits": "0xf79db2c2f31428f7",
+    "input": "-1.5321721395047295e+268",
+    "expected": "-1.5321721395047295e+268"
+  },
+  {
+    "name": "random-6973cdee136c8c59",
+    "bits": "0x6973cdee136c8c59",
+    "input": "9.474561837869694e+199",
+    "expected": "9.474561837869694e+199"
+  },
+  {
+    "name": "random-282325c815c55fad",
+    "bits": "0x282325c815c55fad",
+    "input": "2.4297727646183677e-115",
+    "expected": "2.4297727646183677e-115"
+  },
+  {
+    "name": "random-24c2274d3e3bbbf8",
+    "bits": "0x24c2274d3e3bbbf8",
+    "input": "1.27877108786661e-131",
+    "expected": "1.27877108786661e-131"
+  },
+  {
+    "name": "random-d33d86a6cb49d285",
+    "bits": "0xd33d86a6cb49d285",
+    "input": "-9.623278199002366e+92",
+    "expected": "-9.623278199002366e+92"
+  },
+  {
+    "name": "random-4c54b76eabe59fbe",
+    "bits": "0x4c54b76eabe59fbe",
+    "input": "5.201591274900956e+59",
+    "expected": "5.201591274900956e+59"
+  },
+  {
+    "name": "random-709579254bb08df5",
+    "bits": "0x709579254bb08df5",
+    "input": "2.1336045334528395e+234",
+    "expected": "2.1336045334528395e+234"
+  },
+  {
+    "name": "random-b8941aea1a5baf86",
+    "bits": "0xb8941aea1a5baf86",
+    "input": "-3.781355548382885e-36",
+    "expected": "-3.781355548382885e-36"
+  },
+  {
+    "name": "random-151a6af0b9ccc5c0",
+    "bits": "0x151a6af0b9ccc5c0",
+    "input": "5.142787533752219e-207",
+    "expected": "5.142787533752219e-207"
+  },
+  {
+    "name": "random-9c9bf303fa63f337",
+    "bits": "0x9c9bf303fa63f337",
+    "input": "-7.2322442942611845e-171",
+    "expected": "-7.2322442942611845e-171"
+  },
+  {
+    "name": "random-7e181fc89522d543",
+    "bits": "0x7e181fc89522d543",
+    "input": "2.5243397536613054e+299",
+    "expected": "2.5243397536613054e+299"
+  },
+  {
+    "name": "random-2c2eab091da26978",
+    "bits": "0x2c2eab091da26978",
+    "input": "7.1789077671598534e-96",
+    "expected": "7.1789077671598534e-96"
+  },
+  {
+    "name": "random-17fc0e595ce2910b",
+    "bits": "0x17fc0e595ce2910b",
+    "input": "3.843344689276674e-193",
+    "expected": "3.843344689276674e-193"
+  },
+  {
+    "name": "random-b2810bb8538441f8",
+    "bits": "0xb2810bb8538441f8",
+    "input": "-2.0232421442804826e-65",
+    "expected": "-2.0232421442804826e-65"
+  },
+  {
+    "name": "random-ebcbf1b4caefeed3",
+    "bits": "0xebcbf1b4caefeed3",
+    "input": "-1.8373763147092063e+211",
+    "expected": "-1.8373763147092063e+211"
+  },
+  {
+    "name": "random-d449b0683e54d0b0",
+    "bits": "0xd449b0683e54d0b0",
+    "input": "-1.0974312909755594e+98",
+    "expected": "-1.0974312909755594e+98"
+  },
+  {
+    "name": "random-f1368c452ec3adff",
+    "bits": "0xf1368c452ec3adff",
+    "input": "-2.2941578211145072e+237",
+    "expected": "-2.2941578211145072e+237"
+  },
+  {
+    "name": "random-1d65455fa4b10ed0",
+    "bits": "0x1d65455fa4b10ed0",
+    "input": "4.508998926210139e-167",
+    "expected": "4.508998926210139e-167"
+  },
+  {
+    "name": "random-0f542d7602e422aa",
+    "bits": "0x0f542d7602e422aa",
+    "input": "7.932544385465319e-235",
+    "expected": "7.932544385465319e-235"
+  },
+  {
+    "name": "random-7c5f48e5d95e1ee0",
+    "bits": "0x7c5f48e5d95e1ee0",
+    "input": "1.2195191314711535e+291",
+    "expected": "1.2195191314711535e+291"
+  },
+  {
+    "name": "random-2681bb26e4a9c6e4",
+    "bits": "0x2681bb26e4a9c6e4",
+    "input": "3.3527914145115816e-123",
+    "expected": "3.3527914145115816e-123"
+  },
+  {
+    "name": "random-3dd8fa1d033cbdbf",
+    "bits": "0x3dd8fa1d033cbdbf",
+    "input": "9.086581557435842e-11",
+    "expected": "9.086581557435842e-11"
+  },
+  {
+    "name": "random-7d40fde4614c4795",
+    "bits": "0x7d40fde4614c4795",
+    "input": "2.170422503641203e+295",
+    "expected": "2.170422503641203e+295"
+  },
+  {
+    "name": "random-a7b6dbfce3e61504",
+    "bits": "0xa7b6dbfce3e61504",
+    "input": "-2.2662360843229453e-117",
+    "expected": "-2.2662360843229453e-117"
+  },
+  {
+    "name": "random-08a9a26ffd72a5f2",
+    "bits": "0x08a9a26ffd72a5f2",
+    "input": "6.210964787909167e-267",
+    "expected": "6.210964787909167e-267"
+  },
+  {
+    "name": "random-7f1467d56d30763b",
+    "bits": "0x7f1467d56d30763b",
+    "input": "1.399345692304125e+304",
+    "expected": "1.399345692304125e+304"
+  },
+  {
+    "name": "random-4d779f4ab338efd7",
+    "bits": "0x4d779f4ab338efd7",
+    "input": "1.554819720589317e+65",
+    "expected": "1.554819720589317e+65"
+  },
+  {
+    "name": "random-c489c45256339460",
+    "bits": "0xc489c45256339460",
+    "input": "-1.5210082112057459e+22",
+    "expected": "-1.5210082112057459e+22"
+  },
+  {
+    "name": "random-fbb7b46484eef929",
+    "bits": "0xfbb7b46484eef929",
+    "input": "-9.023802482894217e+287",
+    "expected": "-9.023802482894217e+287"
+  },
+  {
+    "name": "random-049288f8bc797c90",
+    "bits": "0x049288f8bc797c90",
+    "input": "1.2172444162247809e-286",
+    "expected": "1.2172444162247809e-286"
+  },
+  {
+    "name": "random-8d6277413e18b652",
+    "bits": "0x8d6277413e18b652",
+    "input": "-3.3805127347318416e-244",
+    "expected": "-3.3805127347318416e-244"
+  },
+  {
+    "name": "random-8f6285ad52de96ba",
+    "bits": "0x8f6285ad52de96ba",
+    "input": "-1.4563487658015475e-234",
+    "expected": "-1.4563487658015475e-234"
+  },
+  {
+    "name": "random-d3ae894ea0e2c148",
+    "bits": "0xd3ae894ea0e2c148",
+    "input": "-1.273930870973596e+95",
+    "expected": "-1.273930870973596e+95"
+  },
+  {
+    "name": "random-708efde0494096de",
+    "bits": "0x708efde0494096de",
+    "input": "1.539685776858259e+234",
+    "expected": "1.539685776858259e+234"
+  },
+  {
+    "name": "random-53a7a5122a1804a9",
+    "bits": "0x53a7a5122a1804a9",
+    "input": "9.864258641787552e+94",
+    "expected": "9.864258641787552e+94"
+  },
+  {
+    "name": "random-5f242f37f2c98ab6",
+    "bits": "0x5f242f37f2c98ab6",
+    "input": "2.064736897613019e+150",
+    "expected": "2.064736897613019e+150"
+  },
+  {
+    "name": "random-041846e8538820b9",
+    "bits": "0x041846e8538820b9",
+    "input": "6.227860510585832e-289",
+    "expected": "6.227860510585832e-289"
+  },
+  {
+    "name": "random-149098f137df5da1",
+    "bits": "0x149098f137df5da1",
+    "input": "1.2621294209178355e-209",
+    "expected": "1.2621294209178355e-209"
+  },
+  {
+    "name": "random-0c9169a976df5875",
+    "bits": "0x0c9169a976df5875",
+    "input": "3.891264469119489e-248",
+    "expected": "3.891264469119489e-248"
+  },
+  {
+    "name": "random-efe27841f438782a",
+    "bits": "0xefe27841f438782a",
+    "input": "-8.960822167870355e+230",
+    "expected": "-8.960822167870355e+230"
+  },
+  {
+    "name": "random-4ff58f3e78594670",
+    "bits": "0x4ff58f3e78594670",
+    "input": "1.560265616540924e+77",
+    "expected": "1.560265616540924e+77"
+  },
+  {
+    "name": "random-ad7d469a3c05128d",
+    "bits": "0xad7d469a3c05128d",
+    "input": "-1.4371759395067347e-89",
+    "expected": "-1.4371759395067347e-89"
+  },
+  {
+    "name": "random-070b6492abac1097",
+    "bits": "0x070b6492abac1097",
+    "input": "9.889888450940787e-275",
+    "expected": "9.889888450940787e-275"
+  },
+  {
+    "name": "random-6bc2fc68f2bd78e5",
+    "bits": "0x6bc2fc68f2bd78e5",
+    "input": "1.2483601999443194e+211",
+    "expected": "1.2483601999443194e+211"
+  },
+  {
+    "name": "random-1f721bc64353f5d4",
+    "bits": "0x1f721bc64353f5d4",
+    "input": "3.2973466407583755e-157",
+    "expected": "3.2973466407583755e-157"
+  },
+  {
+    "name": "random-a02eabf4dd6e2a78",
+    "bits": "0xa02eabf4dd6e2a78",
+    "input": "-1.143800136945244e-153",
+    "expected": "-1.143800136945244e-153"
+  },
+  {
+    "name": "random-47ae49a0582de7bb",
+    "bits": "0x47ae49a0582de7bb",
+    "input": "2.0129564858021187e+37",
+    "expected": "2.0129564858021187e+37"
+  },
+  {
+    "name": "random-1329298400d176f8",
+    "bits": "0x1329298400d176f8",
+    "input": "2.2809786820004242e-216",
+    "expected": "2.2809786820004242e-216"
+  },
+  {
+    "name": "random-bb26db0734e4cde8",
+    "bits": "0xbb26db0734e4cde8",
+    "input": "-9.452845800548509e-24",
+    "expected": "-9.452845800548509e-24"
+  },
+  {
+    "name": "random-b4591e1b8ee3d84b",
+    "bits": "0xb4591e1b8ee3d84b",
+    "input": "-1.6005863255403318e-56",
+    "expected": "-1.6005863255403318e-56"
+  },
+  {
+    "name": "random-2a772b37715cd67c",
+    "bits": "0x2a772b37715cd67c",
+    "input": "4.040781115594811e-104",
+    "expected": "4.040781115594811e-104"
+  },
+  {
+    "name": "random-55213dcfa23803aa",
+    "bits": "0x55213dcfa23803aa",
+    "input": "1.2067639324691202e+102",
+    "expected": "1.2067639324691202e+102"
+  },
+  {
+    "name": "random-b11e20ea8c5db448",
+    "bits": "0xb11e20ea8c5db448",
+    "input": "-4.263042841074524e-72",
+    "expected": "-4.263042841074524e-72"
+  },
+  {
+    "name": "random-78d651e720df0828",
+    "bits": "0x78d651e720df0828",
+    "input": "1.2074494498502826e+274",
+    "expected": "1.2074494498502826e+274"
+  },
+  {
+    "name": "random-92007bff82047680",
+    "bits": "0x92007bff82047680",
+    "input": "-5.70040210960949e-222",
+    "expected": "-5.70040210960949e-222"
+  },
+  {
+    "name": "random-50aa90967a4e3602",
+    "bits": "0x50aa90967a4e3602",
+    "input": "3.937271349180859e+80",
+    "expected": "3.937271349180859e+80"
+  },
+  {
+    "name": "random-03a4032e34fdd808",
+    "bits": "0x03a4032e34fdd808",
+    "input": "4.010826661278613e-291",
+    "expected": "4.010826661278613e-291"
+  },
+  {
+    "name": "random-99d65a36a9ce6d76",
+    "bits": "0x99d65a36a9ce6d76",
+    "input": "-3.2878103386849297e-184",
+    "expected": "-3.2878103386849297e-184"
+  },
+  {
+    "name": "random-bfe7c2c0f6c898a7",
+    "bits": "0xbfe7c2c0f6c898a7",
+    "input": "-0.7425236530296119",
+    "expected": "-0.7425236530296119"
+  },
+  {
+    "name": "random-ae6ad43c1263c338",
+    "bits": "0xae6ad43c1263c338",
+    "input": "-4.3157511508428173e-85",
+    "expected": "-4.3157511508428173e-85"
+  },
+  {
+    "name": "random-9ab3b56c0b249a49",
+    "bits": "0x9ab3b56c0b249a49",
+    "input": "-4.749633911774174e-180",
+    "expected": "-4.749633911774174e-180"
+  },
+  {
+    "name": "random-ab318d3d3f2916cb",
+    "bits": "0xab318d3d3f2916cb",
+    "input": "-1.2538368659797116e-100",
+    "expected": "-1.2538368659797116e-100"
+  },
+  {
+    "name": "random-370fe21fa822a0b7",
+    "bits": "0x370fe21fa822a0b7",
+    "input": "1.7871205233426703e-43",
+    "expected": "1.7871205233426703e-43"
+  },
+  {
+    "name": "random-ce98e8dd71afce1c",
+    "bits": "0xce98e8dd71afce1c",
+    "input": "-4.2979985183555726e+70",
+    "expected": "-4.2979985183555726e+70"
+  },
+  {
+    "name": "random-9bed2921b856058a",
+    "bits": "0x9bed2921b856058a",
+    "input": "-3.6844276173239154e-174",
+    "expected": "-3.6844276173239154e-174"
+  },
+  {
+    "name": "random-e3a3b20c86a76c84",
+    "bits": "0xe3a3b20c86a76c84",
+    "input": "-9.514251602318549e+171",
+    "expected": "-9.514251602318549e+171"
+  },
+  {
+    "name": "random-0a8592e8ea8fe1cd",
+    "bits": "0x0a8592e8ea8fe1cd",
+    "input": "5.6125692433087e-258",
+    "expected": "5.6125692433087e-258"
+  },
+  {
+    "name": "random-ab95a63ad1beec66",
+    "bits": "0xab95a63ad1beec66",
+    "input": "-9.897966779156948e-99",
+    "expected": "-9.897966779156948e-99"
+  },
+  {
+    "name": "random-43e4fdac50821e87",
+    "bits": "0x43e4fdac50821e87",
+    "input": "1.2100436093174036e+19",
+    "expected": "1.2100436093174036e+19"
+  },
+  {
+    "name": "random-b7298e7ea68c88c5",
+    "bits": "0xb7298e7ea68c88c5",
+    "input": "-5.729992385231479e-43",
+    "expected": "-5.729992385231479e-43"
+  },
+  {
+    "name": "random-916be75d8c7daa8f",
+    "bits": "0x916be75d8c7daa8f",
+    "input": "-9.423150984772223e-225",
+    "expected": "-9.423150984772223e-225"
+  },
+  {
+    "name": "random-4715589c40a581e0",
+    "bits": "0x4715589c40a581e0",
+    "input": "2.7708866418707915e+34",
+    "expected": "2.7708866418707915e+34"
+  },
+  {
+    "name": "random-c2054f6d391be7bc",
+    "bits": "0xc2054f6d391be7bc",
+    "input": "-11440858915.488152",
+    "expected": "-11440858915.488152"
+  },
+  {
+    "name": "random-78db990f0da41054",
+    "bits": "0x78db990f0da41054",
+    "input": "1.4929727708768337e+274",
+    "expected": "1.4929727708768337e+274"
+  },
+  {
+    "name": "random-15489d8fad72014f",
+    "bits": "0x15489d8fad72014f",
+    "input": "3.8335503771061517e-206",
+    "expected": "3.8335503771061517e-206"
+  },
+  {
+    "name": "random-d5d89aba05311f2f",
+    "bits": "0xd5d89aba05311f2f",
+    "input": "-3.5268849695529336e+105",
+    "expected": "-3.5268849695529336e+105"
+  },
+  {
+    "name": "random-341912211a980f69",
+    "bits": "0x341912211a980f69",
+    "input": "9.985029191031461e-58",
+    "expected": "9.985029191031461e-58"
+  },
+  {
+    "name": "random-a3a30c443604aedb",
+    "bits": "0xa3a30c443604aedb",
+    "input": "-5.118461542745735e-137",
+    "expected": "-5.118461542745735e-137"
+  },
+  {
+    "name": "random-58e3b0c3e3d63ba4",
+    "bits": "0x58e3b0c3e3d63ba4",
+    "input": "1.5889300916670193e+120",
+    "expected": "1.5889300916670193e+120"
+  },
+  {
+    "name": "random-ff595f9e4694b839",
+    "bits": "0xff595f9e4694b839",
+    "input": "-2.7840443517544923e+305",
+    "expected": "-2.7840443517544923e+305"
+  },
+  {
+    "name": "random-c7532b12715b18e1",
+    "bits": "0xc7532b12715b18e1",
+    "input": "-3.981089804559194e+35",
+    "expected": "-3.981089804559194e+35"
+  },
+  {
+    "name": "random-46a9c68569b62082",
+    "bits": "0x46a9c68569b62082",
+    "input": "2.6139435278635188e+32",
+    "expected": "2.6139435278635188e+32"
+  },
+  {
+    "name": "random-8d9ba16b405b67f4",
+    "bits": "0x8d9ba16b405b67f4",
+    "input": "-4.046624703905044e-243",
+    "expected": "-4.046624703905044e-243"
+  },
+  {
+    "name": "random-ac185daa26b70c70",
+    "bits": "0xac185daa26b70c70",
+    "input": "-2.8518288198822488e-96",
+    "expected": "-2.8518288198822488e-96"
+  },
+  {
+    "name": "random-ab5dc061e138abec",
+    "bits": "0xab5dc061e138abec",
+    "input": "-8.501395493231159e-100",
+    "expected": "-8.501395493231159e-100"
+  },
+  {
+    "name": "random-595e1b29098eefa8",
+    "bits": "0x595e1b29098eefa8",
+    "input": "3.1096583985141853e+122",
+    "expected": "3.1096583985141853e+122"
+  },
+  {
+    "name": "random-cfeba050a7b62a1b",
+    "bits": "0xcfeba050a7b62a1b",
+    "input": "-9.996559282652583e+76",
+    "expected": "-9.996559282652583e+76"
+  },
+  {
+    "name": "random-168c7f6fa85aa5a7",
+    "bits": "0x168c7f6fa85aa5a7",
+    "input": "4.653762207117815e-200",
+    "expected": "4.653762207117815e-200"
+  },
+  {
+    "name": "random-2d14d5b21c7eee4c",
+    "bits": "0x2d14d5b21c7eee4c",
+    "input": "1.5981207848519558e-91",
+    "expected": "1.5981207848519558e-91"
+  },
+  {
+    "name": "random-62044933f115093f",
+    "bits": "0x62044933f115093f",
+    "input": "1.4602357595530407e+164",
+    "expected": "1.4602357595530407e+164"
+  },
+  {
+    "name": "random-0917f07489bc602f",
+    "bits": "0x0917f07489bc602f",
+    "input": "7.424289130241574e-265",
+    "expected": "7.424289130241574e-265"
+  },
+  {
+    "name": "random-a492562e3d42961e",
+    "bits": "0xa492562e3d42961e",
+    "input": "-1.6145881009587822e-132",
+    "expected": "-1.6145881009587822e-132"
+  },
+  {
+    "name": "random-8f0480554ca7a140",
+    "bits": "0x8f0480554ca7a140",
+    "input": "-2.518690745493318e-236",
+    "expected": "-2.518690745493318e-236"
+  },
+  {
+    "name": "random-ca034f031b71fdf5",
+    "bits": "0xca034f031b71fdf5",
+    "input": "-3.5274513341548786e+48",
+    "expected": "-3.5274513341548786e+48"
+  },
+  {
+    "name": "random-d377b365a13cc5ff",
+    "bits": "0xd377b365a13cc5ff",
+    "input": "-1.2359505954465346e+94",
+    "expected": "-1.2359505954465346e+94"
+  },
+  {
+    "name": "random-ad4fd1dedfa55dfd",
+    "bits": "0xad4fd1dedfa55dfd",
+    "input": "-1.952580084567767e-90",
+    "expected": "-1.952580084567767e-90"
+  },
+  {
+    "name": "random-87f19b9a2b0b32ed",
+    "bits": "0x87f19b9a2b0b32ed",
+    "input": "-2.083097132776435e-270",
+    "expected": "-2.083097132776435e-270"
+  },
+  {
+    "name": "random-e87229ccc0244cd7",
+    "bits": "0xe87229ccc0244cd7",
+    "input": "-1.3259022189118476e+195",
+    "expected": "-1.3259022189118476e+195"
+  },
+  {
+    "name": "random-61c6f69919e6faee",
+    "bits": "0x61c6f69919e6faee",
+    "input": "1.0330978854066643e+163",
+    "expected": "1.0330978854066643e+163"
+  },
+  {
+    "name": "random-ef870b6cfa6bf783",
+    "bits": "0xef870b6cfa6bf783",
+    "input": "-1.746933961378012e+229",
+    "expected": "-1.746933961378012e+229"
+  },
+  {
+    "name": "random-320658ee54e21d22",
+    "bits": "0x320658ee54e21d22",
+    "input": "1.0361383002318047e-67",
+    "expected": "1.0361383002318047e-67"
+  },
+  {
+    "name": "random-5af2882957ef01ed",
+    "bits": "0x5af2882957ef01ed",
+    "input": "1.2845696103075016e+130",
+    "expected": "1.2845696103075016e+130"
+  },
+  {
+    "name": "random-7f46c4de202f1944",
+    "bits": "0x7f46c4de202f1944",
+    "input": "1.2491363775514939e+305",
+    "expected": "1.2491363775514939e+305"
+  },
+  {
+    "name": "random-b7c4068111d8425f",
+    "bits": "0xb7c4068111d8425f",
+    "input": "-4.5976079569549555e-40",
+    "expected": "-4.5976079569549555e-40"
+  },
+  {
+    "name": "random-b8b4e40592739fb0",
+    "bits": "0xb8b4e40592739fb0",
+    "input": "-1.5716423434798436e-35",
+    "expected": "-1.5716423434798436e-35"
+  },
+  {
+    "name": "random-e3f92dcd9ee3fe6a",
+    "bits": "0xe3f92dcd9ee3fe6a",
+    "input": "-3.892195055393971e+173",
+    "expected": "-3.892195055393971e+173"
+  },
+  {
+    "name": "random-eb3800dcb29e88e5",
+    "bits": "0xeb3800dcb29e88e5",
+    "input": "-3.0825433487870127e+208",
+    "expected": "-3.0825433487870127e+208"
+  },
+  {
+    "name": "random-1344533aa68e7b39",
+    "bits": "0x1344533aa68e7b39",
+    "input": "7.369976466166811e-216",
+    "expected": "7.369976466166811e-216"
+  },
+  {
+    "name": "random-211d88a8a274aa19",
+    "bits": "0x211d88a8a274aa19",
+    "input": "3.608958012946686e-149",
+    "expected": "3.608958012946686e-149"
+  },
+  {
+    "name": "random-b01e69da0a39c820",
+    "bits": "0xb01e69da0a39c820",
+    "input": "-6.566399197872429e-77",
+    "expected": "-6.566399197872429e-77"
+  },
+  {
+    "name": "random-4e9ba730e274ea34",
+    "bits": "0x4e9ba730e274ea34",
+    "input": "4.771365265141047e+70",
+    "expected": "4.771365265141047e+70"
+  },
+  {
+    "name": "random-6d6bbbecb177c21f",
+    "bits": "0x6d6bbbecb177c21f",
+    "input": "1.2237723466802338e+219",
+    "expected": "1.2237723466802338e+219"
+  },
+  {
+    "name": "random-a03979e823e8898a",
+    "bits": "0xa03979e823e8898a",
+    "input": "-1.9001016842188564e-153",
+    "expected": "-1.9001016842188564e-153"
+  },
+  {
+    "name": "random-00c24479801274c1",
+    "bits": "0x00c24479801274c1",
+    "input": "5.20275070287036e-305",
+    "expected": "5.20275070287036e-305"
+  },
+  {
+    "name": "random-a64ad862bae1b0e0",
+    "bits": "0xa64ad862bae1b0e0",
+    "input": "-3.1726294944846213e-124",
+    "expected": "-3.1726294944846213e-124"
+  },
+  {
+    "name": "random-626850418f642529",
+    "bits": "0x626850418f642529",
+    "input": "1.1200956641233078e+166",
+    "expected": "1.1200956641233078e+166"
+  },
+  {
+    "name": "random-ba7afdb9af4fcded",
+    "bits": "0xba7afdb9af4fcded",
+    "input": "-5.4508121796737706e-27",
+    "expected": "-5.4508121796737706e-27"
+  },
+  {
+    "name": "random-34c17887adea0e97",
+    "bits": "0x34c17887adea0e97",
+    "input": "1.4250302722537843e-54",
+    "expected": "1.4250302722537843e-54"
+  },
+  {
+    "name": "random-a1d9afe6ce0239d5",
+    "bits": "0xa1d9afe6ce0239d5",
+    "input": "-1.285693495194751e-145",
+    "expected": "-1.285693495194751e-145"
+  },
+  {
+    "name": "random-c23a56ae619eccad",
+    "bits": "0xc23a56ae619eccad",
+    "input": "-113123418526.79951",
+    "expected": "-113123418526.79951"
+  },
+  {
+    "name": "random-d67e3a85efb8fb54",
+    "bits": "0xd67e3a85efb8fb54",
+    "input": "-4.437073056017094e+108",
+    "expected": "-4.437073056017094e+108"
+  },
+  {
+    "name": "random-e0cc115b44b91e02",
+    "bits": "0xe0cc115b44b91e02",
+    "input": "-1.9267976018642486e+158",
+    "expected": "-1.9267976018642486e+158"
+  },
+  {
+    "name": "random-6a3073f0f1350394",
+    "bits": "0x6a3073f0f1350394",
+    "input": "3.2240325554311275e+203",
+    "expected": "3.2240325554311275e+203"
+  },
+  {
+    "name": "random-b2976552f933a749",
+    "bits": "0xb2976552f933a749",
+    "input": "-5.553909461470632e-65",
+    "expected": "-5.553909461470632e-65"
+  },
+  {
+    "name": "random-a429fab425cd9117",
+    "bits": "0xa429fab425cd9117",
+    "input": "-1.7871441398807134e-134",
+    "expected": "-1.7871441398807134e-134"
+  },
+  {
+    "name": "random-fed36d91f1b35fa1",
+    "bits": "0xfed36d91f1b35fa1",
+    "input": "-8.326911194526589e+302",
+    "expected": "-8.326911194526589e+302"
+  },
+  {
+    "name": "random-d4fe7bd547fe65b6",
+    "bits": "0xd4fe7bd547fe65b6",
+    "input": "-2.6670218233145185e+101",
+    "expected": "-2.6670218233145185e+101"
+  },
+  {
+    "name": "random-9229d41c7a80dc08",
+    "bits": "0x9229d41c7a80dc08",
+    "input": "-3.572673938906111e-221",
+    "expected": "-3.572673938906111e-221"
+  },
+  {
+    "name": "random-89ffe6776313c94f",
+    "bits": "0x89ffe6776313c94f",
+    "input": "-1.6209065437093538e-260",
+    "expected": "-1.6209065437093538e-260"
+  },
+  {
+    "name": "random-75c17510f4b26e26",
+    "bits": "0x75c17510f4b26e26",
+    "input": "1.677579497957236e+259",
+    "expected": "1.677579497957236e+259"
+  },
+  {
+    "name": "random-60949be30c7ef06b",
+    "bits": "0x60949be30c7ef06b",
+    "input": "1.768451958540592e+157",
+    "expected": "1.768451958540592e+157"
+  },
+  {
+    "name": "random-e56f896e139f60cd",
+    "bits": "0xe56f896e139f60cd",
+    "input": "-4.0894559844947984e+180",
+    "expected": "-4.0894559844947984e+180"
+  },
+  {
+    "name": "random-97a6300a02e2ce4a",
+    "bits": "0x97a6300a02e2ce4a",
+    "input": "-9.498262646819693e-195",
+    "expected": "-9.498262646819693e-195"
+  },
+  {
+    "name": "random-336319d403b5a4ac",
+    "bits": "0x336319d403b5a4ac",
+    "input": "3.7145355810830516e-61",
+    "expected": "3.7145355810830516e-61"
+  },
+  {
+    "name": "random-392063fe1566f1bc",
+    "bits": "0x392063fe1566f1bc",
+    "input": "1.578356958842404e-33",
+    "expected": "1.578356958842404e-33"
+  },
+  {
+    "name": "random-1fcba26538a3bb19",
+    "bits": "0x1fcba26538a3bb19",
+    "input": "1.6102066444971494e-155",
+    "expected": "1.6102066444971494e-155"
+  },
+  {
+    "name": "random-700584a23458190f",
+    "bits": "0x700584a23458190f",
+    "input": "4.17590495373844e+231",
+    "expected": "4.17590495373844e+231"
+  },
+  {
+    "name": "random-416978f2a77bd453",
+    "bits": "0x416978f2a77bd453",
+    "input": "13354901.233865893",
+    "expected": "13354901.233865893"
+  },
+  {
+    "name": "random-e8ed1f5640ccbf8a",
+    "bits": "0xe8ed1f5640ccbf8a",
+    "input": "-2.7211625608365306e+197",
+    "expected": "-2.7211625608365306e+197"
+  },
+  {
+    "name": "random-ea5e47d2333a8edf",
+    "bits": "0xea5e47d2333a8edf",
+    "input": "-2.3734541865951222e+204",
+    "expected": "-2.3734541865951222e+204"
+  },
+  {
+    "name": "random-dd1d0fad808d6dc2",
+    "bits": "0xdd1d0fad808d6dc2",
+    "input": "-3.4607653630404277e+140",
+    "expected": "-3.4607653630404277e+140"
+  },
+  {
+    "name": "random-c960956802470f62",
+    "bits": "0xc960956802470f62",
+    "input": "-2.958616369391225e+45",
+    "expected": "-2.958616369391225e+45"
+  },
+  {
+    "name": "random-294b373a9073be7c",
+    "bits": "0x294b373a9073be7c",
+    "input": "9.053399745058289e-110",
+    "expected": "9.053399745058289e-110"
+  },
+  {
+    "name": "random-77c475f37c7b7604",
+    "bits": "0x77c475f37c7b7604",
+    "input": "8.444766022034643e+268",
+    "expected": "8.444766022034643e+268"
+  },
+  {
+    "name": "random-7bd6f6eaba72e954",
+    "bits": "0x7bd6f6eaba72e954",
+    "input": "3.496819537985863e+288",
+    "expected": "3.496819537985863e+288"
+  },
+  {
+    "name": "random-deee8cc68704c1d1",
+    "bits": "0xdeee8cc68704c1d1",
+    "input": "-1.9531595657883565e+149",
+    "expected": "-1.9531595657883565e+149"
+  },
+  {
+    "name": "random-295e90148f64b935",
+    "bits": "0x295e90148f64b935",
+    "input": "2.0333630223264636e-109",
+    "expected": "2.0333630223264636e-109"
+  },
+  {
+    "name": "random-8ee250d9bbf8a0e4",
+    "bits": "0x8ee250d9bbf8a0e4",
+    "input": "-5.625483353895976e-237",
+    "expected": "-5.625483353895976e-237"
+  },
+  {
+    "name": "random-6d96018230f5e827",
+    "bits": "0x6d96018230f5e827",
+    "input": "7.768118558961672e+219",
+    "expected": "7.768118558961672e+219"
+  },
+  {
+    "name": "random-5812d73677002ead",
+    "bits": "0x5812d73677002ead",
+    "input": "1.8559009647687702e+116",
+    "expected": "1.8559009647687702e+116"
+  },
+  {
+    "name": "random-892969ce613e4dee",
+    "bits": "0x892969ce613e4dee",
+    "input": "-1.576285842176592e-264",
+    "expected": "-1.576285842176592e-264"
+  },
+  {
+    "name": "random-0f1bbbf90cd2d712",
+    "bits": "0x0f1bbbf90cd2d712",
+    "input": "6.814596265455154e-236",
+    "expected": "6.814596265455154e-236"
+  },
+  {
+    "name": "random-138918bc8b818fb3",
+    "bits": "0x138918bc8b818fb3",
+    "input": "1.456023738722989e-214",
+    "expected": "1.456023738722989e-214"
+  },
+  {
+    "name": "random-10c8527310410d00",
+    "bits": "0x10c8527310410d00",
+    "input": "8.021097464366226e-228",
+    "expected": "8.021097464366226e-228"
+  },
+  {
+    "name": "random-ec1d0e0ded48778d",
+    "bits": "0xec1d0e0ded48778d",
+    "input": "-6.11330890579947e+212",
+    "expected": "-6.11330890579947e+212"
+  },
+  {
+    "name": "random-6c6751c603dcb46b",
+    "bits": "0x6c6751c603dcb46b",
+    "input": "1.5700909946345373e+214",
+    "expected": "1.5700909946345373e+214"
+  },
+  {
+    "name": "random-ec0f2ce9598caf05",
+    "bits": "0xec0f2ce9598caf05",
+    "input": "-3.2797405646457093e+212",
+    "expected": "-3.2797405646457093e+212"
+  },
+  {
+    "name": "random-8a13d9ada0dd02c0",
+    "bits": "0x8a13d9ada0dd02c0",
+    "input": "-4.034511450541451e-260",
+    "expected": "-4.034511450541451e-260"
+  },
+  {
+    "name": "random-f3495184b3098cb1",
+    "bits": "0xf3495184b3098cb1",
+    "input": "-2.2128055270776073e+247",
+    "expected": "-2.2128055270776073e+247"
+  },
+  {
+    "name": "random-ad87893f3c71cce4",
+    "bits": "0xad87893f3c71cce4",
+    "input": "-2.3108203713552035e-89",
+    "expected": "-2.3108203713552035e-89"
+  },
+  {
+    "name": "random-ba09dabdccc66975",
+    "bits": "0xba09dabdccc66975",
+    "input": "-4.079114325670158e-29",
+    "expected": "-4.079114325670158e-29"
+  },
+  {
+    "name": "random-290119f547ec4237",
+    "bits": "0x290119f547ec4237",
+    "input": "3.555520990995019e-111",
+    "expected": "3.555520990995019e-111"
+  },
+  {
+    "name": "random-b7c3dd8f5fd640a8",
+    "bits": "0xb7c3dd8f5fd640a8",
+    "input": "-4.56088799798537e-40",
+    "expected": "-4.56088799798537e-40"
+  },
+  {
+    "name": "random-348d8e71a6613c77",
+    "bits": "0x348d8e71a6613c77",
+    "input": "1.5067550806030162e-55",
+    "expected": "1.5067550806030162e-55"
+  },
+  {
+    "name": "random-84a94fd02317d29c",
+    "bits": "0x84a94fd02317d29c",
+    "input": "-3.3245788837063234e-286",
+    "expected": "-3.3245788837063234e-286"
+  },
+  {
+    "name": "random-428df00714e043da",
+    "bits": "0x428df00714e043da",
+    "input": "4114593520648.4814",
+    "expected": "4114593520648.4814"
+  },
+  {
+    "name": "random-92c3d66461785680",
+    "bits": "0x92c3d66461785680",
+    "input": "-2.809825939762614e-218",
+    "expected": "-2.809825939762614e-218"
+  },
+  {
+    "name": "random-34090cba047b9fb5",
+    "bits": "0x34090cba047b9fb5",
+    "input": "4.988311974607601e-58",
+    "expected": "4.988311974607601e-58"
+  },
+  {
+    "name": "random-18326629b3dbf7f2",
+    "bits": "0x18326629b3dbf7f2",
+    "input": "4.032726203543977e-192",
+    "expected": "4.032726203543977e-192"
+  },
+  {
+    "name": "random-3490de9ba11898c2",
+    "bits": "0x3490de9ba11898c2",
+    "input": "1.7199848389166992e-55",
+    "expected": "1.7199848389166992e-55"
+  },
+  {
+    "name": "random-e23228c5d4af66d3",
+    "bits": "0xe23228c5d4af66d3",
+    "input": "-1.0457213986099404e+165",
+    "expected": "-1.0457213986099404e+165"
+  },
+  {
+    "name": "random-0d574840ca519a45",
+    "bits": "0x0d574840ca519a45",
+    "input": "2.1311217700944865e-244",
+    "expected": "2.1311217700944865e-244"
+  },
+  {
+    "name": "random-0dcf06ddddcf2165",
+    "bits": "0x0dcf06ddddcf2165",
+    "input": "3.6352208959596424e-242",
+    "expected": "3.6352208959596424e-242"
+  },
+  {
+    "name": "random-10dd8bcec0919f7e",
+    "bits": "0x10dd8bcec0919f7e",
+    "input": "1.948784407312985e-227",
+    "expected": "1.948784407312985e-227"
+  },
+  {
+    "name": "random-8e6add486a2fc8bb",
+    "bits": "0x8e6add486a2fc8bb",
+    "input": "-3.2230747527555027e-239",
+    "expected": "-3.2230747527555027e-239"
+  },
+  {
+    "name": "random-440a07b85254255e",
+    "bits": "0x440a07b85254255e",
+    "input": "6.002145387397328e+19",
+    "expected": "6.002145387397328e+19"
+  },
+  {
+    "name": "random-a643786aae025ab9",
+    "bits": "0xa643786aae025ab9",
+    "input": "-2.3010506488188723e-124",
+    "expected": "-2.3010506488188723e-124"
+  },
+  {
+    "name": "random-4efbff72e64c3f4a",
+    "bits": "0x4efbff72e64c3f4a",
+    "input": "3.0917446096600874e+72",
+    "expected": "3.0917446096600874e+72"
+  },
+  {
+    "name": "random-3f43e93dbfe46db2",
+    "bits": "0x3f43e93dbfe46db2",
+    "input": "0.000607638503228916",
+    "expected": "0.000607638503228916"
+  },
+  {
+    "name": "random-17508b53f413333e",
+    "bits": "0x17508b53f413333e",
+    "input": "2.213247151772809e-196",
+    "expected": "2.213247151772809e-196"
+  },
+  {
+    "name": "random-b8bec553d631a976",
+    "bits": "0xb8bec553d631a976",
+    "input": "-2.3149384901631323e-35",
+    "expected": "-2.3149384901631323e-35"
+  },
+  {
+    "name": "random-07152494c125524b",
+    "bits": "0x07152494c125524b",
+    "input": "1.5266813922492493e-274",
+    "expected": "1.5266813922492493e-274"
+  },
+  {
+    "name": "random-8fd711d9d5ad015c",
+    "bits": "0x8fd711d9d5ad015c",
+    "input": "-2.3218056863661613e-232",
+    "expected": "-2.3218056863661613e-232"
+  },
+  {
+    "name": "random-3b06943d67fec1e2",
+    "bits": "0x3b06943d67fec1e2",
+    "input": "2.3346202904248604e-24",
+    "expected": "2.3346202904248604e-24"
+  },
+  {
+    "name": "random-db77ec78a212ce94",
+    "bits": "0xdb77ec78a212ce94",
+    "input": "-4.245283938162846e+132",
+    "expected": "-4.245283938162846e+132"
+  },
+  {
+    "name": "random-7bd79c918c2ee078",
+    "bits": "0x7bd79c918c2ee078",
+    "input": "3.595350252510482e+288",
+    "expected": "3.595350252510482e+288"
+  },
+  {
+    "name": "random-997aab543cf2b08a",
+    "bits": "0x997aab543cf2b08a",
+    "input": "-6.1293378156502475e-186",
+    "expected": "-6.1293378156502475e-186"
+  },
+  {
+    "name": "random-b342968e44de93b1",
+    "bits": "0xb342968e44de93b1",
+    "input": "-9.037037677122402e-62",
+    "expected": "-9.037037677122402e-62"
+  },
+  {
+    "name": "random-f14fb69c24e7c940",
+    "bits": "0xf14fb69c24e7c940",
+    "input": "-6.453395872400471e+237",
+    "expected": "-6.453395872400471e+237"
+  },
+  {
+    "name": "random-56c1e8333926f67e",
+    "bits": "0x56c1e8333926f67e",
+    "input": "8.41108525097992e+109",
+    "expected": "8.41108525097992e+109"
+  },
+  {
+    "name": "random-9f7c165e526a5bd8",
+    "bits": "0x9f7c165e526a5bd8",
+    "input": "-5.114385399449256e-157",
+    "expected": "-5.114385399449256e-157"
+  },
+  {
+    "name": "random-c044ee5831ed7499",
+    "bits": "0xc044ee5831ed7499",
+    "input": "-41.862066498704",
+    "expected": "-41.862066498704"
+  },
+  {
+    "name": "random-d295159c4b3ac0a2",
+    "bits": "0xd295159c4b3ac0a2",
+    "input": "-6.710892835334173e+89",
+    "expected": "-6.710892835334173e+89"
+  },
+  {
+    "name": "random-c4a946600080bfe9",
+    "bits": "0xc4a946600080bfe9",
+    "input": "-5.967867591374509e+22",
+    "expected": "-5.967867591374509e+22"
+  },
+  {
+    "name": "random-3cbee25900d4696c",
+    "bits": "0x3cbee25900d4696c",
+    "input": "4.2860396595293587e-16",
+    "expected": "4.2860396595293587e-16"
+  },
+  {
+    "name": "random-13b4bc9a74796d1c",
+    "bits": "0x13b4bc9a74796d1c",
+    "input": "9.62461570550779e-214",
+    "expected": "9.62461570550779e-214"
+  },
+  {
+    "name": "random-d639973beae7f409",
+    "bits": "0xd639973beae7f409",
+    "input": "-2.3476947240446207e+107",
+    "expected": "-2.3476947240446207e+107"
+  },
+  {
+    "name": "random-f646315e3b8072eb",
+    "bits": "0xf646315e3b8072eb",
+    "input": "-5.459579723140491e+261",
+    "expected": "-5.459579723140491e+261"
+  },
+  {
+    "name": "random-419106ccce165ac9",
+    "bits": "0x419106ccce165ac9",
+    "input": "71414579.5218307",
+    "expected": "71414579.5218307"
+  },
+  {
+    "name": "random-50a65519734ba1cc",
+    "bits": "0x50a65519734ba1cc",
+    "input": "3.3099744285017837e+80",
+    "expected": "3.3099744285017837e+80"
+  },
+  {
+    "name": "random-9db2d39e5b7d26ed",
+    "bits": "0x9db2d39e5b7d26ed",
+    "input": "-1.2770711631389263e-165",
+    "expected": "-1.2770711631389263e-165"
+  },
+  {
+    "name": "random-d03f968ab8cc2c35",
+    "bits": "0xd03f968ab8cc2c35",
+    "input": "-3.657646793965044e+78",
+    "expected": "-3.657646793965044e+78"
+  },
+  {
+    "name": "random-071d49aaf631a8dc",
+    "bits": "0x071d49aaf631a8dc",
+    "input": "2.1148043404971643e-274",
+    "expected": "2.1148043404971643e-274"
+  },
+  {
+    "name": "random-5a3d033dd530bfef",
+    "bits": "0x5a3d033dd530bfef",
+    "input": "4.909822347881171e+126",
+    "expected": "4.909822347881171e+126"
+  },
+  {
+    "name": "random-abb2eb3303ac4204",
+    "bits": "0xabb2eb3303ac4204",
+    "input": "-3.459822315347937e-98",
+    "expected": "-3.459822315347937e-98"
+  },
+  {
+    "name": "random-036411bb6a4446d2",
+    "bits": "0x036411bb6a4446d2",
+    "input": "2.5138867425498805e-292",
+    "expected": "2.5138867425498805e-292"
+  },
+  {
+    "name": "random-6d4e0b344255262d",
+    "bits": "0x6d4e0b344255262d",
+    "input": "3.3142193363344013e+218",
+    "expected": "3.3142193363344013e+218"
+  },
+  {
+    "name": "random-4662f6df83b5c58b",
+    "bits": "0x4662f6df83b5c58b",
+    "input": "1.20200836009095e+31",
+    "expected": "1.20200836009095e+31"
+  },
+  {
+    "name": "random-188353b44ec63462",
+    "bits": "0x188353b44ec63462",
+    "input": "1.355553075005844e-190",
+    "expected": "1.355553075005844e-190"
+  },
+  {
+    "name": "random-f76156e7f02d6c2d",
+    "bits": "0xf76156e7f02d6c2d",
+    "input": "-1.118206867480788e+267",
+    "expected": "-1.118206867480788e+267"
+  },
+  {
+    "name": "random-25a1518be2c664ce",
+    "bits": "0x25a1518be2c664ce",
+    "input": "1.998771454125259e-127",
+    "expected": "1.998771454125259e-127"
+  },
+  {
+    "name": "random-0f4ebf31974694a2",
+    "bits": "0x0f4ebf31974694a2",
+    "input": "6.043854917243943e-235",
+    "expected": "6.043854917243943e-235"
+  },
+  {
+    "name": "random-6013cc6b14569609",
+    "bits": "0x6013cc6b14569609",
+    "input": "6.63636511666063e+154",
+    "expected": "6.63636511666063e+154"
+  },
+  {
+    "name": "random-18708fd33b495bde",
+    "bits": "0x18708fd33b495bde",
+    "input": "5.808055214755801e-191",
+    "expected": "5.808055214755801e-191"
+  },
+  {
+    "name": "random-069dde93b411bfd8",
+    "bits": "0x069dde93b411bfd8",
+    "input": "8.42502303121627e-277",
+    "expected": "8.42502303121627e-277"
+  },
+  {
+    "name": "random-c017a77427040058",
+    "bits": "0xc017a77427040058",
+    "input": "-5.913529023761008",
+    "expected": "-5.913529023761008"
+  },
+  {
+    "name": "random-53f5fd05b60c75ce",
+    "bits": "0x53f5fd05b60c75ce",
+    "input": "2.9354293645338685e+96",
+    "expected": "2.9354293645338685e+96"
+  },
+  {
+    "name": "random-03b93d32ce27a541",
+    "bits": "0x03b93d32ce27a541",
+    "input": "1.0116663685633044e-290",
+    "expected": "1.0116663685633044e-290"
+  },
+  {
+    "name": "random-9dbca4a698034696",
+    "bits": "0x9dbca4a698034696",
+    "input": "-1.942958072079354e-165",
+    "expected": "-1.942958072079354e-165"
+  },
+  {
+    "name": "random-bd7a81815d2ef65e",
+    "bits": "0xbd7a81815d2ef65e",
+    "input": "-1.5066848497983361e-12",
+    "expected": "-1.5066848497983361e-12"
+  },
+  {
+    "name": "random-5854c29475bf4762",
+    "bits": "0x5854c29475bf4762",
+    "input": "3.2719548594569764e+117",
+    "expected": "3.2719548594569764e+117"
+  },
+  {
+    "name": "random-27ce659d42330544",
+    "bits": "0x27ce659d42330544",
+    "input": "6.0270033178479576e-117",
+    "expected": "6.0270033178479576e-117"
+  },
+  {
+    "name": "random-04b880eb51c836c1",
+    "bits": "0x04b880eb51c836c1",
+    "input": "6.436856944073403e-286",
+    "expected": "6.436856944073403e-286"
+  },
+  {
+    "name": "random-df224c6d57260eaf",
+    "bits": "0xdf224c6d57260eaf",
+    "input": "-1.871821253494827e+150",
+    "expected": "-1.871821253494827e+150"
+  },
+  {
+    "name": "random-c25183df3ea93a3f",
+    "bits": "0xc25183df3ea93a3f",
+    "input": "-300907559588.9101",
+    "expected": "-300907559588.9101"
+  },
+  {
+    "name": "random-c78b27e33a1a165d",
+    "bits": "0xc78b27e33a1a165d",
+    "input": "-4.512033021745336e+36",
+    "expected": "-4.512033021745336e+36"
+  },
+  {
+    "name": "random-f7cd7cb2c9da0f98",
+    "bits": "0xf7cd7cb2c9da0f98",
+    "input": "-1.2170215081658195e+269",
+    "expected": "-1.2170215081658195e+269"
+  },
+  {
+    "name": "random-f28cfe267850fee0",
+    "bits": "0xf28cfe267850fee0",
+    "input": "-6.1863756432396264e+243",
+    "expected": "-6.1863756432396264e+243"
+  },
+  {
+    "name": "random-5676162c24c57be8",
+    "bits": "0x5676162c24c57be8",
+    "input": "3.241959164183899e+108",
+    "expected": "3.241959164183899e+108"
+  },
+  {
+    "name": "random-ca7188bc3b29c273",
+    "bits": "0xca7188bc3b29c273",
+    "input": "-4.100183723742341e+50",
+    "expected": "-4.100183723742341e+50"
+  },
+  {
+    "name": "random-d1549b997d26d897",
+    "bits": "0xd1549b997d26d897",
+    "input": "-6.255336404138648e+83",
+    "expected": "-6.255336404138648e+83"
+  },
+  {
+    "name": "random-5ebe1fbae5cdc3c4",
+    "bits": "0x5ebe1fbae5cdc3c4",
+    "input": "2.4074082163413995e+148",
+    "expected": "2.4074082163413995e+148"
+  },
+  {
+    "name": "random-125b194107dd2784",
+    "bits": "0x125b194107dd2784",
+    "input": "2.9986847772621274e-220",
+    "expected": "2.9986847772621274e-220"
+  },
+  {
+    "name": "random-5a93f0f2d00ee47d",
+    "bits": "0x5a93f0f2d00ee47d",
+    "input": "2.1597802674180784e+128",
+    "expected": "2.1597802674180784e+128"
+  },
+  {
+    "name": "random-5d1e39b3515e0593",
+    "bits": "0x5d1e39b3515e0593",
+    "input": "3.599398612196894e+140",
+    "expected": "3.599398612196894e+140"
+  },
+  {
+    "name": "random-5ab0267305ed6272",
+    "bits": "0x5ab0267305ed6272",
+    "input": "6.99674212736733e+128",
+    "expected": "6.99674212736733e+128"
+  },
+  {
+    "name": "random-e70f7ee09bc2b182",
+    "bits": "0xe70f7ee09bc2b182",
+    "input": "-2.7408003239661782e+188",
+    "expected": "-2.7408003239661782e+188"
+  },
+  {
+    "name": "random-962f9f57091c359f",
+    "bits": "0x962f9f57091c359f",
+    "input": "-8.068783180358889e-202",
+    "expected": "-8.068783180358889e-202"
+  },
+  {
+    "name": "random-a31fe6f4407ba6be",
+    "bits": "0xa31fe6f4407ba6be",
+    "input": "-1.674334285888544e-139",
+    "expected": "-1.674334285888544e-139"
+  },
+  {
+    "name": "random-8b8d549bb77f81d4",
+    "bits": "0x8b8d549bb77f81d4",
+    "input": "-5.0007268980733606e-253",
+    "expected": "-5.0007268980733606e-253"
+  },
+  {
+    "name": "random-6a0414e568964327",
+    "bits": "0x6a0414e568964327",
+    "input": "4.918876999799427e+202",
+    "expected": "4.918876999799427e+202"
+  },
+  {
+    "name": "random-d8689c1bc8ec57c2",
+    "bits": "0xd8689c1bc8ec57c2",
+    "input": "-7.757403609939613e+117",
+    "expected": "-7.757403609939613e+117"
+  },
+  {
+    "name": "random-0be47b0d979053d0",
+    "bits": "0x0be47b0d979053d0",
+    "input": "2.234796176040859e-251",
+    "expected": "2.234796176040859e-251"
+  },
+  {
+    "name": "random-451149ca4a9fe61f",
+    "bits": "0x451149ca4a9fe61f",
+    "input": "5.225050826567643e+24",
+    "expected": "5.225050826567643e+24"
+  },
+  {
+    "name": "random-c3437033791b6405",
+    "bits": "0xc3437033791b6405",
+    "input": "-1.094278186996737e+16",
+    "expected": "-1.094278186996737e+16"
+  },
+  {
+    "name": "random-01509e9d84b01da3",
+    "bits": "0x01509e9d84b01da3",
+    "input": "2.423509323565911e-302",
+    "expected": "2.423509323565911e-302"
+  },
+  {
+    "name": "random-0257cfbfbe2f68a8",
+    "bits": "0x0257cfbfbe2f68a8",
+    "input": "2.2755763061028006e-297",
+    "expected": "2.2755763061028006e-297"
+  },
+  {
+    "name": "random-046c32a917a36a84",
+    "bits": "0x046c32a917a36a84",
+    "input": "2.3147857615523496e-287",
+    "expected": "2.3147857615523496e-287"
+  },
+  {
+    "name": "random-04ef396f5a55f71e",
+    "bits": "0x04ef396f5a55f71e",
+    "input": "6.561869602407297e-285",
+    "expected": "6.561869602407297e-285"
+  },
+  {
+    "name": "random-90fa68be583f59bb",
+    "bits": "0x90fa68be583f59bb",
+    "input": "-6.967512783344674e-227",
+    "expected": "-6.967512783344674e-227"
+  },
+  {
+    "name": "random-ca8ee100882e263a",
+    "bits": "0xca8ee100882e263a",
+    "input": "-1.4441466850027884e+51",
+    "expected": "-1.4441466850027884e+51"
+  },
+  {
+    "name": "random-6e012645e44a4b72",
+    "bits": "0x6e012645e44a4b72",
+    "input": "7.748870172501616e+221",
+    "expected": "7.748870172501616e+221"
+  },
+  {
+    "name": "random-88e5d4b91ff4d7b1",
+    "bits": "0x88e5d4b91ff4d7b1",
+    "input": "-8.463041450536671e-266",
+    "expected": "-8.463041450536671e-266"
+  },
+  {
+    "name": "random-4dad36d8ae56d723",
+    "bits": "0x4dad36d8ae56d723",
+    "input": "1.5383094814372882e+66",
+    "expected": "1.5383094814372882e+66"
+  },
+  {
+    "name": "random-b125adb7b25bc23b",
+    "bits": "0xb125adb7b25bc23b",
+    "input": "-6.134821929850672e-72",
+    "expected": "-6.134821929850672e-72"
+  },
+  {
+    "name": "random-5e8fc63b4441aea1",
+    "bits": "0x5e8fc63b4441aea1",
+    "input": "3.1741281781371236e+147",
+    "expected": "3.1741281781371236e+147"
+  },
+  {
+    "name": "random-6d02b22e827cdba8",
+    "bits": "0x6d02b22e827cdba8",
+    "input": "1.2890094632374488e+217",
+    "expected": "1.2890094632374488e+217"
+  },
+  {
+    "name": "random-9e41650c5194524a",
+    "bits": "0x9e41650c5194524a",
+    "input": "-6.041291302593515e-163",
+    "expected": "-6.041291302593515e-163"
+  },
+  {
+    "name": "random-219d50c4a441c0de",
+    "bits": "0x219d50c4a441c0de",
+    "input": "9.170635625650607e-147",
+    "expected": "9.170635625650607e-147"
+  },
+  {
+    "name": "random-d001f258d098583d",
+    "bits": "0xd001f258d098583d",
+    "input": "-2.5976026857545886e+77",
+    "expected": "-2.5976026857545886e+77"
+  },
+  {
+    "name": "random-0bc3ccd505a213e5",
+    "bits": "0x0bc3ccd505a213e5",
+    "input": "5.401340797805772e-252",
+    "expected": "5.401340797805772e-252"
+  },
+  {
+    "name": "random-703838885d482d00",
+    "bits": "0x703838885d482d00",
+    "input": "3.7603277958233075e+232",
+    "expected": "3.7603277958233075e+232"
+  },
+  {
+    "name": "random-5376b900d5098d8c",
+    "bits": "0x5376b900d5098d8c",
+    "input": "1.1849444896113175e+94",
+    "expected": "1.1849444896113175e+94"
+  },
+  {
+    "name": "random-59efefd7608f3e41",
+    "bits": "0x59efefd7608f3e41",
+    "input": "1.6889652195537012e+125",
+    "expected": "1.6889652195537012e+125"
+  },
+  {
+    "name": "random-a6fe0ae2275d6463",
+    "bits": "0xa6fe0ae2275d6463",
+    "input": "-7.2713996396117525e-121",
+    "expected": "-7.2713996396117525e-121"
+  },
+  {
+    "name": "random-e21f0a969e3be0bc",
+    "bits": "0xe21f0a969e3be0bc",
+    "input": "-4.4688769945223314e+164",
+    "expected": "-4.4688769945223314e+164"
+  },
+  {
+    "name": "random-f834e76e718e1a8f",
+    "bits": "0xf834e76e718e1a8f",
+    "input": "-1.1043484191586732e+271",
+    "expected": "-1.1043484191586732e+271"
+  },
+  {
+    "name": "random-2ad88698b59f3d0f",
+    "bits": "0x2ad88698b59f3d0f",
+    "input": "2.7375628123594015e-102",
+    "expected": "2.7375628123594015e-102"
+  },
+  {
+    "name": "random-058f89064556f6bb",
+    "bits": "0x058f89064556f6bb",
+    "input": "6.786258153416037e-282",
+    "expected": "6.786258153416037e-282"
+  },
+  {
+    "name": "random-8b05b03b04b3c5ea",
+    "bits": "0x8b05b03b04b3c5ea",
+    "input": "-1.444445683132957e-255",
+    "expected": "-1.444445683132957e-255"
+  },
+  {
+    "name": "random-8d84af9c76a9e365",
+    "bits": "0x8d84af9c76a9e365",
+    "input": "-1.5147802777803848e-243",
+    "expected": "-1.5147802777803848e-243"
+  },
+  {
+    "name": "random-4499f68321c5dafc",
+    "bits": "0x4499f68321c5dafc",
+    "input": "3.06516275412278e+22",
+    "expected": "3.06516275412278e+22"
+  },
+  {
+    "name": "random-0a5fd755b531ba8b",
+    "bits": "0x0a5fd755b531ba8b",
+    "input": "1.0354580371501878e-258",
+    "expected": "1.0354580371501878e-258"
+  },
+  {
+    "name": "random-6d030239da1b8e8b",
+    "bits": "0x6d030239da1b8e8b",
+    "input": "1.310566912261574e+217",
+    "expected": "1.310566912261574e+217"
+  },
+  {
+    "name": "random-57587504143d2eb6",
+    "bits": "0x57587504143d2eb6",
+    "input": "5.881705012803085e+112",
+    "expected": "5.881705012803085e+112"
+  },
+  {
+    "name": "random-840dfccdd7709d46",
+    "bits": "0x840dfccdd7709d46",
+    "input": "-3.8464019550700634e-289",
+    "expected": "-3.8464019550700634e-289"
+  },
+  {
+    "name": "random-f220d81debe5622e",
+    "bits": "0xf220d81debe5622e",
+    "input": "-5.615870624418787e+241",
+    "expected": "-5.615870624418787e+241"
+  },
+  {
+    "name": "random-43fbe9783cb10186",
+    "bits": "0x43fbe9783cb10186",
+    "input": "3.21803345705708e+19",
+    "expected": "3.21803345705708e+19"
+  },
+  {
+    "name": "random-8887c23f66ff8939",
+    "bits": "0x8887c23f66ff8939",
+    "input": "-1.4391232794665506e-267",
+    "expected": "-1.4391232794665506e-267"
+  },
+  {
+    "name": "random-3bb7badd3a97543a",
+    "bits": "0x3bb7badd3a97543a",
+    "input": "5.025009869684287e-21",
+    "expected": "5.025009869684287e-21"
+  },
+  {
+    "name": "random-e0921741827a4fb3",
+    "bits": "0xe0921741827a4fb3",
+    "input": "-1.552374738596058e+157",
+    "expected": "-1.552374738596058e+157"
+  },
+  {
+    "name": "random-8f729aca1f7cff6b",
+    "bits": "0x8f729aca1f7cff6b",
+    "input": "-2.9256664280481364e-234",
+    "expected": "-2.9256664280481364e-234"
+  },
+  {
+    "name": "random-95c0bdbc58fb8efd",
+    "bits": "0x95c0bdbc58fb8efd",
+    "input": "-6.674494305840408e-204",
+    "expected": "-6.674494305840408e-204"
+  },
+  {
+    "name": "random-a729b13a9b9a823d",
+    "bits": "0xa729b13a9b9a823d",
+    "input": "-4.974789766181418e-120",
+    "expected": "-4.974789766181418e-120"
+  },
+  {
+    "name": "random-37e24e77fac7a0a3",
+    "bits": "0x37e24e77fac7a0a3",
+    "input": "1.6811881858207244e-39",
+    "expected": "1.6811881858207244e-39"
+  },
+  {
+    "name": "random-341cf7fab88f2c13",
+    "bits": "0x341cf7fab88f2c13",
+    "input": "1.1537438243411953e-57",
+    "expected": "1.1537438243411953e-57"
+  },
+  {
+    "name": "random-732cb8a7d3859631",
+    "bits": "0x732cb8a7d3859631",
+    "input": "6.275534524100534e+246",
+    "expected": "6.275534524100534e+246"
+  },
+  {
+    "name": "random-67563a009ca2566b",
+    "bits": "0x67563a009ca2566b",
+    "input": "6.189417366675988e+189",
+    "expected": "6.189417366675988e+189"
+  },
+  {
+    "name": "random-0bdc1bc64f68d388",
+    "bits": "0x0bdc1bc64f68d388",
+    "input": "1.5335615891707588e-251",
+    "expected": "1.5335615891707588e-251"
+  },
+  {
+    "name": "random-5d4a9b4d60305081",
+    "bits": "0x5d4a9b4d60305081",
+    "input": "2.534767737567083e+141",
+    "expected": "2.534767737567083e+141"
+  },
+  {
+    "name": "random-18a020bc6d321d51",
+    "bits": "0x18a020bc6d321d51",
+    "input": "4.524701127339644e-190",
+    "expected": "4.524701127339644e-190"
+  },
+  {
+    "name": "random-4532f4be2748c7fa",
+    "bits": "0x4532f4be2748c7fa",
+    "input": "2.2916429886989766e+25",
+    "expected": "2.2916429886989766e+25"
+  },
+  {
+    "name": "random-8878d2c8e016c970",
+    "bits": "0x8878d2c8e016c970",
+    "input": "-7.518041895666356e-268",
+    "expected": "-7.518041895666356e-268"
+  },
+  {
+    "name": "random-8d21b2538c2c93fc",
+    "bits": "0x8d21b2538c2c93fc",
+    "input": "-2.0248043550421e-245",
+    "expected": "-2.0248043550421e-245"
+  },
+  {
+    "name": "random-43ecc5f71df22f17",
+    "bits": "0x43ecc5f71df22f17",
+    "input": "1.6586679291706128e+19",
+    "expected": "1.6586679291706128e+19"
+  },
+  {
+    "name": "random-e924d8b9b08e09a2",
+    "bits": "0xe924d8b9b08e09a2",
+    "input": "-3.116607040401132e+198",
+    "expected": "-3.116607040401132e+198"
+  },
+  {
+    "name": "random-b4ea1a9959e6709c",
+    "bits": "0xb4ea1a9959e6709c",
+    "input": "-8.516795565501031e-54",
+    "expected": "-8.516795565501031e-54"
+  },
+  {
+    "name": "random-4a84a086840b7bb3",
+    "bits": "0x4a84a086840b7bb3",
+    "input": "9.64687074321144e+50",
+    "expected": "9.64687074321144e+50"
+  },
+  {
+    "name": "random-3f5be877d33546f5",
+    "bits": "0x3f5be877d33546f5",
+    "input": "0.0017033739248585842",
+    "expected": "0.0017033739248585842"
+  },
+  {
+    "name": "random-cdd7816285ba4fc1",
+    "bits": "0xcdd7816285ba4fc1",
+    "input": "-9.901634198806552e+66",
+    "expected": "-9.901634198806552e+66"
+  },
+  {
+    "name": "random-af431839ed1d9d31",
+    "bits": "0xaf431839ed1d9d31",
+    "input": "-5.032485251511561e-81",
+    "expected": "-5.032485251511561e-81"
+  },
+  {
+    "name": "random-4031093049d52148",
+    "bits": "0x4031093049d52148",
+    "input": "17.035893072637265",
+    "expected": "17.035893072637265"
+  },
+  {
+    "name": "random-62fc901b434017ce",
+    "bits": "0x62fc901b434017ce",
+    "input": "6.737210731953251e+168",
+    "expected": "6.737210731953251e+168"
+  },
+  {
+    "name": "random-11aa9799d4db253c",
+    "bits": "0x11aa9799d4db253c",
+    "input": "1.4368365015150593e-223",
+    "expected": "1.4368365015150593e-223"
+  },
+  {
+    "name": "random-a2410bbe38aa4b90",
+    "bits": "0xa2410bbe38aa4b90",
+    "input": "-1.0920720245521686e-143",
+    "expected": "-1.0920720245521686e-143"
+  },
+  {
+    "name": "random-821d23dfd1d83f5a",
+    "bits": "0x821d23dfd1d83f5a",
+    "input": "-1.740507319702162e-298",
+    "expected": "-1.740507319702162e-298"
+  },
+  {
+    "name": "random-59260bec43527605",
+    "bits": "0x59260bec43527605",
+    "input": "2.8464881301322487e+121",
+    "expected": "2.8464881301322487e+121"
+  },
+  {
+    "name": "random-03a7af7a114e90f9",
+    "bits": "0x03a7af7a114e90f9",
+    "input": "4.746964221673406e-291",
+    "expected": "4.746964221673406e-291"
+  },
+  {
+    "name": "random-be231e856af05e3b",
+    "bits": "0xbe231e856af05e3b",
+    "input": "-2.2257705327359395e-09",
+    "expected": "-2.2257705327359395e-09"
+  },
+  {
+    "name": "random-34981898a5ee9a33",
+    "bits": "0x34981898a5ee9a33",
+    "input": "2.4567852099429158e-55",
+    "expected": "2.4567852099429158e-55"
+  },
+  {
+    "name": "random-2b8354dd0e8190a4",
+    "bits": "0x2b8354dd0e8190a4",
+    "input": "4.419131706753084e-99",
+    "expected": "4.419131706753084e-99"
+  },
+  {
+    "name": "random-f0d853e3678ac4f1",
+    "bits": "0xf0d853e3678ac4f1",
+    "input": "-3.8675637042093015e+235",
+    "expected": "-3.8675637042093015e+235"
+  },
+  {
+    "name": "random-46381d189a649ee3",
+    "bits": "0x46381d189a649ee3",
+    "input": "1.9104807089473956e+30",
+    "expected": "1.9104807089473956e+30"
+  },
+  {
+    "name": "random-762f609e56d3d3dd",
+    "bits": "0x762f609e56d3d3dd",
+    "input": "1.9297605971543775e+261",
+    "expected": "1.9297605971543775e+261"
+  },
+  {
+    "name": "random-a33ced72fc112c16",
+    "bits": "0xa33ced72fc112c16",
+    "input": "-6.072862545079518e-139",
+    "expected": "-6.072862545079518e-139"
+  },
+  {
+    "name": "random-d7f06547e85667a7",
+    "bits": "0xd7f06547e85667a7",
+    "input": "-4.037629091650154e+115",
+    "expected": "-4.037629091650154e+115"
+  },
+  {
+    "name": "random-33bb2d2e162c79db",
+    "bits": "0x33bb2d2e162c79db",
+    "input": "1.691196780924206e-59",
+    "expected": "1.691196780924206e-59"
+  },
+  {
+    "name": "random-064268b3e86b4155",
+    "bits": "0x064268b3e86b4155",
+    "input": "1.6226471952112435e-278",
+    "expected": "1.6226471952112435e-278"
+  },
+  {
+    "name": "random-5acfda786ee828e5",
+    "bits": "0x5acfda786ee828e5",
+    "input": "2.7599674154030652e+129",
+    "expected": "2.7599674154030652e+129"
+  },
+  {
+    "name": "random-64e516980d471994",
+    "bits": "0x64e516980d471994",
+    "input": "1.0681891277498898e+178",
+    "expected": "1.0681891277498898e+178"
+  },
+  {
+    "name": "random-c85778648c246935",
+    "bits": "0xc85778648c246935",
+    "input": "-3.1946095483134986e+40",
+    "expected": "-3.1946095483134986e+40"
+  },
+  {
+    "name": "random-2520a3176019e95a",
+    "bits": "0x2520a3176019e95a",
+    "input": "7.500476645985224e-130",
+    "expected": "7.500476645985224e-130"
+  },
+  {
+    "name": "random-5bf5a09a6cce5f00",
+    "bits": "0x5bf5a09a6cce5f00",
+    "input": "9.824750057017771e+134",
+    "expected": "9.824750057017771e+134"
+  },
+  {
+    "name": "random-9c4b14b42a9e3119",
+    "bits": "0x9c4b14b42a9e3119",
+    "input": "-2.1898540544117528e-172",
+    "expected": "-2.1898540544117528e-172"
+  },
+  {
+    "name": "random-301726f3f0b3ddd5",
+    "bits": "0x301726f3f0b3ddd5",
+    "input": "4.998648846659326e-77",
+    "expected": "4.998648846659326e-77"
+  },
+  {
+    "name": "random-be934a8c3d02642e",
+    "bits": "0xbe934a8c3d02642e",
+    "input": "-2.874613160924443e-07",
+    "expected": "-2.874613160924443e-07"
+  },
+  {
+    "name": "random-7ed79922fa0d5ecf",
+    "bits": "0x7ed79922fa0d5ecf",
+    "input": "1.0114265459506264e+303",
+    "expected": "1.0114265459506264e+303"
+  },
+  {
+    "name": "random-f2894c9933a7ce52",
+    "bits": "0xf2894c9933a7ce52",
+    "input": "-5.39825648794519e+243",
+    "expected": "-5.39825648794519e+243"
+  },
+  {
+    "name": "random-fafe0c91b0a6ab19",
+    "bits": "0xfafe0c91b0a6ab19",
+    "input": "-2.7927198056415702e+284",
+    "expected": "-2.7927198056415702e+284"
+  },
+  {
+    "name": "random-282a678ef163dee3",
+    "bits": "0x282a678ef163dee3",
+    "input": "3.3506574201335194e-115",
+    "expected": "3.3506574201335194e-115"
+  },
+  {
+    "name": "random-ec67b44a1e3df1e6",
+    "bits": "0xec67b44a1e3df1e6",
+    "input": "-1.5960013792975098e+214",
+    "expected": "-1.5960013792975098e+214"
+  },
+  {
+    "name": "random-8e14cd74447afbbb",
+    "bits": "0x8e14cd74447afbbb",
+    "input": "-7.799381495301049e-241",
+    "expected": "-7.799381495301049e-241"
+  },
+  {
+    "name": "random-c60907662e3aa5cd",
+    "bits": "0xc60907662e3aa5cd",
+    "input": "-2.478742483337094e+29",
+    "expected": "-2.478742483337094e+29"
+  },
+  {
+    "name": "random-c3ede1dc44febd95",
+    "bits": "0xc3ede1dc44febd95",
+    "input": "-1.7225954285996255e+19",
+    "expected": "-1.7225954285996255e+19"
+  },
+  {
+    "name": "random-12675aefbaf9a665",
+    "bits": "0x12675aefbaf9a665",
+    "input": "5.16888833515614e-220",
+    "expected": "5.16888833515614e-220"
+  },
+  {
+    "name": "random-913db762d32ed0a4",
+    "bits": "0x913db762d32ed0a4",
+    "input": "-1.254407813081948e-225",
+    "expected": "-1.254407813081948e-225"
+  },
+  {
+    "name": "random-54f14521784aabfc",
+    "bits": "0x54f14521784aabfc",
+    "input": "1.5109564717601745e+101",
+    "expected": "1.5109564717601745e+101"
+  },
+  {
+    "name": "random-2886ef318229b66e",
+    "bits": "0x2886ef318229b66e",
+    "input": "1.8625934181861828e-113",
+    "expected": "1.8625934181861828e-113"
+  },
+  {
+    "name": "random-140d71678c82a6e9",
+    "bits": "0x140d71678c82a6e9",
+    "input": "4.372954133133212e-212",
+    "expected": "4.372954133133212e-212"
+  },
+  {
+    "name": "random-495b473155fba5c7",
+    "bits": "0x495b473155fba5c7",
+    "input": "2.4332875231538778e+45",
+    "expected": "2.4332875231538778e+45"
+  },
+  {
+    "name": "random-d3051c72610b494e",
+    "bits": "0xd3051c72610b494e",
+    "input": "-8.600822304755662e+91",
+    "expected": "-8.600822304755662e+91"
+  },
+  {
+    "name": "random-0cde5804ca52c1ff",
+    "bits": "0x0cde5804ca52c1ff",
+    "input": "1.0849603370744911e-246",
+    "expected": "1.0849603370744911e-246"
+  },
+  {
+    "name": "random-c0f79cc2114309ad",
+    "bits": "0xc0f79cc2114309ad",
+    "input": "-96716.12921432285",
+    "expected": "-96716.12921432285"
+  },
+  {
+    "name": "random-8ce1cc5e997df205",
+    "bits": "0x8ce1cc5e997df205",
+    "input": "-1.2727776293595767e-246",
+    "expected": "-1.2727776293595767e-246"
+  },
+  {
+    "name": "random-c03ca97f389f6330",
+    "bits": "0xc03ca97f389f6330",
+    "input": "-28.662097491181328",
+    "expected": "-28.662097491181328"
+  },
+  {
+    "name": "random-d28a3c06c129187e",
+    "bits": "0xd28a3c06c129187e",
+    "input": "-4.175044971937362e+89",
+    "expected": "-4.175044971937362e+89"
+  },
+  {
+    "name": "random-8bdcfdc2494c8bb9",
+    "bits": "0x8bdcfdc2494c8bb9",
+    "input": "-1.5817232995023698e-251",
+    "expected": "-1.5817232995023698e-251"
+  },
+  {
+    "name": "random-8159ca36627edf36",
+    "bits": "0x8159ca36627edf36",
+    "input": "-3.760745039231316e-302",
+    "expected": "-3.760745039231316e-302"
+  },
+  {
+    "name": "random-2b40013bc8ec93f1",
+    "bits": "0x2b40013bc8ec93f1",
+    "input": "2.28666321738132e-100",
+    "expected": "2.28666321738132e-100"
+  },
+  {
+    "name": "random-1f4542c29360dae4",
+    "bits": "0x1f4542c29360dae4",
+    "input": "4.8391770190543435e-158",
+    "expected": "4.8391770190543435e-158"
+  },
+  {
+    "name": "random-43194c8cd3e31294",
+    "bits": "0x43194c8cd3e31294",
+    "input": "1780260537943205.0",
+    "expected": "1780260537943205.0"
+  },
+  {
+    "name": "random-b3042fd26afd18b6",
+    "bits": "0xb3042fd26afd18b6",
+    "input": "-6.133925422117075e-63",
+    "expected": "-6.133925422117075e-63"
+  },
+  {
+    "name": "random-da4e755ecea7233b",
+    "bits": "0xda4e755ecea7233b",
+    "input": "-1.030899640927173e+127",
+    "expected": "-1.030899640927173e+127"
+  },
+  {
+    "name": "random-86d8adc3ef08aa18",
+    "bits": "0x86d8adc3ef08aa18",
+    "input": "-1.1137494635691466e-275",
+    "expected": "-1.1137494635691466e-275"
+  },
+  {
+    "name": "random-efeaeca69d15cf89",
+    "bits": "0xefeaeca69d15cf89",
+    "input": "-1.3062701567827148e+231",
+    "expected": "-1.3062701567827148e+231"
+  },
+  {
+    "name": "random-e01629f8720de1ce",
+    "bits": "0xe01629f8720de1ce",
+    "input": "-7.429248685009634e+154",
+    "expected": "-7.429248685009634e+154"
+  },
+  {
+    "name": "random-a8656db9d093475d",
+    "bits": "0xa8656db9d093475d",
+    "input": "-4.350766598274284e-114",
+    "expected": "-4.350766598274284e-114"
+  },
+  {
+    "name": "random-c29e0b752fcb4f43",
+    "bits": "0xc29e0b752fcb4f43",
+    "input": "-8258639885011.815",
+    "expected": "-8258639885011.815"
+  },
+  {
+    "name": "random-d3f98217bd5e7351",
+    "bits": "0xd3f98217bd5e7351",
+    "input": "-3.4053206595875317e+96",
+    "expected": "-3.4053206595875317e+96"
+  },
+  {
+    "name": "random-05d6e737541899a1",
+    "bits": "0x05d6e737541899a1",
+    "input": "1.577175375351063e-280",
+    "expected": "1.577175375351063e-280"
+  },
+  {
+    "name": "random-670cd796c39a21e2",
+    "bits": "0x670cd796c39a21e2",
+    "input": "2.5098909439330116e+188",
+    "expected": "2.5098909439330116e+188"
+  },
+  {
+    "name": "random-990e5f54e759f2a2",
+    "bits": "0x990e5f54e759f2a2",
+    "input": "-5.453454276281694e-188",
+    "expected": "-5.453454276281694e-188"
+  },
+  {
+    "name": "random-9eb7e1c27f2cdfca",
+    "bits": "0x9eb7e1c27f2cdfca",
+    "input": "-1.0616728893219869e-160",
+    "expected": "-1.0616728893219869e-160"
+  },
+  {
+    "name": "random-b07d9641dd963b2f",
+    "bits": "0xb07d9641dd963b2f",
+    "input": "-4.0882851633507314e-75",
+    "expected": "-4.0882851633507314e-75"
+  },
+  {
+    "name": "random-a0f8ff91b93527b1",
+    "bits": "0xa0f8ff91b93527b1",
+    "input": "-7.636826858776952e-150",
+    "expected": "-7.636826858776952e-150"
+  },
+  {
+    "name": "random-f361329dd2138f61",
+    "bits": "0xf361329dd2138f61",
+    "input": "-6.012254264557768e+247",
+    "expected": "-6.012254264557768e+247"
+  },
+  {
+    "name": "random-dbdfda493baaaa15",
+    "bits": "0xdbdfda493baaaa15",
+    "input": "-3.6174626966888966e+134",
+    "expected": "-3.6174626966888966e+134"
+  },
+  {
+    "name": "random-cd405aa648f28d98",
+    "bits": "0xcd405aa648f28d98",
+    "input": "-1.3455372881646084e+64",
+    "expected": "-1.3455372881646084e+64"
+  },
+  {
+    "name": "random-b327d1ba8d9ef2ba",
+    "bits": "0xb327d1ba8d9ef2ba",
+    "input": "-2.895069809445562e-62",
+    "expected": "-2.895069809445562e-62"
+  },
+  {
+    "name": "random-452dddb6ee3931be",
+    "bits": "0x452dddb6ee3931be",
+    "input": "1.8052933117383e+25",
+    "expected": "1.8052933117383e+25"
+  },
+  {
+    "name": "random-aa2de77461c8fe89",
+    "bits": "0xaa2de77461c8fe89",
+    "input": "-1.6298309158271623e-105",
+    "expected": "-1.6298309158271623e-105"
+  },
+  {
+    "name": "random-37c9887c0c20828e",
+    "bits": "0x37c9887c0c20828e",
+    "input": "5.862122096685718e-40",
+    "expected": "5.862122096685718e-40"
+  },
+  {
+    "name": "random-2e1e8b5ceccb0f38",
+    "bits": "0x2e1e8b5ceccb0f38",
+    "input": "1.5354393499221238e-86",
+    "expected": "1.5354393499221238e-86"
+  },
+  {
+    "name": "random-fbe3b1a3b1956585",
+    "bits": "0xfbe3b1a3b1956585",
+    "input": "-5.997602461255097e+288",
+    "expected": "-5.997602461255097e+288"
+  },
+  {
+    "name": "random-86ed1a5b75c351bb",
+    "bits": "0x86ed1a5b75c351bb",
+    "input": "-2.6268248113616435e-275",
+    "expected": "-2.6268248113616435e-275"
+  },
+  {
+    "name": "random-e2cdd072af1a1e3d",
+    "bits": "0xe2cdd072af1a1e3d",
+    "input": "-8.790457733863026e+167",
+    "expected": "-8.790457733863026e+167"
+  },
+  {
+    "name": "random-145feca3c961b9a1",
+    "bits": "0x145feca3c961b9a1",
+    "input": "1.517278963101834e-210",
+    "expected": "1.517278963101834e-210"
+  },
+  {
+    "name": "random-17760917b7ad2835",
+    "bits": "0x17760917b7ad2835",
+    "input": "1.1791419602457459e-195",
+    "expected": "1.1791419602457459e-195"
+  },
+  {
+    "name": "random-674692a7d71b3bb6",
+    "bits": "0x674692a7d71b3bb6",
+    "input": "3.142925875588913e+189",
+    "expected": "3.142925875588913e+189"
+  },
+  {
+    "name": "random-b4b3f21a960d1174",
+    "bits": "0xb4b3f21a960d1174",
+    "input": "-8.134492744178438e-55",
+    "expected": "-8.134492744178438e-55"
+  },
+  {
+    "name": "random-83b039b7c1763f9d",
+    "bits": "0x83b039b7c1763f9d",
+    "input": "-6.503710767685341e-291",
+    "expected": "-6.503710767685341e-291"
+  },
+  {
+    "name": "random-99e1b417b5cec8ce",
+    "bits": "0x99e1b417b5cec8ce",
+    "input": "-5.208005919648275e-184",
+    "expected": "-5.208005919648275e-184"
+  },
+  {
+    "name": "random-5ae94ad86fdb13d0",
+    "bits": "0x5ae94ad86fdb13d0",
+    "input": "8.765921763740125e+129",
+    "expected": "8.765921763740125e+129"
+  },
+  {
+    "name": "random-88e2548a178147f6",
+    "bits": "0x88e2548a178147f6",
+    "input": "-7.105944346719524e-266",
+    "expected": "-7.105944346719524e-266"
+  },
+  {
+    "name": "random-7b9d7dfd0da54962",
+    "bits": "0x7b9d7dfd0da54962",
+    "input": "2.8067401356621855e+287",
+    "expected": "2.8067401356621855e+287"
+  },
+  {
+    "name": "random-82c953f54f405ba9",
+    "bits": "0x82c953f54f405ba9",
+    "input": "-3.0982360728479446e-295",
+    "expected": "-3.0982360728479446e-295"
+  },
+  {
+    "name": "random-11d90b8a8afcae53",
+    "bits": "0x11d90b8a8afcae53",
+    "input": "1.082594180565977e-222",
+    "expected": "1.082594180565977e-222"
+  },
+  {
+    "name": "random-d98d9db4df6bdd0c",
+    "bits": "0xd98d9db4df6bdd0c",
+    "input": "-2.447232596683934e+123",
+    "expected": "-2.447232596683934e+123"
+  },
+  {
+    "name": "random-2e1ea6306a079c00",
+    "bits": "0x2e1ea6306a079c00",
+    "input": "1.5407070290440137e-86",
+    "expected": "1.5407070290440137e-86"
+  },
+  {
+    "name": "random-a592045b74f2aeed",
+    "bits": "0xa592045b74f2aeed",
+    "input": "-1.0396922826343715e-127",
+    "expected": "-1.0396922826343715e-127"
+  },
+  {
+    "name": "random-64e4265d6102e621",
+    "bits": "0x64e4265d6102e621",
+    "input": "1.0206563419302199e+178",
+    "expected": "1.0206563419302199e+178"
+  },
+  {
+    "name": "random-2228c2de01d88c9d",
+    "bits": "0x2228c2de01d88c9d",
+    "input": "3.965918404717354e-144",
+    "expected": "3.965918404717354e-144"
+  },
+  {
+    "name": "random-e530b22d9e4aae26",
+    "bits": "0xe530b22d9e4aae26",
+    "input": "-2.7062635758852746e+179",
+    "expected": "-2.7062635758852746e+179"
+  },
+  {
+    "name": "random-94bf8973151de669",
+    "bits": "0x94bf8973151de669",
+    "input": "-9.592729270775888e-209",
+    "expected": "-9.592729270775888e-209"
+  },
+  {
+    "name": "random-728a33b81f711db6",
+    "bits": "0x728a33b81f711db6",
+    "input": "5.590896079472098e+243",
+    "expected": "5.590896079472098e+243"
+  },
+  {
+    "name": "random-e0a054f328c07439",
+    "bits": "0xe0a054f328c07439",
+    "input": "-2.802868621356154e+157",
+    "expected": "-2.802868621356154e+157"
+  },
+  {
+    "name": "random-0618563160b68d73",
+    "bits": "0x0618563160b68d73",
+    "input": "2.681424415372342e-279",
+    "expected": "2.681424415372342e-279"
+  },
+  {
+    "name": "random-ea7e0dbf3049cfdd",
+    "bits": "0xea7e0dbf3049cfdd",
+    "input": "-9.422691986177277e+204",
+    "expected": "-9.422691986177277e+204"
+  },
+  {
+    "name": "random-cb243b6137c7ef2b",
+    "bits": "0xcb243b6137c7ef2b",
+    "input": "-9.689180154623016e+53",
+    "expected": "-9.689180154623016e+53"
+  },
+  {
+    "name": "random-87cb56027a79e805",
+    "bits": "0x87cb56027a79e805",
+    "input": "-4.042485670079935e-271",
+    "expected": "-4.042485670079935e-271"
+  },
+  {
+    "name": "random-0264b7e7d56636c7",
+    "bits": "0x0264b7e7d56636c7",
+    "input": "3.959953705937883e-297",
+    "expected": "3.959953705937883e-297"
+  },
+  {
+    "name": "random-54aee4594bafa02e",
+    "bits": "0x54aee4594bafa02e",
+    "input": "8.446065268054214e+99",
+    "expected": "8.446065268054214e+99"
+  },
+  {
+    "name": "random-407a45b46a6403b9",
+    "bits": "0x407a45b46a6403b9",
+    "input": "420.35654677456074",
+    "expected": "420.35654677456074"
+  },
+  {
+    "name": "random-314e3e73cb4e1480",
+    "bits": "0x314e3e73cb4e1480",
+    "input": "3.423494311598272e-71",
+    "expected": "3.423494311598272e-71"
+  },
+  {
+    "name": "random-3c4581a49ea0e0bf",
+    "bits": "0x3c4581a49ea0e0bf",
+    "input": "2.3317305276705772e-18",
+    "expected": "2.3317305276705772e-18"
+  },
+  {
+    "name": "random-1a8eed0e355ec3ed",
+    "bits": "0x1a8eed0e355ec3ed",
+    "input": "9.316147132355859e-181",
+    "expected": "9.316147132355859e-181"
+  },
+  {
+    "name": "random-4776c469415f4f5d",
+    "bits": "0x4776c469415f4f5d",
+    "input": "1.891427557742309e+36",
+    "expected": "1.891427557742309e+36"
+  },
+  {
+    "name": "random-c6acac1786154c98",
+    "bits": "0xc6acac1786154c98",
+    "input": "-2.9077099655328428e+32",
+    "expected": "-2.9077099655328428e+32"
+  },
+  {
+    "name": "random-d5fb1b10117715e2",
+    "bits": "0xd5fb1b10117715e2",
+    "input": "-1.5541729346904458e+106",
+    "expected": "-1.5541729346904458e+106"
+  },
+  {
+    "name": "random-8dca3e1c71a18370",
+    "bits": "0x8dca3e1c71a18370",
+    "input": "-3.074685615652269e-242",
+    "expected": "-3.074685615652269e-242"
+  },
+  {
+    "name": "random-670f16f72d14a6db",
+    "bits": "0x670f16f72d14a6db",
+    "input": "2.70547774551418e+188",
+    "expected": "2.70547774551418e+188"
+  },
+  {
+    "name": "random-2b827855e7ee12da",
+    "bits": "0x2b827855e7ee12da",
+    "input": "4.222209326963746e-99",
+    "expected": "4.222209326963746e-99"
+  },
+  {
+    "name": "random-031f34aa8006011e",
+    "bits": "0x031f34aa8006011e",
+    "input": "1.2215142568902465e-293",
+    "expected": "1.2215142568902465e-293"
+  },
+  {
+    "name": "random-2b4c808be521c155",
+    "bits": "0x2b4c808be521c155",
+    "input": "4.0721975631974824e-100",
+    "expected": "4.0721975631974824e-100"
+  },
+  {
+    "name": "random-c4390967899cc880",
+    "bits": "0xc4390967899cc880",
+    "input": "-4.618462634181531e+20",
+    "expected": "-4.618462634181531e+20"
+  },
+  {
+    "name": "random-f6d2ae3cebd56a71",
+    "bits": "0xf6d2ae3cebd56a71",
+    "input": "-2.3529214486557767e+264",
+    "expected": "-2.3529214486557767e+264"
+  },
+  {
+    "name": "random-58f34b16d30b043b",
+    "bits": "0x58f34b16d30b043b",
+    "input": "3.11376034557838e+120",
+    "expected": "3.11376034557838e+120"
+  },
+  {
+    "name": "random-e6053e9a140270aa",
+    "bits": "0xe6053e9a140270aa",
+    "input": "-2.820945390433676e+183",
+    "expected": "-2.820945390433676e+183"
+  },
+  {
+    "name": "random-7eeccc13e60cd66d",
+    "bits": "0x7eeccc13e60cd66d",
+    "input": "2.4685139810965555e+303",
+    "expected": "2.4685139810965555e+303"
+  },
+  {
+    "name": "random-5771134f0d50a670",
+    "bits": "0x5771134f0d50a670",
+    "input": "1.642592776323795e+113",
+    "expected": "1.642592776323795e+113"
+  },
+  {
+    "name": "random-10115c79d5e9f168",
+    "bits": "0x10115c79d5e9f168",
+    "input": "2.795657285707863e-231",
+    "expected": "2.795657285707863e-231"
+  },
+  {
+    "name": "random-7545ed8bf31de4fa",
+    "bits": "0x7545ed8bf31de4fa",
+    "input": "8.231210187011871e+256",
+    "expected": "8.231210187011871e+256"
+  },
+  {
+    "name": "random-bdaf7b82392c15c4",
+    "bits": "0xbdaf7b82392c15c4",
+    "input": "-1.4316563374589905e-11",
+    "expected": "-1.4316563374589905e-11"
+  },
+  {
+    "name": "random-5bce4c0608f8ea5b",
+    "bits": "0x5bce4c0608f8ea5b",
+    "input": "1.720391320931553e+134",
+    "expected": "1.720391320931553e+134"
+  },
+  {
+    "name": "random-ad32cd7d6b6940dd",
+    "bits": "0xad32cd7d6b6940dd",
+    "input": "-5.769011697411894e-91",
+    "expected": "-5.769011697411894e-91"
+  },
+  {
+    "name": "random-9f32449ab93953ff",
+    "bits": "0x9f32449ab93953ff",
+    "input": "-2.07899266461399e-158",
+    "expected": "-2.07899266461399e-158"
+  },
+  {
+    "name": "random-585def0625990108",
+    "bits": "0x585def0625990108",
+    "input": "4.7177893683159835e+117",
+    "expected": "4.7177893683159835e+117"
+  },
+  {
+    "name": "random-5bdc2e339b656b61",
+    "bits": "0x5bdc2e339b656b61",
+    "input": "3.2004156984983004e+134",
+    "expected": "3.2004156984983004e+134"
+  },
+  {
+    "name": "random-a59dea2a18e0c3d6",
+    "bits": "0xa59dea2a18e0c3d6",
+    "input": "-1.7262614390983876e-127",
+    "expected": "-1.7262614390983876e-127"
+  },
+  {
+    "name": "random-baba62944d7a61b7",
+    "bits": "0xbaba62944d7a61b7",
+    "input": "-8.525477674690704e-26",
+    "expected": "-8.525477674690704e-26"
+  },
+  {
+    "name": "random-2ef3ff5fc343b6d8",
+    "bits": "0x2ef3ff5fc343b6d8",
+    "input": "1.6470170540052273e-82",
+    "expected": "1.6470170540052273e-82"
+  },
+  {
+    "name": "random-64efb3f0bfcf7dc0",
+    "bits": "0x64efb3f0bfcf7dc0",
+    "input": "1.605855043273033e+178",
+    "expected": "1.605855043273033e+178"
+  },
+  {
+    "name": "random-f58f3c79c43ebec9",
+    "bits": "0xf58f3c79c43ebec9",
+    "input": "-1.8760523599641124e+258",
+    "expected": "-1.8760523599641124e+258"
+  },
+  {
+    "name": "random-ff0f6b1a21894b77",
+    "bits": "0xff0f6b1a21894b77",
+    "input": "-1.0772816376260178e+304",
+    "expected": "-1.0772816376260178e+304"
+  },
+  {
+    "name": "random-7f33435233cffa75",
+    "bits": "0x7f33435233cffa75",
+    "input": "5.283953006765268e+304",
+    "expected": "5.283953006765268e+304"
+  },
+  {
+    "name": "random-a403b8016a039cad",
+    "bits": "0xa403b8016a039cad",
+    "input": "-3.3911875699853894e-135",
+    "expected": "-3.3911875699853894e-135"
+  }
+]

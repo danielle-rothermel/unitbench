@@ -1,5 +1,6 @@
 import { createHash, createPrivateKey, sign as signPayload } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import numericVectors from '@/lib/platform-numeric-json-vectors.json'
 import { ANALYSIS_BUNDLE_CONTRACT } from '@/lib/bundle-contract'
 import {
   acquireBundlePin,
@@ -10,6 +11,7 @@ import {
   resolveOnlyPinnedBundle,
   integrityCanonicalJson,
   platformChecksum,
+  platformNumericJson,
   type PublicationDatabase,
 } from '@/lib/bundle-pins.server'
 
@@ -177,11 +179,22 @@ describe('resolveBundlePin', () => {
     ['numeric scientific upper boundary', { pass_rate: '10000000000000000' }, 'de77f7efdc436eae01138d6e3fa66b64321563b345b67489a7509e932fdb0905'],
     ['negative numeric zero', { pass_rate: '-0.0' }, '438ed09966df69acb4eadafe652f1196b5853160ae07c3679e27485f0c81a780'],
     ['structured JSON', { config_json: '{"z":null,"a":[2,1]}' }, '906287802b561b63b5cb7623bb059559d4f0a7c0d45e1feeef4384ac934932e3'],
+    ['structured JSON recursive floats', { config_json: '{"safe":[2],"numeric_vectors":[0.0000123,12340000000000000]}' }, '522bbf38f6b3d382d44643d71504c350b20df1171f0400cb440e46057554b311'],
     ['UUID text', { uuid_text: '550e8400-e29b-41d4-a716-446655440000' }, '52414fe6d62cd0903a737480f045e8f3c256e8c962974dabe65867466fc9e724'],
     ['null', { nullable: null }, '66c232bae1866bde30c34d3af616d886dff65c8c364a76bbc2d58a9cfe432733'],
     ['boolean', { enabled: true }, 'f4ee039b3f1ad510060792dd29550fe7b98ed9eedb4441df0c94aaa52e80ee1a'],
   ])('matches Platform canonical checksum for %s', (_name, row, checksum) => {
     expect(platformChecksum([row])).toBe(checksum)
+  })
+
+  it('matches every Python-authored finite float JSON spelling vector', () => {
+    for (const vector of numericVectors) {
+      expect(platformNumericJson(vector.input), vector.name).toBe(vector.expected)
+    }
+  })
+
+  it.each(['NaN', 'Infinity', '-Infinity'])('rejects non-finite numeric values', (value) => {
+    expect(() => platformNumericJson(value)).toThrow(BundlePinError)
   })
   it('accepts only a complete, signed and checksummed application bundle', async () => {
     await expect(

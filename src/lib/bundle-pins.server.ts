@@ -177,37 +177,38 @@ function canonicalScalar(value: unknown, column?: string): unknown {
   return value
 }
 
-function platformNumericJson(value: unknown): string {
+export function platformNumericJson(value: unknown): string {
   const numeric = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(numeric)) throw new BundlePinError('PINNED_BUNDLE_GONE')
   // Platform normalizes all numeric projections to Python float before
-  // json.dumps. Its shortest-float spelling differs from JSON.stringify at
-  // integral values and at the 1e-4 / 1e16 scientific-notation boundaries.
+  // json.dumps. Start from Number.toString's shortest round-tripping decimal,
+  // then apply Python's spelling thresholds and exponent presentation.
   if (Object.is(numeric, -0)) return '-0.0'
-  const rendered = JSON.stringify(numeric)
-  const abs = Math.abs(numeric)
-  if (abs === 0 || (abs >= 1e-4 && abs < 1e16)) {
-    return Number.isInteger(numeric) ? `${rendered}.0` : rendered
-  }
   const sign = numeric < 0 ? '-' : ''
-  if (rendered.includes('e')) {
-    const [coefficient, exponent] = rendered.split('e') as [string, string]
-    const exponentValue = Number(exponent)
-    return `${coefficient}e${exponentValue >= 0 ? '+' : '-'}${String(Math.abs(exponentValue)).padStart(2, '0')}`
+  const source = Math.abs(numeric).toString()
+  const [coefficient, exponentText] = source.split('e') as [string, string | undefined]
+  const decimalIndex = coefficient.indexOf('.')
+  const rawDigits = coefficient.replace('.', '')
+  const firstSignificant = rawDigits.search(/[1-9]/)
+  if (firstSignificant < 0) return '0.0'
+  const decimalPosition = decimalIndex < 0 ? coefficient.length : decimalIndex
+  const exponent = Number(exponentText ?? '0') + decimalPosition - firstSignificant - 1
+  const digits = rawDigits.slice(firstSignificant).replace(/0+$/, '')
+  const fixed = () => {
+    const position = exponent + 1
+    if (position <= 0) return `0.${'0'.repeat(-position)}${digits}`
+    if (position >= digits.length) return `${digits}${'0'.repeat(position - digits.length)}`
+    return `${digits.slice(0, position)}.${digits.slice(position)}`
   }
-  const digits = rendered.replace('-', '').replace('.', '')
-  const scientific = (exponent: number) => {
-    const coefficient = `${digits[0]}${digits.length > 1 ? `.${digits.slice(1)}` : ''}`.replace(/\.0+$/, '')
-    return `${sign}${coefficient}e${exponent >= 0 ? '+' : '-'}${String(Math.abs(exponent)).padStart(2, '0')}`
+  if (exponent >= -4 && exponent < 16) {
+    const rendered = fixed()
+    return `${sign}${rendered.includes('.') ? rendered : `${rendered}.0`}`
   }
-  if (abs < 1e-4) {
-    const zeroes = rendered.replace('-', '').split('.')[1]!.match(/^0*/)?.[0].length ?? 0
-    return scientific(-(zeroes + 1))
-  }
-  return scientific(digits.length - 1)
+  const mantissa = `${digits[0]}${digits.length > 1 ? `.${digits.slice(1)}` : ''}`
+  return `${sign}${mantissa}e${exponent >= 0 ? '+' : '-'}${String(Math.abs(exponent)).padStart(2, '0')}`
 }
 
-function canonicalJson(value: unknown, column?: string): string {
+function canonicalJson(value: unknown, column?: string, jsonNumber = false): string {
   // json.dumps emits Python int values as JSON numbers.  Keep PostgreSQL int8
   // strings textual here so values above JS's safe integer limit stay exact.
   if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'string' && /^-?\d+$/.test(value)) {
@@ -218,14 +219,21 @@ function canonicalJson(value: unknown, column?: string): string {
     return platformNumericJson(value)
   }
   value = canonicalScalar(value, column)
+  // JSON has a distinct integer type in Platform's Python decoder. DuckDB
+  // renders JSONB 1.234e16 as an integer token, so preserve that source type;
+  // fractional JSON numbers still need Python's float spelling.
+  if (jsonNumber && typeof value === 'number' && !Number.isInteger(value)) {
+    return platformNumericJson(value)
+  }
+  const nestedJsonNumber = jsonNumber || JSON_COLUMNS.has(column ?? '')
   if (Array.isArray(value)) {
-    return `[${value.map(item => canonicalJson(item)).join(',')}]`
+    return `[${value.map(item => canonicalJson(item, undefined, nestedJsonNumber)).join(',')}]`
   }
   if (value !== null && typeof value === 'object') {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key], key)}`)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key], key, nestedJsonNumber)}`)
       .join(',')}}`
   }
   return JSON.stringify(value)
