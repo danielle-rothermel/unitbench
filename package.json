@@ -13,6 +13,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:release-parity": "UNITBENCH_RELEASE_PARITY=1 vitest run src/lib/delivery-parity-live.test.ts",
+    "test:local-release-parity": "UNITBENCH_LOCAL_RELEASE_PARITY=1 vitest run src/lib/delivery-local-artifact.test.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "gen:api": "node scripts/gen-api.mjs",

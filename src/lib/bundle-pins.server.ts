@@ -168,13 +168,43 @@ function canonicalScalar(value: unknown, column?: string): unknown {
   if (value instanceof Date) return value.toISOString()
   if (typeof value === 'bigint') return Number(value)
   if (typeof value === 'string') {
-    if (TEMPORAL_COLUMNS.has(column ?? '')) return new Date(value).toISOString()
+    if (TEMPORAL_COLUMNS.has(column ?? '')) return value
     if (FLOAT_COLUMNS.has(column ?? '') && value.trim() !== '') return Number(value)
     if (JSON_COLUMNS.has(column ?? '')) {
       try { return JSON.parse(value) } catch { return value }
     }
   }
   return value
+}
+
+function platformNumericJson(value: unknown): string {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric)) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  // Platform normalizes all numeric projections to Python float before
+  // json.dumps. Its shortest-float spelling differs from JSON.stringify at
+  // integral values and at the 1e-4 / 1e16 scientific-notation boundaries.
+  if (Object.is(numeric, -0)) return '-0.0'
+  const rendered = JSON.stringify(numeric)
+  const abs = Math.abs(numeric)
+  if (abs === 0 || (abs >= 1e-4 && abs < 1e16)) {
+    return Number.isInteger(numeric) ? `${rendered}.0` : rendered
+  }
+  const sign = numeric < 0 ? '-' : ''
+  if (rendered.includes('e')) {
+    const [coefficient, exponent] = rendered.split('e') as [string, string]
+    const exponentValue = Number(exponent)
+    return `${coefficient}e${exponentValue >= 0 ? '+' : '-'}${String(Math.abs(exponentValue)).padStart(2, '0')}`
+  }
+  const digits = rendered.replace('-', '').replace('.', '')
+  const scientific = (exponent: number) => {
+    const coefficient = `${digits[0]}${digits.length > 1 ? `.${digits.slice(1)}` : ''}`.replace(/\.0+$/, '')
+    return `${sign}${coefficient}e${exponent >= 0 ? '+' : '-'}${String(Math.abs(exponent)).padStart(2, '0')}`
+  }
+  if (abs < 1e-4) {
+    const zeroes = rendered.replace('-', '').split('.')[1]!.match(/^0*/)?.[0].length ?? 0
+    return scientific(-(zeroes + 1))
+  }
+  return scientific(digits.length - 1)
 }
 
 function canonicalJson(value: unknown, column?: string): string {
@@ -184,6 +214,9 @@ function canonicalJson(value: unknown, column?: string): string {
     return value
   }
   if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'bigint') return value.toString()
+  if (FLOAT_COLUMNS.has(column ?? '') && (typeof value === 'string' || typeof value === 'number')) {
+    return platformNumericJson(value)
+  }
   value = canonicalScalar(value, column)
   if (Array.isArray(value)) {
     return `[${value.map(item => canonicalJson(item)).join(',')}]`
@@ -768,13 +801,23 @@ function localManifestMembers<Member extends BundleMember>(
 }
 
 async function verifyLocalLogicalMember(database: PublicationDatabase, member: IntegrityMember): Promise<void> {
-  const columns = member.column_schema?.length ? member.column_schema.map(column => column.name) : member.columns
+  const columnSchema = member.column_schema?.length ? member.column_schema : (member.columns ?? []).map(name => ({ name, type: '' }))
+  const columns = columnSchema.map(column => column.name)
   if (!columns?.length) throw new BundlePinError('PINNED_BUNDLE_GONE')
   const table = quoteIdentifier(member.table_name)
   const ordering = member.key_columns.map(quoteIdentifier).join(', ')
   try {
+    // Node's DuckDB binding turns TIMESTAMPTZ into millisecond JS Dates. Ask
+    // DuckDB for a UTC text scalar instead: Platform parses destination text,
+    // normalizes it with ``astimezone(UTC)``, then canonicalizes it.  strftime
+    // preserves all six fractional-second digits while matching that wire form.
+    const selections = columnSchema.map(column => column.type === 'timestamp'
+      ? `strftime(${quoteIdentifier(column.name)} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%f+00:00') AS ${quoteIdentifier(column.name)}`
+      : column.type === 'numeric'
+        ? `CAST(${quoteIdentifier(column.name)} AS VARCHAR) AS ${quoteIdentifier(column.name)}`
+      : quoteIdentifier(column.name))
     const rows = await database.query<QueryRow>(
-      `SELECT ${columns.map(quoteIdentifier).join(', ')} FROM ${table} ORDER BY ${ordering}`,
+      `SELECT ${selections.join(', ')} FROM ${table} ORDER BY ${ordering}`,
       [],
     )
     if (platformChecksum(rows) !== member.checksum) throw new BundlePinError('PINNED_BUNDLE_GONE')
