@@ -64,10 +64,14 @@ describe('release parity against the Whetstone pinned fixture', () => {
       const local = { analysis: { database: fingerprinting(localAnalysis, 'analysis', localAnalysisBundle.members, localFingerprints), bundle: localAnalysisBundle }, detail: { database: fingerprinting(localDetail, 'detail', localDetailBundle.members, localFingerprints), bundle: localDetailBundle } }
       const remote = { analysis: { database: fingerprinting(remoteAnalysis, 'analysis', remoteAnalysisBundle.members, remoteFingerprints), bundle: remoteAnalysisBundle }, detail: { database: fingerprinting(remoteDetail, 'detail', remoteDetailBundle.members, remoteFingerprints), bundle: remoteDetailBundle } }
       for (const item of FROZEN_PRODUCTION_PARITY_CASES) {
-        const left = await withResolvedParityBundles(local, () => executeFrozenParityCase(item, descriptor.run_id))
-        const right = await withResolvedParityBundles(remote, () => executeFrozenParityCase(item, descriptor.run_id))
+        const left = await withResolvedParityBundles(local, () => executeFrozenParityCase(item, descriptor.fixture_prediction_id))
+        const right = await withResolvedParityBundles(remote, () => executeFrozenParityCase(item, descriptor.fixture_prediction_id))
         assertSuccessfulAndNonEmpty(left, item.id)
         assertSuccessfulAndNonEmpty(right, item.id)
+        if (item.id === 'detail/read') {
+          expect((left as { detail?: { prediction_id?: string } }).detail?.prediction_id).toBe(descriptor.fixture_prediction_id)
+          expect((right as { detail?: { prediction_id?: string } }).detail?.prediction_id).toBe(descriptor.fixture_prediction_id)
+        }
         expect(right, `view model parity: ${item.id}`).toEqual(left)
       }
       expect(remoteFingerprints, 'every normalized SQL/parameter fingerprint').toEqual(localFingerprints)

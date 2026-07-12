@@ -1001,9 +1001,10 @@ async function verifyLocalLogicalMember(database: PublicationDatabase, member: I
     // Node's DuckDB binding turns TIMESTAMPTZ into millisecond JS Dates. Ask
     // DuckDB for a UTC text scalar instead: Platform parses destination text,
     // normalizes it with ``astimezone(UTC)``, then canonicalizes it.  strftime
-    // preserves all six fractional-second digits while matching that wire form.
+    // Python datetime.isoformat() uses timespec='auto': exact seconds omit the
+    // fractional component, while nonzero microseconds retain six digits.
     const selections = columnSchema.map(column => column.type === 'timestamp'
-      ? `strftime(${quoteIdentifier(column.name)} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%f+00:00') AS ${quoteIdentifier(column.name)}`
+      ? `CASE WHEN date_part('microsecond', ${quoteIdentifier(column.name)} AT TIME ZONE 'UTC') % 1000000 = 0 THEN strftime(${quoteIdentifier(column.name)} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S+00:00') ELSE strftime(${quoteIdentifier(column.name)} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%f+00:00') END AS ${quoteIdentifier(column.name)}`
       : column.type === 'numeric'
         ? `CAST(${quoteIdentifier(column.name)} AS VARCHAR) AS ${quoteIdentifier(column.name)}`
       : quoteIdentifier(column.name))

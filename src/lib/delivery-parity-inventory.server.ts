@@ -23,10 +23,21 @@ type FrozenCase = Readonly<{
 }>
 export type ParityCase = Readonly<{ id: string; plane: Plane; execute: () => Promise<unknown> }>
 
-const VALUE = 'fixture'
+/** Values promised by Whetstone's parity fixture projection, keyed by UI field. */
+const FIXTURE_VALUE: Readonly<Record<string, string>> = {
+  experiment_id: 'release_parity_', display_name: 'release_parity_',
+  task_id: 'HumanEval/0', experiment_kind: 'humaneval_encdec', source: 'whetstone',
+  model: 'fixture-model', result_state: 'passed', generation_status: 'success',
+  scoring_status: 'success', budget: '0.5',
+}
 const OTHER = 'other'
 
-function filterInputs(column: string, value = VALUE): readonly [string, Record<string, string>][] {
+function fixtureValue(column: string): string {
+  const value = FIXTURE_VALUE[column]
+  if (!value) throw new Error(`Parity fixture has no value contract for ${column}`)
+  return value
+}
+function filterInputs(column: string, value = fixtureValue(column)): readonly [string, Record<string, string>][] {
   return [
     ['include', { [column]: value }],
     ['exclude', { [`exclude.${column}`]: OTHER }],
@@ -63,7 +74,7 @@ export function deriveProductionParityInventory(): readonly FrozenCase[] {
     const add = (suffix: string, input: Record<string, string> = {}) => expected.push({ id: `table/${table}/${suffix}`, plane: config.plane, loader: 'table', table, input })
     add('base'); add('include-test', { includeTestExps: 'true' }); add('page-2', { page: '2', pageSize: '1' })
     for (const column of config.columns) {
-      if (column.filter === 'text') add(`text/${column.key}`, { [column.key]: VALUE })
+      if (column.filter === 'text') add(`text/${column.key}`, { [column.key]: fixtureValue(column.key) })
       if (column.filter === 'facet') for (const [variant, input] of filterInputs(column.key)) add(`facet/${column.key}/${variant}`, input)
       if (column.filter === 'range') {
         add(`range/${column.key}/min`, { [`${column.key}_min`]: '0' })
@@ -76,7 +87,7 @@ export function deriveProductionParityInventory(): readonly FrozenCase[] {
       }
     }
     const facetColumns = config.columns.filter(column => column.filter === 'facet').map(column => column.key)
-    for (const [suffix, input] of pairwiseFilterInputs(facetColumns, () => VALUE)) add(`facet/${suffix}`, input)
+    for (const [suffix, input] of pairwiseFilterInputs(facetColumns, fixtureValue)) add(`facet/${suffix}`, input)
     if (table !== 'experiments') add('text/budget', { budget: '0.5' })
   }
   for (const groupBy of GROUP_BY_COLUMNS) for (const sort of SORT_MEASURES) for (const dir of ['asc', 'desc'] as const) {
@@ -84,13 +95,13 @@ export function deriveProductionParityInventory(): readonly FrozenCase[] {
     for (const column of FILTER_COLUMNS) for (const [variant, input] of filterInputs(column)) {
       expected.push({ id: `aggregate/${groupBy}/${sort}/${dir}/${column}/${variant}`, plane: 'analysis', loader: 'aggregate', input: { ...baseInput, ...input } })
     }
-    for (const [suffix, input] of pairwiseFilterInputs(FILTER_COLUMNS, () => VALUE)) {
+    for (const [suffix, input] of pairwiseFilterInputs(FILTER_COLUMNS, fixtureValue)) {
       expected.push({ id: `aggregate/${groupBy}/${sort}/${dir}/${suffix}`, plane: 'analysis', loader: 'aggregate', input: { ...baseInput, ...input } })
     }
   }
   for (const x of HEATMAP_AXES) for (const y of HEATMAP_AXES) if (x !== y) for (const color of SORT_MEASURES) {
     const baseInput = { x, y, color }
-    const valueFor = (column: string) => column === 'budget' ? '0.5' : VALUE
+    const valueFor = fixtureValue
     for (const column of HEATMAP_FILTER_COLUMNS) for (const [variant, input] of filterInputs(column, valueFor(column))) {
       expected.push({ id: `heatmap/${x}/${y}/${color}/${column}/${variant}`, plane: 'analysis', loader: 'heatmap', input: { ...baseInput, ...input } })
     }
@@ -130,10 +141,10 @@ export function normalizeProductionParityCase(item: FrozenCase): unknown {
 export const FROZEN_PRODUCTION_PARITY_CASES: readonly ParityCase[] = FROZEN_PRODUCTION_PARITY_INVENTORY.map(item => ({ id: item.id, plane: item.plane, execute: () => execute(item, 'fixture') }))
 
 /** Whetstone's frozen fixture derives its accepted prediction identity from run_id. */
-export function executeFrozenParityCase(item: ParityCase, runId: string): Promise<unknown> {
+export function executeFrozenParityCase(item: ParityCase, fixturePredictionId: string): Promise<unknown> {
   const frozen = FROZEN_PRODUCTION_PARITY_INVENTORY.find(candidate => candidate.id === item.id)
   if (!frozen) throw new Error(`Frozen parity case is missing: ${item.id}`)
-  return execute(frozen, `release_parity_${runId}_prediction`)
+  return execute(frozen, fixturePredictionId)
 }
 
 export function assertParityInventory(

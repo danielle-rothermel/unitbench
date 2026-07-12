@@ -174,6 +174,7 @@ describe('resolveBundlePin', () => {
     expect(platformChecksum(postgresRows)).toBe(platformChecksum(duckdbRows))
   })
   it.each([
+    ['timestamp exact second in Platform UTC wire form', { created_at: '2026-07-12T22:45:22+00:00' }, '2eb31d3e123f6d76b3aab5ec1c101c292cf9878cef73d241dd5400898742ea8c'],
     ['timestamp microseconds in Platform UTC wire form', { created_at: '2026-07-12T22:45:22.961426+00:00' }, 'a07951b8de2e45e907d4e095d79119ec2dd9e5eff661ef12f57d9aec64709b06'],
     ['numeric Decimal integral float marker', { pass_rate: '1.000' }, '243ccf84199a0b437183d721e61bfffb8155476b4c5aa9721107ae03ac5e9ad8'],
     ['numeric scientific lower boundary', { pass_rate: '0.0000001' }, '6e28ed06aa1b5b42d1bdee21eb92a4d6b64b3070aa485046d6f1fb3e1612d6bb'],

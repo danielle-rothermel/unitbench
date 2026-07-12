@@ -23,7 +23,7 @@ export type ReleaseParityRemote = Readonly<{
   member_checksums: Readonly<Record<string, string>>
 }>
 export type ReleaseParityDescriptor = Readonly<{
-  schema_version: 1; run_id: string; fixture_sha256: string; source_schema: string
+  schema_version: 1; run_id: string; fixture_sha256: string; fixture_prediction_id: string; source_schema: string
   analysis: Readonly<{ local: ReleaseParityLocal; remote: ReleaseParityRemote }>
   detail: Readonly<{ local: ReleaseParityLocal; remote: ReleaseParityRemote }>
 }>
@@ -93,13 +93,13 @@ export function parseReleaseParityDescriptor(input: string): ReleaseParityDescri
   let json: Json
   try { json = JSON.parse(input) as Json } catch { return fail('descriptor is not JSON') }
   rejectSecrets(json)
-  const data = record(json, 'descriptor'); exact(data, ['schema_version', 'run_id', 'fixture_sha256', 'source_schema', 'analysis', 'detail'], 'descriptor')
+  const data = record(json, 'descriptor'); exact(data, ['schema_version', 'run_id', 'fixture_sha256', 'fixture_prediction_id', 'source_schema', 'analysis', 'detail'], 'descriptor')
   if (data.schema_version !== 1) fail('unsupported schema_version')
   const descriptor = {
-    schema_version: 1 as const, run_id: string(data.run_id, 'run_id'), fixture_sha256: string(data.fixture_sha256, 'fixture_sha256'), source_schema: string(data.source_schema, 'source_schema'),
+    schema_version: 1 as const, run_id: string(data.run_id, 'run_id'), fixture_sha256: string(data.fixture_sha256, 'fixture_sha256'), fixture_prediction_id: string(data.fixture_prediction_id, 'fixture_prediction_id'), source_schema: string(data.source_schema, 'source_schema'),
     analysis: record(data.analysis, 'analysis'), detail: record(data.detail, 'detail'),
   }
-  if (!SHA256.test(descriptor.fixture_sha256) || !IDENTIFIER.test(descriptor.source_schema)) fail('invalid fixture identity')
+  if (!SHA256.test(descriptor.fixture_sha256) || !IDENTIFIER.test(descriptor.source_schema) || descriptor.fixture_prediction_id !== `release_parity_${descriptor.run_id}_prediction_small_positive`) fail('invalid fixture identity')
   const analysis = { local: plane(descriptor.analysis.local, ANALYSIS_BUNDLE_MEMBERS, ANALYSIS_BUNDLE_KEY, true, 'analysis.local') as ReleaseParityLocal, remote: plane(descriptor.analysis.remote, ANALYSIS_BUNDLE_MEMBERS, ANALYSIS_BUNDLE_KEY, false, 'analysis.remote') as ReleaseParityRemote }
   const detail = { local: plane(descriptor.detail.local, DETAIL_BUNDLE_MEMBERS, DETAIL_BUNDLE_KEY, true, 'detail.local') as ReleaseParityLocal, remote: plane(descriptor.detail.remote, DETAIL_BUNDLE_MEMBERS, DETAIL_BUNDLE_KEY, false, 'detail.remote') as ReleaseParityRemote }
   for (const [name, value, key] of [['analysis', analysis, ANALYSIS_BUNDLE_KEY], ['detail', detail, DETAIL_BUNDLE_KEY]] as const) {

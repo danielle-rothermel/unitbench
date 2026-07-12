@@ -7,7 +7,8 @@ const members = (names: readonly string[]) => Object.fromEntries(names.map(name 
 const counts = (names: readonly string[]) => Object.fromEntries(names.map(name => [name, 1]))
 const checksums = (names: readonly string[]) => Object.fromEntries(names.map(name => [name, checksum]))
 const plane = (names: readonly string[], key: string, local: boolean) => local ? { path: `${key}.duckdb`, bundle: key, pin: { pin_id: `${key}-pin`, bundle_id: `${key}-bundle`, expires_at_ms: 1 }, snapshot_seq: 1, members: members(names), member_counts: counts(names), member_checksums: checksums(names) } : { destination_id: `${key}-destination`, bundle_key: key, pin: { pin_id: `${key}-pin`, bundle_id: `${key}-bundle`, expires_at_ms: 1 }, snapshot_seq: 1, members: members(names), member_counts: counts(names), member_checksums: checksums(names) }
-const fixture = () => ({ schema_version: 1, run_id: 'run', fixture_sha256: checksum, source_schema: 'fixture_source', analysis: { local: plane(ANALYSIS_BUNDLE_MEMBERS, 'whetstone-analysis', true), remote: plane(ANALYSIS_BUNDLE_MEMBERS, 'whetstone-analysis', false) }, detail: { local: plane(DETAIL_BUNDLE_MEMBERS, 'whetstone-detail', true), remote: plane(DETAIL_BUNDLE_MEMBERS, 'whetstone-detail', false) } })
+const runId = 'a'.repeat(32)
+const fixture = () => ({ schema_version: 1, run_id: runId, fixture_sha256: checksum, fixture_prediction_id: `release_parity_${runId}_prediction_small_positive`, source_schema: `whetstone_v6_release_${runId}`, analysis: { local: plane(ANALYSIS_BUNDLE_MEMBERS, 'whetstone-analysis', true), remote: plane(ANALYSIS_BUNDLE_MEMBERS, 'whetstone-analysis', false) }, detail: { local: plane(DETAIL_BUNDLE_MEMBERS, 'whetstone-detail', true), remote: plane(DETAIL_BUNDLE_MEMBERS, 'whetstone-detail', false) } })
 
 describe('Whetstone parity descriptor boundary', () => {
   it('accepts only the exact producer descriptor', () => expect(parseReleaseParityDescriptor(JSON.stringify(fixture())).analysis.remote.pin.bundle_id).toBe('whetstone-analysis-bundle'))
@@ -28,7 +29,7 @@ describe('Whetstone parity descriptor boundary', () => {
   ])('rejects %s', (_name, mutate) => expect(() => parseReleaseParityDescriptor(JSON.stringify(mutate(fixture())))).toThrow())
   it('requires a separate zero-state cleanup proof after querying', () => {
     const descriptor = parseReleaseParityDescriptor(JSON.stringify(fixture()))
-    const proof = { schema_version: 1, run_id: 'run', source_schema_absent: true, local_files_absent: true, destinations: { 'whetstone-analysis-destination': { state_rows: 0 }, 'whetstone-detail-destination': { pin_rows: 0 } } }
+    const proof = { schema_version: 1, run_id: runId, source_schema_absent: true, local_files_absent: true, destinations: { 'whetstone-analysis-destination': { state_rows: 0 }, 'whetstone-detail-destination': { pin_rows: 0 } } }
     expect(() => parseReleaseParityCleanupProof(JSON.stringify(proof), descriptor)).not.toThrow()
     expect(() => parseReleaseParityCleanupProof(JSON.stringify({ ...proof, local_files_absent: false }), descriptor)).toThrow()
   })
