@@ -3,6 +3,7 @@ import {
   analysisDatabaseUrl,
   detailDatabaseUrl,
   MissingStoreConfigurationError,
+  publicationStoreConfiguration,
   storeReadiness,
 } from '@/lib/store-environment.server'
 
@@ -51,5 +52,26 @@ describe('storeReadiness', () => {
     expect(() => detailDatabaseUrl(environment)).toThrow(
       new MissingStoreConfigurationError('detail'),
     )
+  })
+
+  it('requires a destination-local identity before pinning a bundle', () => {
+    const environment = { ANALYSIS_DATABASE_URL: 'postgres://analysis' }
+
+    expect(() => publicationStoreConfiguration('analysis', environment)).toThrow(
+      new MissingStoreConfigurationError(
+        'analysis',
+        'ANALYSIS_PUBLICATION_DESTINATION_ID',
+      ),
+    )
+    expect(
+      publicationStoreConfiguration('analysis', {
+        ...environment,
+        ANALYSIS_PUBLICATION_DESTINATION_ID: 'motherduck-analysis',
+      }),
+    ).toEqual({
+      plane: 'analysis',
+      databaseUrl: 'postgres://analysis',
+      destinationId: 'motherduck-analysis',
+    })
   })
 })

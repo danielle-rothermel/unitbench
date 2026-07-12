@@ -1,6 +1,7 @@
 import 'server-only'
 
 import {
+  PUBLICATION_DESTINATION_ENVIRONMENT_VARIABLES,
   resolveStoreReadiness,
   STORE_ENVIRONMENT_VARIABLES,
   type StoreEnvironment,
@@ -12,8 +13,10 @@ export class MissingStoreConfigurationError extends Error {
   readonly plane: StorePlane
   readonly environmentVariable: string
 
-  constructor(plane: StorePlane) {
-    const environmentVariable = STORE_ENVIRONMENT_VARIABLES[plane]
+  constructor(
+    plane: StorePlane,
+    environmentVariable: string = STORE_ENVIRONMENT_VARIABLES[plane],
+  ) {
     super(`${environmentVariable} is not configured.`)
     this.name = 'MissingStoreConfigurationError'
     this.plane = plane
@@ -42,6 +45,28 @@ export function detailDatabaseUrl(
   environment: StoreEnvironment = process.env,
 ): string {
   return requiredStoreUrl('detail', environment)
+}
+
+export type PublicationStoreConfiguration = Readonly<{
+  plane: StorePlane
+  databaseUrl: string
+  destinationId: string
+}>
+
+export function publicationStoreConfiguration(
+  plane: StorePlane,
+  environment: StoreEnvironment = process.env,
+): PublicationStoreConfiguration {
+  const destinationVariable = PUBLICATION_DESTINATION_ENVIRONMENT_VARIABLES[plane]
+  const destinationId = environment[destinationVariable]?.trim()
+  if (!destinationId) {
+    throw new MissingStoreConfigurationError(plane, destinationVariable)
+  }
+  return {
+    plane,
+    databaseUrl: requiredStoreUrl(plane, environment),
+    destinationId,
+  }
 }
 
 export function storeReadiness(

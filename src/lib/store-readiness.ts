@@ -3,6 +3,11 @@ export const STORE_ENVIRONMENT_VARIABLES = {
   detail: 'DATABASE_URL',
 } as const
 
+export const PUBLICATION_DESTINATION_ENVIRONMENT_VARIABLES = {
+  analysis: 'ANALYSIS_PUBLICATION_DESTINATION_ID',
+  detail: 'DETAIL_PUBLICATION_DESTINATION_ID',
+} as const
+
 export type StorePlane = keyof typeof STORE_ENVIRONMENT_VARIABLES
 export type StoreState = 'configured' | 'missing'
 
@@ -12,6 +17,8 @@ export type StoreEnvironment = Readonly<{
   [key: string]: string | undefined
   ANALYSIS_DATABASE_URL?: string
   DATABASE_URL?: string
+  ANALYSIS_PUBLICATION_DESTINATION_ID?: string
+  DETAIL_PUBLICATION_DESTINATION_ID?: string
 }>
 
 function isConfigured(value: string | undefined): boolean {
