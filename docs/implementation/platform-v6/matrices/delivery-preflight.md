@@ -26,7 +26,7 @@ import `server-only`; neither value may have a `NEXT_PUBLIC_` form.
 | Scenario | Required evidence | Preflight result |
 | --- | --- | --- |
 | Local Analysis | Native DuckDB is a development-only adapter selected by `LOCAL_ANALYSIS_DATABASE_PATH`. | Deferred until U1; no native DuckDB dependency exists yet. |
-| Preview/production Analysis | MotherDuck uses its Postgres endpoint under the Node runtime. | The endpoint and same-fixture parity are live; Vercel `ANALYSIS_DATABASE_URL` is not configured yet. |
+| Preview/production Analysis | MotherDuck uses its Postgres endpoint under the Node runtime. | The endpoint and same-fixture parity are live; sensitive `ANALYSIS_DATABASE_URL` is configured independently for Preview and Production. |
 | Production bundle | No `duckdb` or `@duckdb/*` native package appears in production dependencies or Next output traces. | Executable package and trace check added; it fails closed until `pnpm build` produces at least one trace. Current build passes. |
 | Missing Analysis secret | Analysis fails without changing Detail readiness. | Four-state unit matrix passes. |
 | Missing Detail secret | Detail fails without changing Analysis readiness. | Four-state unit matrix passes. |
@@ -64,7 +64,7 @@ did not read or print secret values.
 | Production URL | `https://unitbench.vercel.app` | pass |
 | Node runtime | 24.x | pass; root route now explicitly selects Node.js |
 | `DATABASE_URL` | encrypted; Preview and Production | pass for the current Detail path |
-| `ANALYSIS_DATABASE_URL` | absent | expected pre-cut blocker; configure during U5 |
+| `ANALYSIS_DATABASE_URL` | encrypted; Preview and Production | pass; constructed from the existing MotherDuck token and official PostgreSQL endpoint without exposing it |
 | Preview scope | `DATABASE_URL` present | pass for current Detail path |
 
 A separate credential-safe MotherDuck preflight authenticated to the
@@ -74,8 +74,10 @@ representations. This proves that `ANALYSIS_DATABASE_URL` is constructible from
 the existing credential when U2/U5 wire it; the credential itself was neither
 recorded nor printed. It does not replace the same-query adapter parity suite.
 
-Secret rotation and a live preview with both independently scoped variables
-remain U5 acceptance work.
+Preview deployment `dpl_oPPfGdfEcxyvXFK3qjd5s1g5hgTW` built successfully on
+the Node runtime with both independently scoped variables. The root,
+dashboard, and all six fixture-only `/dev/*` routes returned HTTP 200. Secret
+rotation and final adapter-backed page behavior remain U5 acceptance work.
 
 ## Commands
 
