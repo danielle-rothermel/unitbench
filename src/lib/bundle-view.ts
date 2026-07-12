@@ -20,7 +20,7 @@ export function bundleFailure(error: unknown): BundleViewFailure {
       code === 'BUNDLE_NOT_PUBLISHED' ||
       code === 'PIN_EXPIRED_OR_GONE' ||
       code === 'BUNDLE_MANIFEST_INVALID' ||
-      code === 'BUNDLE_INTEGRITY_FAILED' ||
+      code === 'PINNED_BUNDLE_GONE' ||
       code === 'DESTINATION_UNAVAILABLE' ||
       code === 'BUNDLE_CONTRACT_INCOMPATIBLE' ||
       code === 'INTERNAL_READ_ERROR'
