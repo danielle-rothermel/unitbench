@@ -157,12 +157,17 @@ function canonicalJson(value: unknown, column?: string): string {
 
 /** RFC8785-equivalent canonicalization for the deliberately JSON-only payload. */
 function integrityCanonicalJson(value: unknown): string {
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new BundlePinError('PINNED_BUNDLE_GONE')
+    return String(value)
+  }
+  if (typeof value === 'string' || value === null || typeof value === 'boolean') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${value.map(integrityCanonicalJson).join(',')}]`
   if (value !== null && typeof value === 'object') {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${integrityCanonicalJson(record[key])}`).join(',')}}`
   }
-  return JSON.stringify(value)
+  throw new BundlePinError('PINNED_BUNDLE_GONE')
 }
 
 type IntegrityMember = ManifestMember & Readonly<{ physical_digest: string }>
@@ -341,18 +346,30 @@ function signedPayload<Member extends BundleMember>(
   return payload as SignedIntegrityPayload
 }
 
-async function verifyPhysicalMember(database: PublicationDatabase, member: IntegrityMember): Promise<void> {
+async function verifyPhysicalMember(
+  database: PublicationDatabase,
+  member: IntegrityMember,
+  algorithm: string,
+): Promise<void> {
   const ordering = member.key_columns.map(quoteIdentifier).join(', ')
   const table = physicalTable(member)
   // Exactly one aggregate result per member; member rows never leave the database.
-  const aggregate = database.kind === 'duckdb'
-    ? `sha256(COALESCE(string_agg(length(to_json(t)::VARCHAR)::VARCHAR || ':' || to_json(t)::VARCHAR, '' ORDER BY ${ordering}), ''))`
-    : `encode(digest(COALESCE(string_agg(length(row_to_json(t)::text)::text || ':' || row_to_json(t)::text, '' ORDER BY ${ordering}), ''), 'sha256'), 'hex')`
-  const [result] = await database.query<{ row_count: number | string, physical_digest: string | null }>(
-    `SELECT COUNT(*) AS row_count, ${aggregate} AS physical_digest FROM ${table} t`,
-    [],
-  )
-  if (asNonNegativeInteger(result?.row_count) !== member.row_count || result?.physical_digest !== member.physical_digest) {
+  try {
+    // `verifyPinnedBundle` selects this exact SQL implementation from the
+    // signed algorithm identifier before this query is allowed to run.
+    const aggregate = algorithm === 'duckdb-json-length-framed-sha256-v1'
+      ? `sha256(COALESCE(string_agg(length(to_json(t)::VARCHAR)::VARCHAR || ':' || to_json(t)::VARCHAR, '' ORDER BY ${ordering}), ''))`
+      : algorithm === 'postgres-pgcrypto-row-json-length-framed-sha256-v1'
+        ? `encode(digest(COALESCE(string_agg(length(row_to_json(t)::text)::text || ':' || row_to_json(t)::text, '' ORDER BY ${ordering}), ''), 'sha256'), 'hex')`
+        : (() => { throw new BundlePinError('PINNED_BUNDLE_GONE') })()
+    const [result] = await database.query<{ row_count: number | string, physical_digest: string | null }>(
+      `SELECT COUNT(*) AS row_count, ${aggregate} AS physical_digest FROM ${table} t`, [],
+    )
+    if (asNonNegativeInteger(result?.row_count) !== member.row_count || result?.physical_digest !== member.physical_digest) {
+      throw new BundlePinError('PINNED_BUNDLE_GONE')
+    }
+  } catch (error) {
+    if (error instanceof BundlePinError) throw error
     throw new BundlePinError('PINNED_BUNDLE_GONE')
   }
 }
@@ -366,8 +383,11 @@ async function verifyPinnedBundle<Member extends BundleMember>(
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
   const payload = signedPayload(contract, row, pin, snapshotSeq)
+  if (!['duckdb-json-length-framed-sha256-v1', 'postgres-pgcrypto-row-json-length-framed-sha256-v1'].includes(payload.physical_digest_algorithm)) {
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
   const members = Object.fromEntries(payload.members.map(member => [member.member, member])) as Readonly<Record<Member, IntegrityMember>>
-  for (const member of contract.members) await verifyPhysicalMember(database, members[member])
+  for (const member of contract.members) await verifyPhysicalMember(database, members[member], payload.physical_digest_algorithm)
   return {
     bundleId: row.bundle_id,
     snapshotSeq,
@@ -452,12 +472,17 @@ export async function resolveBundlePin<Member extends BundleMember>(
   if (pin.bundleKey !== contract.bundleKey) {
     throw new BundlePinError('PIN_EXPIRED_OR_GONE')
   }
-  const [published] = await database.query<PublishedBundleRow>(
+  let published: PublishedBundleRow | undefined
+  try { [published] = await database.query<PublishedBundleRow>(
     `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json, b.integrity_version, b.integrity_key_id, b.integrity_payload_json, b.integrity_signature, b.physical_digest_algorithm FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
     [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
-  )
+  ) } catch { throw new BundlePinError('PINNED_BUNDLE_GONE') }
   if (!published) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  return verifyPinnedBundle(database, contract, published, pin)
+  try { return await verifyPinnedBundle(database, contract, published, pin) }
+  catch (error) {
+    if (error instanceof BundlePinError) throw error
+    throw new BundlePinError('PINNED_BUNDLE_GONE')
+  }
 }
 
 export async function releaseBundlePin(
@@ -492,7 +517,9 @@ export async function withConfiguredPinnedBundle<
     pin = await acquireBundlePin(database, contract, configuration.destinationId)
     return await database.transaction(async transaction => {
       // This connection and snapshot also serve the page operation below.
-      await transaction.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ', [])
+      if (transaction.kind === 'postgres') {
+        await transaction.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ', [])
+      }
       const bundle = await resolveBundlePin(transaction, contract, pin!)
       return operation(transaction, bundle as Parameters<typeof operation>[1])
     })
