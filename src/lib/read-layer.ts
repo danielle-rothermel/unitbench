@@ -2,10 +2,8 @@
  * The server-only dashboard query layer — the module that knows how
  * analytical rows are physically stored. Client-safe row parsing and view
  * models live in dashboard-model.ts. Today this queries a join over
- * `published_predictions` + `published_prediction_details` with JSONB
- * extraction. When v1 projections land (see
- * docs/workbench/projections.md), only the SQL in here changes;
- * signatures and consumers stay put.
+ * the pinned Analysis Bundle. Its public signatures stay independent of
+ * destination table names.
  */
 
 import 'server-only'
@@ -18,7 +16,7 @@ import {
   type CompressionDistributionBin,
   type CorrectnessCompressionPoint,
 } from '@/lib/dashboard-model'
-import { neonSql } from '@/lib/neon'
+import { withAnalysisBundle } from '@/lib/bundle-adapter.server'
 
 export type {
   CompressionDistributionBin,
@@ -35,47 +33,53 @@ export const DASHBOARD_POINT_LIMIT = 1500
 export async function fetchCompressionDistribution(): Promise<
   CompressionDistributionBin[]
 > {
-  const sql = neonSql()
-  const rows = (await sql`
+  return withAnalysisBundle(async (database, bundle) => {
+    const rows = await database.query(
+      `
     SELECT
       width_bucket(
-        (d.metrics_json ->> 'best_compression_ratio')::float8,
+        compression_ratio,
         0,
-        ${DISTRIBUTION_MAX_RATIO},
-        ${DISTRIBUTION_BUCKETS}
+        $1,
+        $2
       ) AS bucket,
-      p.result_state,
+      result_state,
       count(*)::int AS count
-    FROM published_predictions p
-    JOIN published_prediction_details d USING (prediction_id)
-    WHERE p.experiment_kind = 'humaneval_encdec'
-      AND d.metrics_json ? 'best_compression_ratio'
-      AND p.result_state IN ('passed', 'failed')
-    GROUP BY bucket, p.result_state
+    FROM ${bundle.members.predictions}
+    WHERE experiment_kind = 'humaneval_encdec'
+      AND compression_ratio IS NOT NULL
+      AND result_state IN ('passed', 'failed')
+    GROUP BY bucket, result_state
     ORDER BY bucket
-  `) as Record<string, unknown>[]
-  return rows.map(parseDistributionRow)
+  `,
+      [DISTRIBUTION_MAX_RATIO, DISTRIBUTION_BUCKETS],
+    )
+    return rows.map(parseDistributionRow)
+  })
 }
 
 export async function fetchCorrectnessCompressionPoints(
   limit: number = DASHBOARD_POINT_LIMIT,
 ): Promise<CorrectnessCompressionPoint[]> {
-  const sql = neonSql()
-  const rows = (await sql`
+  return withAnalysisBundle(async (database, bundle) => {
+    const rows = await database.query(
+      `
     SELECT
-      p.prediction_id,
-      p.model,
-      p.result_state,
-      p.score,
-      p.provider_cost,
-      (d.metrics_json ->> 'best_compression_ratio')::float8 AS compression_ratio
-    FROM published_predictions p
-    JOIN published_prediction_details d USING (prediction_id)
-    WHERE p.experiment_kind = 'humaneval_encdec'
-      AND d.metrics_json ? 'best_compression_ratio'
-      AND p.result_state IN ('passed', 'failed')
-    ORDER BY p.prediction_id
-    LIMIT ${limit}
-  `) as Record<string, unknown>[]
-  return rows.map(parseCorrectnessCompressionRow)
+      prediction_id,
+      model,
+      result_state,
+      score,
+      provider_cost,
+      compression_ratio
+    FROM ${bundle.members.predictions}
+    WHERE experiment_kind = 'humaneval_encdec'
+      AND compression_ratio IS NOT NULL
+      AND result_state IN ('passed', 'failed')
+    ORDER BY prediction_id
+    LIMIT $1
+  `,
+      [limit],
+    )
+    return rows.map(parseCorrectnessCompressionRow)
+  })
 }

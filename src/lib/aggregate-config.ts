@@ -1,6 +1,6 @@
 import type { TableConfig, TableName } from '@/lib/table-config'
 
-export const AGGREGATE_TABLE: TableName = { name: 'published_predictions' }
+export const AGGREGATE_TABLE: TableName = { name: 'predictions' }
 
 export const GROUP_BY_COLUMNS = [
   'model',
@@ -90,7 +90,8 @@ export function buildAggregateTableConfig(
   return {
     id: 'aggregate',
     label: 'Aggregation',
-    description: 'Grouped aggregates over published predictions.',
+    plane: 'analysis',
+    description: 'Grouped aggregates over the pinned prediction bundle.',
     table: AGGREGATE_TABLE,
     primaryKey: state.groupBy[0] ?? 'model',
     defaultSort: { column: DEFAULT_SORT, direction: DEFAULT_SORT_DIR },

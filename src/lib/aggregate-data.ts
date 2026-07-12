@@ -15,11 +15,7 @@ import {
   type HeatmapAxis,
 } from '@/lib/heatmap-config'
 import type { HeatmapState } from '@/lib/heatmap-params'
-import {
-  MissingDatabaseUrlError,
-  neonSql,
-  type SqlClient,
-} from '@/lib/neon'
+import { BundleReadError, withAnalysisBundle } from '@/lib/bundle-adapter.server'
 import { totalPages } from '@/lib/pagination'
 import {
   orderByForSort,
@@ -84,11 +80,30 @@ export class InvalidAggregateQueryError extends Error {
 }
 
 function queryWithParams<T extends TableRow>(
-  sql: SqlClient,
   query: string,
   params: unknown[],
 ): Promise<T[]> {
-  return sql.query(query, params) as Promise<T[]>
+  return withAnalysisBundle((database, bundle) =>
+    database.query<T>(
+      query.replaceAll('"predictions"', bundle.members.predictions),
+      params,
+    ) as Promise<T[]>,
+  )
+}
+
+function queryBatchWithParams<T extends TableRow>(
+  queries: readonly SqlQuery[],
+): Promise<T[][]> {
+  return withAnalysisBundle(async (database, bundle) =>
+    Promise.all(
+      queries.map(({ text, params }) =>
+        database.query<T>(
+          text.replaceAll('"predictions"', bundle.members.predictions),
+          params,
+        ) as Promise<T[]>,
+      ),
+    ),
+  )
 }
 
 function countFromRows(rows: TableRow[]): number {
@@ -427,13 +442,9 @@ export async function getAggregatePage(
 ): Promise<AggregatePage> {
   const tableConfig = buildAggregateTableConfig(state)
   try {
-    const sql = neonSql()
     const countQuery = buildAggregateCountQuery(state)
     const selectQuery = buildAggregateQuery(state)
-    const [countRows, rows] = await Promise.all([
-      queryWithParams(sql, countQuery.text, countQuery.params),
-      queryWithParams(sql, selectQuery.text, selectQuery.params),
-    ])
+    const [countRows, rows] = await queryBatchWithParams([countQuery, selectQuery])
     const total = countFromRows(countRows)
     return {
       status: 'ok',
@@ -444,7 +455,7 @@ export async function getAggregatePage(
       totalPages: totalPages(total, state.pageSize),
     }
   } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
+    if (error instanceof BundleReadError && error.code === 'STORE_NOT_CONFIGURED') {
       return { status: 'missing-url', state, tableConfig }
     }
     return {
@@ -477,7 +488,6 @@ function predictionsFacetWhere(
 export async function getAggregateFacets(
   state: Pick<AggregateState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const sql = neonSql()
   const table = qualifiedTableName(AGGREGATE_TABLE)
   const keys = ['model', 'experiment_kind'] as const
   const entries = await Promise.all(
@@ -490,7 +500,6 @@ export async function getAggregateFacets(
       )
       if (key === 'model') {
         const rows = await queryWithParams<{ value: unknown }>(
-          sql,
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -498,7 +507,6 @@ export async function getAggregateFacets(
       }
       const id = quoteIdentifier(key)
       const rows = await queryWithParams<{ value: unknown }>(
-        sql,
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -511,7 +519,6 @@ export async function getAggregateFacets(
 export async function getHeatmapFacets(
   state: Pick<HeatmapState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const sql = neonSql()
   const table = qualifiedTableName(AGGREGATE_TABLE)
   const entries = await Promise.all(
     HEATMAP_FILTER_COLUMNS.map(async key => {
@@ -521,7 +528,6 @@ export async function getHeatmapFacets(
           `${quoteIdentifier('model')} IS NOT NULL`,
         )
         const rows = await queryWithParams<{ value: unknown }>(
-          sql,
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -530,7 +536,6 @@ export async function getHeatmapFacets(
       if (key === 'budget') {
         const { where, params } = predictionsFacetWhere(state.hideTestExperiments)
         const rows = await queryWithParams<{ value: unknown }>(
-          sql,
           `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -542,7 +547,6 @@ export async function getHeatmapFacets(
         `${id} IS NOT NULL`,
       )
       const rows = await queryWithParams<{ value: unknown }>(
-        sql,
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -554,6 +558,5 @@ export async function getHeatmapFacets(
 
 export async function getHeatmapRows(state: HeatmapState): Promise<TableRow[]> {
   const query = buildHeatmapQuerySql(state)
-  const sql = neonSql()
-  return queryWithParams(sql, query.text, query.params)
+  return queryWithParams(query.text, query.params)
 }

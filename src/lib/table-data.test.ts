@@ -4,9 +4,9 @@ import { buildCountQuery, buildSelectQuery } from '@/lib/table-data'
 import { testExperimentPatterns } from '@/lib/test-experiment-filter'
 import { parseTableState } from '@/lib/table-params'
 
-const config = getTableConfig('published-predictions')
-const experimentsConfig = getTableConfig('published-experiments')
-const detailsConfig = getTableConfig('published-prediction-details')
+const config = getTableConfig('predictions')
+const experimentsConfig = getTableConfig('experiments')
+const detailsConfig = getTableConfig('detail-predictions')
 const patterns = testExperimentPatterns()
 
 describe('table query builders', () => {
@@ -81,18 +81,14 @@ describe('table query builders', () => {
     expect(count.params).toEqual([patterns])
   })
 
-  it('joins prediction details to predictions for browse filters', () => {
+  it('reads detail predictions without a cross-plane join', () => {
     const state = parseTableState(detailsConfig, {
       model: 'openai/test',
       result_state: 'failed',
     })
     const count = buildCountQuery(detailsConfig, state)
-    expect(count.text).toContain(
-      'FROM "published_prediction_details" AS "d" INNER JOIN "published_predictions" AS "p"',
-    )
-    expect(count.text).toContain('"d"."experiment_id" ILIKE ANY(')
-    const select = buildSelectQuery(detailsConfig, state)
-    expect(select.text).toContain('"p"."task_id" AS "task_id"')
+    expect(count.text).toContain('FROM "detail_predictions"')
+    expect(count.text).toContain('"experiment_id" ILIKE ANY(')
   })
 
   it('omits test experiment filter when includeTestExps=1', () => {

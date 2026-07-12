@@ -13,7 +13,7 @@ import {
   type TableState,
 } from '@/lib/table-params'
 
-export const PREDICTIONS_TABLE_ID = 'published-predictions'
+export const PREDICTIONS_TABLE_ID = 'predictions'
 
 export type PredictionsTableHrefOptions = {
   sort?: { column: string; dir: 'asc' | 'desc' }

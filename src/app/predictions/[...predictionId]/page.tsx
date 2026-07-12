@@ -5,7 +5,6 @@ import { getPredictionDetail } from '@/lib/prediction-detail'
 import {
   DEFAULT_PREDICTIONS_TABLE_ID,
   getTableConfig,
-  PUBLISHED_PREDICTION_DETAIL_TABLES,
   UnknownTableError,
 } from '@/lib/table-config'
 
@@ -39,15 +38,13 @@ export default async function Page({ params, searchParams }: PageProps) {
   const id = predictionId.map(decodeURIComponent).join('/')
   const tableId = tableIdFrom(resolvedSearchParams)
 
-  let detailTables = PUBLISHED_PREDICTION_DETAIL_TABLES
   try {
-    const tableConfig = getTableConfig(tableId)
-    detailTables = tableConfig.detailTables ?? PUBLISHED_PREDICTION_DETAIL_TABLES
+    getTableConfig(tableId)
   } catch (error) {
     if (!(error instanceof UnknownTableError)) throw error
   }
 
-  const result = await getPredictionDetail(id, detailTables)
+  const result = await getPredictionDetail(id)
 
   if (result.status === 'not-found') notFound()
 
