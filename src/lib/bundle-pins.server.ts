@@ -156,7 +156,7 @@ function canonicalJson(value: unknown, column?: string): string {
 }
 
 /** RFC8785-equivalent canonicalization for the deliberately JSON-only payload. */
-function integrityCanonicalJson(value: unknown): string {
+export function integrityCanonicalJson(value: unknown): string {
   if (typeof value === 'number') {
     if (!Number.isSafeInteger(value)) throw new BundlePinError('PINNED_BUNDLE_GONE')
     return String(value)
