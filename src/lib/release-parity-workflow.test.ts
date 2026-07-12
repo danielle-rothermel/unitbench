@@ -2,12 +2,20 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+const WhetstoneProducerSha = 'e33e4d9e18e6deda6e1423f83a36b5673985ccca'
+
 describe('release parity reusable workflow caller', () => {
-  it('passes the exact producer commit as its required immutable input', async () => {
+  it('pins the signed Whetstone producer and passes its exact immutable input', async () => {
     const workflow = await readFile(resolve(process.cwd(), '.github/workflows/release-parity.yml'), 'utf8')
     const match = workflow.match(/release-parity\.yml@([0-9a-f]{40})/)
-    expect(match?.[1]).toBe('b12fd83e8690c5199da218ab7e42285608a286bd')
-    expect(workflow).toContain(`whetstone_sha: ${match?.[1]}`)
+    expect(match?.[1]).toBe(WhetstoneProducerSha)
+    expect(workflow).toContain(`whetstone_sha: ${WhetstoneProducerSha}`)
+  })
+
+  it('inherits the producer public-ring secret contract for consumer verification', async () => {
+    const workflow = await readFile(resolve(process.cwd(), '.github/workflows/release-parity.yml'), 'utf8')
+
+    expect(workflow).toContain('secrets: inherit')
   })
 
   it('defines the delivery-parity script invoked by the reusable producer', async () => {
