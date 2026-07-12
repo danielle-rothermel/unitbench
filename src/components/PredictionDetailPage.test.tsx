@@ -85,6 +85,22 @@ describe('PredictionDetailPage', () => {
     expect(screen.getByText('Code')).toBeInTheDocument()
   })
 
+  it('uses plain-text highlighting for prompt and raw-generation content', () => {
+    render(
+      <PredictionDetailPage
+        detail={makeDetail({ raw_generation: 'raw provider response' })}
+        backHref="/tables/x"
+      />,
+    )
+
+    const codeBlocks = screen.getAllByTestId('viewer-code-block')
+    expect(codeBlocks.map(block => block.dataset.language)).toEqual([
+      'text',
+      'python',
+      'text',
+    ])
+  })
+
   it('shows harness failure counts in diagnostics when present', () => {
     render(
       <PredictionDetailPage

@@ -326,6 +326,9 @@ def test_errored_v1_prediction_publishes_as_error_row() -> None:
 
 def test_canonical_query_left_joins_score_attempts() -> None:
     assert "LEFT JOIN dr_dspy_score_attempts" in CANONICAL_PREDICTIONS_SQL
+    assert "CASE WHEN score_attempt_id IS NULL THEN 1 ELSE 0 END" in (
+        CANONICAL_PREDICTIONS_SQL
+    )
     assert "score_attempt_index DESC NULLS LAST" in CANONICAL_PREDICTIONS_SQL
 
 

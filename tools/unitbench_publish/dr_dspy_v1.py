@@ -121,6 +121,7 @@ ranked_predictions AS (
         ROW_NUMBER() OVER (
             PARTITION BY prediction_id
             ORDER BY
+                CASE WHEN score_attempt_id IS NULL THEN 1 ELSE 0 END,
                 score_attempt_index DESC NULLS LAST,
                 generation_completed_at DESC NULLS LAST,
                 generation_run_id

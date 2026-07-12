@@ -151,14 +151,22 @@ export function PredictionDetailPage({
           <div className="flex flex-col gap-2.5">
             <span className={SECTION_LABEL}>Generation · prompt → output</span>
             <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
-              <CodePanel label="Prompt" value={detail.prompt_text} />
+              <CodePanel
+                label="Prompt"
+                value={detail.prompt_text}
+                language="text"
+              />
               <CodePanel
                 label="Code"
                 value={detail.code_text}
                 language="python"
                 accent
               />
-              <CodePanel label="Raw generation" value={detail.raw_generation} />
+              <CodePanel
+                label="Raw generation"
+                value={detail.raw_generation}
+                language="text"
+              />
             </div>
           </div>
         )}
