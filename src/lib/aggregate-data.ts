@@ -572,18 +572,30 @@ export async function getHeatmapRows(state: HeatmapState): Promise<TableRow[]> {
 }
 
 /** A heatmap is one Analysis view: facets and cells must share one pin. */
-export async function getHeatmapPage(state: HeatmapState): Promise<{
-  rows: readonly TableRow[]
-  facets: AggregateFacets
-  bundle: BundleIdentity
-}> {
-  return withAnalysisBundle(async (database, bundle) => {
-    const source = bundle.members.predictions
-    const query = buildHeatmapQuerySql(state)
-    const [rows, facets] = await Promise.all([
-      database.query<TableRow>(query.text.replaceAll('"predictions"', source), query.params),
-      getHeatmapFacetsFromDatabase(state, database, source),
-    ])
-    return { rows, facets, bundle: bundleIdentity(bundle) }
-  })
+export type HeatmapPage =
+  | Readonly<{
+      status: 'ok'
+      rows: readonly TableRow[]
+      facets: AggregateFacets
+      bundle: BundleIdentity
+    }>
+  | Readonly<{
+      status: 'failure'
+      failure: BundleViewFailure
+    }>
+
+export async function getHeatmapPage(state: HeatmapState): Promise<HeatmapPage> {
+  try {
+    return await withAnalysisBundle(async (database, bundle) => {
+      const source = bundle.members.predictions
+      const query = buildHeatmapQuerySql(state)
+      const [rows, facets] = await Promise.all([
+        database.query<TableRow>(query.text.replaceAll('"predictions"', source), query.params),
+        getHeatmapFacetsFromDatabase(state, database, source),
+      ])
+      return { status: 'ok', rows, facets, bundle: bundleIdentity(bundle) }
+    })
+  } catch (error) {
+    return { status: 'failure', failure: bundleFailure(error) }
+  }
 }

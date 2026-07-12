@@ -4,7 +4,6 @@ import { BundleState } from '@/components/panels/BundleState'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
 import { getHeatmapPage } from '@/lib/aggregate-data'
 import { heatmapTitle } from '@/lib/heatmap-config'
-import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { parseHeatmapState } from '@/lib/heatmap-params'
 
 export const dynamic = 'force-dynamic'
@@ -17,17 +16,7 @@ export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const state = parseHeatmapState(resolvedSearchParams)
 
-  let facets: Record<string, string[]> = {}
-  let heatmapRows: readonly Record<string, unknown>[] = []
-  let failure: BundleViewFailure | null = null
-
-  try {
-    const result = await getHeatmapPage(state)
-    facets = result.facets
-    heatmapRows = result.rows
-  } catch (error) {
-    failure = bundleFailure(error)
-  }
+  const heatmapPage = await getHeatmapPage(state)
 
   return (
     <AggregatePageShell
@@ -38,11 +27,11 @@ export default async function Page({ searchParams }: PageProps) {
         label: 'View flexible aggregation →',
       }}
     >
-      {failure && <BundleState plane="Analysis" failure={failure} />}
-      {!failure && (
+      {heatmapPage.status === 'failure' && <BundleState plane="Analysis" failure={heatmapPage.failure} />}
+      {heatmapPage.status === 'ok' && (
         <>
-          <HeatmapFilters state={state} facets={facets} />
-          <ScoreHeatmap rows={[...heatmapRows]} state={state} />
+          <HeatmapFilters state={state} facets={heatmapPage.facets} />
+          <ScoreHeatmap rows={[...heatmapPage.rows]} state={state} />
         </>
       )}
     </AggregatePageShell>
