@@ -63,6 +63,7 @@ type PublishedBundleRow = QueryRow & {
   bundle_id: string
   snapshot_seq: number | string
   manifest_json: string
+  integrity_attestation_json: string | null
 }
 
 export class BundlePinError extends Error {
@@ -237,36 +238,75 @@ function manifestMembers(
   ) as Readonly<Record<BundleMember, ManifestMember>>
 }
 
-async function rowsForMember(
-  database: PublicationDatabase,
-  member: ManifestMember,
-): Promise<readonly QueryRow[]> {
-  const ordering = member.key_columns.map(quoteIdentifier).join(', ')
-  return database.query(
-    `SELECT * FROM ${physicalTable(member)} ORDER BY ${ordering}`,
-    [],
-  )
+function verifyAttestation<Member extends BundleMember>(
+  contract: BundleContract<BundlePlane, Member>,
+  row: PublishedBundleRow,
+  pin: BundlePin,
+  manifest: BundleManifest,
+  snapshotSeq: number,
+): void {
+  let value: unknown
+  try {
+    value = JSON.parse(row.integrity_attestation_json ?? '')
+  } catch {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  const attestation = value as Record<string, unknown>
+  const members = attestation.members
+  if (
+    attestation.destination_id !== pin.destinationId
+    || attestation.bundle_key !== pin.bundleKey
+    || attestation.bundle_id !== pin.bundleId
+    || asNonNegativeInteger(attestation.snapshot_seq) !== snapshotSeq
+    || typeof attestation.manifest_sha256 !== 'string'
+    || attestation.manifest_sha256 !== createHash('sha256').update(row.manifest_json).digest('hex')
+    || !Array.isArray(members)
+  ) {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  const attested = new Map(members.map((member) => {
+    if (member === null || typeof member !== 'object') return ['', null]
+    const record = member as Record<string, unknown>
+    return [record.member, record]
+  }))
+  if (attested.size !== contract.members.length) {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  const manifestByName = new Map(manifest.members.map((member) => [member.member, member]))
+  for (const name of contract.members) {
+    const published = manifestByName.get(name)
+    const proof = attested.get(name)
+    if (
+      !published || !proof
+      || proof.member !== published.member
+      || proof.schema_name !== published.schema_name
+      || proof.table_name !== published.table_name
+      || proof.row_count !== published.row_count
+      || proof.checksum !== published.checksum
+      || JSON.stringify(proof.key_columns) !== JSON.stringify(published.key_columns)
+    ) {
+      throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+    }
+  }
 }
 
 async function verifyPinnedBundle<Member extends BundleMember>(
   database: PublicationDatabase,
   contract: BundleContract<BundlePlane, Member>,
   row: PublishedBundleRow,
+  pin: BundlePin,
 ): Promise<PinnedBundle<Member>> {
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
   const manifest = parseManifest(row.manifest_json)
   const members = manifestMembers(contract, manifest)
-  for (const member of contract.members) {
-    const publishedMember = members[member]
-    const rows = await rowsForMember(database, publishedMember)
-    if (
-      rows.length !== publishedMember.row_count ||
-      platformChecksum(rows) !== publishedMember.checksum
-    ) {
-      throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
-    }
-  }
+  // The publisher validates physical tables during promotion. Reader accounts
+  // have SELECT-only access to promoted members, so this pinned, immutable
+  // destination attestation is the bounded trust boundary at request time.
+  verifyAttestation(contract, row, pin, manifest, snapshotSeq)
   return {
     bundleId: row.bundle_id,
     snapshotSeq,
@@ -350,11 +390,21 @@ export async function resolveBundlePin<Member extends BundleMember>(
     throw new BundlePinError('PIN_EXPIRED_OR_GONE')
   }
   const [published] = await database.query<PublishedBundleRow>(
-    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
+    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json, b.integrity_attestation_json FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
     [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
   )
   if (!published) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  return verifyPinnedBundle(database, contract, published)
+  return verifyPinnedBundle(database, contract, published, pin)
+}
+
+export async function releaseBundlePin(
+  database: PublicationDatabase,
+  pin: BundlePin,
+): Promise<void> {
+  await database.query(
+    `DELETE FROM ${PUBLICATION_PINS_TABLE} WHERE destination_id = $1 AND bundle_key = $2 AND pin_id = $3 AND bundle_id = $4`,
+    [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
+  )
 }
 
 export async function withConfiguredPinnedBundle<
@@ -374,11 +424,13 @@ export async function withConfiguredPinnedBundle<
     ? configuredAnalysisAdapter()
     : nativePublicationDatabase(configuration.databaseUrl)
   const contract = bundleContract(plane)
+  let pin: BundlePin | undefined
   try {
-    const pin = await acquireBundlePin(database, contract, configuration.destinationId)
+    pin = await acquireBundlePin(database, contract, configuration.destinationId)
     const bundle = await resolveBundlePin(database, contract, pin)
     return await operation(database, bundle as Parameters<typeof operation>[1])
   } finally {
+    if (pin) await releaseBundlePin(database, pin)
     await database.close?.()
   }
 }

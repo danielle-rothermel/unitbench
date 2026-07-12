@@ -4,6 +4,7 @@ import { ANALYSIS_BUNDLE_CONTRACT } from '@/lib/bundle-contract'
 import {
   acquireBundlePin,
   BundlePinError,
+  releaseBundlePin,
   resolveBundlePin,
   platformChecksum,
   type PublicationDatabase,
@@ -26,6 +27,19 @@ function manifest(overrides: Record<string, unknown> = {}): string {
   })
 }
 
+function attestation(manifestJson: string, overrides: Record<string, unknown> = {}): string {
+  const parsed = JSON.parse(manifestJson)
+  return JSON.stringify({
+    destination_id: pin.destinationId,
+    bundle_key: pin.bundleKey,
+    bundle_id: pin.bundleId,
+    snapshot_seq: 0,
+    manifest_sha256: createHash('sha256').update(manifestJson).digest('hex'),
+    members: parsed.members,
+    ...overrides,
+  })
+}
+
 function databaseFor(
   published: Record<string, unknown> | undefined,
 ): PublicationDatabase {
@@ -36,7 +50,15 @@ function databaseFor(
     ) => {
       void values
       if (statement.includes('dr_platform_publication_state_pins')) {
-        return (published ? [published] : []) as Row[]
+        if (!published) return [] as Row[]
+        const manifestJson = String(published.manifest_json)
+        return [{
+          integrity_attestation_json: attestation(manifestJson, {
+            bundle_id: String(published.bundle_id),
+            snapshot_seq: Number(published.snapshot_seq),
+          }),
+          ...published,
+        }] as unknown as Row[]
       }
       return [] as Row[]
     },
@@ -93,7 +115,7 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('reads every member from the resolved pinned table, never from a current pointer', async () => {
+  it('reads only the resolved pinned attestation, never current state or member tables', async () => {
     const statements: string[] = []
     const database = databaseFor({
       bundle_id: 'bundle-1',
@@ -113,12 +135,9 @@ describe('resolveBundlePin', () => {
 
     await resolveBundlePin(recordingDatabase, ANALYSIS_BUNDLE_CONTRACT, pin)
 
-    expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual(
-      ANALYSIS_BUNDLE_CONTRACT.members.map(
-        member => `SELECT * FROM "public"."bundle_${member}" ORDER BY "bundle_id"`,
-      ),
-    )
+    expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual([])
     expect(statements.join('\n')).not.toContain('dr_platform_publication_state WHERE')
+    expect(statements).toHaveLength(1)
   })
 
   it('fails closed for an expired or missing pin', async () => {
@@ -145,8 +164,9 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('rejects a member checksum mismatch', async () => {
+  it('rejects a manifest mutated after promotion', async () => {
     const members = JSON.parse(manifest()).members
+    const promotedManifest = manifest()
     members[0].checksum = 'not-a-checksum'
     await expect(
       resolveBundlePin(
@@ -157,6 +177,7 @@ describe('resolveBundlePin', () => {
             source_families: ['application'],
             members,
           }),
+          integrity_attestation_json: attestation(promotedManifest, { snapshot_seq: 4 }),
         }),
         ANALYSIS_BUNDLE_CONTRACT,
         pin,
@@ -166,15 +187,15 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('rejects a row-count mismatch even when the member checksum is otherwise valid', async () => {
-    const members = JSON.parse(manifest()).members
-    members[0].row_count = 1
+  it('rejects a stale or malformed bundle attestation', async () => {
+    const manifestJson = manifest()
     await expect(
       resolveBundlePin(
         databaseFor({
           bundle_id: 'bundle-1',
           snapshot_seq: 4,
-          manifest_json: JSON.stringify({ source_families: ['application'], members }),
+          manifest_json: manifestJson,
+          integrity_attestation_json: '{',
         }),
         ANALYSIS_BUNDLE_CONTRACT,
         pin,
@@ -240,5 +261,24 @@ describe('acquireBundlePin', () => {
     await expect(
       acquireBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, 'motherduck-analysis'),
     ).rejects.toMatchObject({ code: 'BUNDLE_NOT_PUBLISHED' })
+  })
+})
+
+describe('releaseBundlePin', () => {
+  it('deletes only the exact pin after a reader is finished', async () => {
+    const calls: unknown[][] = []
+    const database: PublicationDatabase = {
+      query: async <Row extends Record<string, unknown>>(
+        statement: string,
+        values: readonly unknown[],
+      ) => {
+        expect(statement).toMatch(/^DELETE FROM dr_platform_publication_state_pins/)
+        calls.push([...values])
+        return [] as Row[]
+      },
+      transaction: async (operation) => operation(database),
+    }
+    await releaseBundlePin(database, pin)
+    expect(calls).toEqual([[pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId]])
   })
 })
