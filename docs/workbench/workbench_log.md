@@ -7,7 +7,7 @@
 | 0 critique fixes | done | all acceptance checks green: diagnostics integrity, heatmap grid/contrast/hydration, disclosure, typography, power layer |
 | 1 IA + design system | done | lane nav + /lab, DESIGN.md, visx chart theme + demo, Inspector used by detail page |
 | 2 parser playground | done | facade (dr-code PR #10) + gen:api client + /playgrounds/parser + e2e vs local facade |
-| 3 provider query page | done | facade + variance machinery (dr-providers PR #4) + /playgrounds/provider + e2e vs FixtureProvider |
+| 3 provider query page | done | facade first landed in dr-providers PR #7 (superseding the originally recorded PR #4); current scripted contract is PR #9 head `cad0959619886ac14c995206ae962269d7755896` + /playgrounds/provider + e2e vs ScriptedProvider |
 | 4 graph viewer | done | /design/graph: schema-validated paste/upload, DAG render, node inspector |
 | 5 projection read layer + dashboard | done | projections.md sketch; read-layer module; /dashboard scatter + distribution, live Neon, click-through |
 | 6 replay viewer | done | /replay step-through + compare, fixture runs behind isolated replay-data module |
@@ -373,3 +373,22 @@ draft), dr-code `serve` branch (PR #10 draft), dr-providers `serve`
 branch (PR #4 draft). whetstone-ai, all `composable-migration`
 branches, and the Neon schema were never modified; no paid API calls
 were made.
+
+### 2026-07-12 — dr-providers provenance correction
+
+The Stage 3 entries above preserve the provenance recorded when the work was
+performed, but their dr-providers PR #4 attribution was later found to be
+stale: PR #4 closed without the titled facade implementation. The reused
+`serve` branch subsequently carried the first facade in dr-providers PR #7,
+which explicitly superseded PR #4. Its exact head,
+`8daad4c0ba3dd192bb5f93c81c848813901a7174`, still used the historical
+`FixtureProvider` wire contract (`kind: "fixture"`, `fixture_outcomes`).
+
+The current Unitbench client intentionally uses the later `ScriptedProvider`
+wire contract (`kind: "scripted"`, `scripted_outcomes`). That rename landed in
+dr-providers PR #9 at its exact head
+`cad0959619886ac14c995206ae962269d7755896`, which retains the facade and its
+`serve` extra. Fixture-only browser verification of the current client must use
+that immutable PR #9 head rather than PR #7 or a moving branch tip. This later
+compatible revision does not change the chronology: PR #7 remains where the
+facade first landed.
