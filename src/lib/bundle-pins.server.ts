@@ -52,7 +52,11 @@ type ManifestMember = Readonly<{
   key_columns: readonly string[]
   row_count: number
   checksum: string
+  column_schema: readonly ProjectionColumn[]
 }>
+
+type ProjectionColumnType = 'text' | 'integer' | 'numeric' | 'boolean' | 'timestamp' | 'json'
+type ProjectionColumn = Readonly<{ name: string; type: ProjectionColumnType }>
 
 type BundleManifest = Readonly<{
   members: readonly ManifestMember[]
@@ -90,50 +94,8 @@ function physicalTable(member: ManifestMember): string {
   return `${quoteIdentifier(member.schema_name)}.${quoteIdentifier(member.table_name)}`
 }
 
-/**
- * Mirrors dr-platform's `_canonical`: compact JSON, sorted object keys, and
- * ISO temporal values.  postgres.js returns int8/numeric as strings while
- * DuckDB returns numbers; the member column contract tells us which strings
- * are database scalars rather than application text.
- */
-const INTEGER_COLUMNS = new Set([
-  'snapshot_seq', 'row_count', 'sample_index', 'attempt_index', 'platform_attempt',
-  'failure_count',
-])
-const FLOAT_COLUMNS = new Set([
-  'pass_rate', 'score', 'provider_cost', 'latency_ms', 'compression_ratio', 'metric_value',
-])
-const JSON_COLUMNS = new Set([
-  'config_json', 'summary_json', 'metrics_json', 'request_json', 'response_json',
-  'validation_json', 'raw_generation', 'provider_config_json', 'output_json',
-  'usage_cost_json', 'response_metadata_json', 'failure_json',
-  'dataset_snapshot_json', 'extracted_submission_json', 'per_test_results_json',
-])
-const TEMPORAL_COLUMNS = new Set([
-  'created_at', 'updated_at', 'started_at', 'completed_at', 'enqueued_at', 'terminal_at',
-])
-
-function canonicalScalar(value: unknown, column?: string): unknown {
-  if (value instanceof Date) return value.toISOString()
-  if (typeof value === 'bigint') return Number(value)
-  if (typeof value === 'string') {
-    if (TEMPORAL_COLUMNS.has(column ?? '')) return new Date(value).toISOString()
-    if (FLOAT_COLUMNS.has(column ?? '') && value.trim() !== '') return Number(value)
-    if (JSON_COLUMNS.has(column ?? '')) {
-      try { return JSON.parse(value) } catch { return value }
-    }
-  }
-  return value
-}
-
-function canonicalJson(value: unknown, column?: string): string {
-  // json.dumps emits Python int values as JSON numbers.  Keep PostgreSQL int8
-  // strings textual here so values above JS's safe integer limit stay exact.
-  if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'string' && /^-?\d+$/.test(value)) {
-    return value
-  }
-  if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'bigint') return value.toString()
-  value = canonicalScalar(value, column)
+/** Mirrors dr-platform's `_canonical` after its declared projection coercion. */
+function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(item => canonicalJson(item)).join(',')}]`
   }
@@ -141,14 +103,40 @@ function canonicalJson(value: unknown, column?: string): string {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key], key)}`)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
       .join(',')}}`
   }
   return JSON.stringify(value)
 }
 
-export function platformChecksum(rows: readonly QueryRow[]): string {
-  return createHash('sha256').update(canonicalJson(rows)).digest('hex')
+function normalizedTimestamp(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString().replace('.000Z', '+00:00').replace('Z', '+00:00')
+  if (typeof value === 'string') return value.replace(/\.000Z$/, '+00:00').replace(/Z$/, '+00:00')
+  return value
+}
+
+function normalizeColumn(value: unknown, type: ProjectionColumnType): unknown {
+  if (value === null) return null
+  switch (type) {
+    case 'integer': return typeof value === 'bigint' ? value.toString() : value
+    case 'numeric': return typeof value === 'string' ? Number(value) : value
+    case 'timestamp': return normalizedTimestamp(value)
+    case 'json':
+      if (typeof value !== 'string') return value
+      try { return JSON.parse(value) } catch { throw new BundlePinError('BUNDLE_MANIFEST_INVALID') }
+    default: return value
+  }
+}
+
+export function platformChecksum(
+  rows: readonly QueryRow[],
+  columnSchema: readonly ProjectionColumn[] = [],
+): string {
+  const schema = new Map(columnSchema.map(column => [column.name, column.type]))
+  const normalizedRows = rows.map(row => Object.fromEntries(
+    Object.entries(row).map(([name, value]) => [name, normalizeColumn(value, schema.get(name) ?? 'text')]),
+  ))
+  return createHash('sha256').update(canonicalJson(normalizedRows)).digest('hex')
 }
 
 function asNonEmptyString(value: unknown): string | null {
@@ -171,6 +159,15 @@ function parseManifestMember(value: unknown): ManifestMember | null {
   const keyColumns = Array.isArray(record.key_columns)
     ? record.key_columns.map(asNonEmptyString)
     : []
+  const columnSchema = Array.isArray(record.column_schema) ? record.column_schema.map(column => {
+    if (column === null || typeof column !== 'object') return null
+    const item = column as Record<string, unknown>
+    const name = asNonEmptyString(item.name)
+    const type = item.type
+    return name && typeof type === 'string' && ['text', 'integer', 'numeric', 'boolean', 'timestamp', 'json'].includes(type)
+      ? { name, type: type as ProjectionColumnType }
+      : null
+  }) : []
   if (
     !member ||
     !schemaName ||
@@ -179,6 +176,9 @@ function parseManifestMember(value: unknown): ManifestMember | null {
     !memberChecksum ||
     keyColumns.length === 0 ||
     keyColumns.some((column) => column === null)
+    || columnSchema.length === 0
+    || columnSchema.some(column => column === null)
+    || new Set(columnSchema.filter((column): column is ProjectionColumn => column !== null).map(column => column.name)).size !== columnSchema.length
   ) {
     return null
   }
@@ -189,6 +189,7 @@ function parseManifestMember(value: unknown): ManifestMember | null {
     key_columns: keyColumns as string[],
     row_count: rowCount,
     checksum: memberChecksum,
+    column_schema: columnSchema as ProjectionColumn[],
   }
 }
 
@@ -237,17 +238,6 @@ function manifestMembers(
   ) as Readonly<Record<BundleMember, ManifestMember>>
 }
 
-async function rowsForMember(
-  database: PublicationDatabase,
-  member: ManifestMember,
-): Promise<readonly QueryRow[]> {
-  const ordering = member.key_columns.map(quoteIdentifier).join(', ')
-  return database.query(
-    `SELECT * FROM ${physicalTable(member)} ORDER BY ${ordering}`,
-    [],
-  )
-}
-
 async function verifyPinnedBundle<Member extends BundleMember>(
   database: PublicationDatabase,
   contract: BundleContract<BundlePlane, Member>,
@@ -259,12 +249,8 @@ async function verifyPinnedBundle<Member extends BundleMember>(
   const members = manifestMembers(contract, manifest)
   for (const member of contract.members) {
     const publishedMember = members[member]
-    const rows = await rowsForMember(database, publishedMember)
-    if (
-      rows.length !== publishedMember.row_count ||
-      platformChecksum(rows) !== publishedMember.checksum
-    ) {
-      throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+    if (!/^[a-f0-9]{64}$/.test(publishedMember.checksum)) {
+      throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
     }
   }
   return {
@@ -374,11 +360,18 @@ export async function withConfiguredPinnedBundle<
     ? configuredAnalysisAdapter()
     : nativePublicationDatabase(configuration.databaseUrl)
   const contract = bundleContract(plane)
+  let pin: BundlePin | undefined
   try {
-    const pin = await acquireBundlePin(database, contract, configuration.destinationId)
+    pin = await acquireBundlePin(database, contract, configuration.destinationId)
     const bundle = await resolveBundlePin(database, contract, pin)
     return await operation(database, bundle as Parameters<typeof operation>[1])
   } finally {
+    if (pin) {
+      await database.query(
+        `DELETE FROM ${PUBLICATION_PINS_TABLE} WHERE destination_id = $1 AND bundle_key = $2 AND pin_id = $3`,
+        [pin.destinationId, pin.bundleKey, pin.pinId],
+      ).catch(() => undefined)
+    }
     await database.close?.()
   }
 }

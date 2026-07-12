@@ -42,11 +42,59 @@ export type PredictionDetailResult =
   | { status: 'not-found' }
   | { status: 'failure'; failure: BundleViewFailure }
 
+type DetailRow = Record<string, unknown>
+
+function nullableString(value: unknown): string | null {
+  return value === null || value === undefined ? null : typeof value === 'string' ? value : String(value)
+}
+
+function nullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) throw new TypeError('Detail numeric projection is invalid')
+  return parsed
+}
+
+function nullableInteger(value: unknown): number | null {
+  const parsed = nullableNumber(value)
+  if (parsed !== null && !Number.isSafeInteger(parsed)) throw new TypeError('Detail integer projection is invalid')
+  return parsed
+}
+
+function jsonValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value ?? null
+  try { return JSON.parse(value) } catch { throw new TypeError('Detail JSON projection is invalid') }
+}
+
+export function parsePredictionDetailRow(row: DetailRow): PredictionDetail {
+  const required = (name: string) => {
+    const value = nullableString(row[name])
+    if (!value) throw new TypeError(`Detail ${name} is required`)
+    return value
+  }
+  return {
+    prediction_id: required('prediction_id'), experiment_id: required('experiment_id'), source: required('source'),
+    experiment_kind: required('experiment_kind'), task_id: nullableString(row.task_id),
+    sample_index: nullableInteger(row.sample_index), model: nullableString(row.model),
+    result_state: required('result_state'), generation_status: nullableString(row.generation_status),
+    scoring_status: nullableString(row.scoring_status), harness_failure_count: nullableInteger(row.harness_failure_count) ?? 0,
+    score: nullableNumber(row.score),
+    provider_cost: nullableNumber(row.provider_cost), created_at: nullableString(row.created_at),
+    updated_at: nullableString(row.updated_at), summary_json: jsonValue(row.summary_json),
+    input_kind: nullableString(row.input_kind), input_text: nullableString(row.input_text),
+    output_kind: nullableString(row.output_kind), output_text: nullableString(row.output_text),
+    prompt_text: nullableString(row.prompt_text), code_text: nullableString(row.code_text),
+    raw_generation: nullableString(row.raw_generation), metrics_json: jsonValue(row.metrics_json),
+    request_json: jsonValue(row.request_json), response_json: jsonValue(row.response_json),
+    validation_json: jsonValue(row.validation_json),
+  }
+}
+
 export async function getPredictionDetail(predictionId: string): Promise<PredictionDetailResult> {
   try {
     return await withDetailBundle(async (database, bundle) => {
       const queries = [
-        database.query<PredictionDetail>(
+        database.query<DetailRow>(
           `SELECT p.prediction_id, p.experiment_id, p.source, p.experiment_kind, p.task_id, p.sample_index, p.model, p.result_state, p.generation_status, p.scoring_status, p.harness_failure_count, p.score, p.provider_cost, p.created_at, p.updated_at, p.summary_json, d.input_kind, d.input_text, d.output_kind, d.output_text, d.prompt_text, d.code_text, d.raw_generation, d.metrics_json, d.request_json, d.response_json, d.validation_json FROM ${bundle.members.detail_predictions} p LEFT JOIN ${bundle.members.detail_prediction_payloads} d ON d.prediction_id = p.prediction_id WHERE p.prediction_id = $1 LIMIT 1`,
           [predictionId],
         ),
@@ -59,8 +107,9 @@ export async function getPredictionDetail(predictionId: string): Promise<Predict
         )),
       ] as const
       const [rows, ...provenanceRows] = await Promise.all(queries)
-      const detail = rows[0]
-      if (!detail) return { status: 'not-found' } as const
+      const row = rows[0]
+      if (!row) return { status: 'not-found' } as const
+      const detail = parsePredictionDetailRow(row)
       const members = ['generation_runs', 'node_attempts', 'score_attempts', 'score_harness_failures', 'platform_attempts'] as const
       return {
         status: 'ok' as const, detail, bundle: bundleIdentity(bundle),

@@ -21,6 +21,7 @@ function manifest(overrides: Record<string, unknown> = {}): string {
       key_columns: ['bundle_id'],
       row_count: 0,
       checksum: EMPTY_CHECKSUM,
+      column_schema: [{ name: 'bundle_id', type: 'text' }],
     })),
     ...overrides,
   })
@@ -53,20 +54,22 @@ const pin = {
 }
 
 describe('resolveBundlePin', () => {
-  it('uses dr-platform canonical scalar values across postgres.js and DuckDB', () => {
+  it('matches a fixed dr-platform publisher checksum vector', () => {
     const postgresRows = [{
-      bundle_id: 'bundle-1', snapshot_seq: '42', row_count: '9007199254740991',
-      pass_rate: '0.125', summary_json: '{"z":null,"a":[2,1]}',
-      created_at: '2026-07-12T12:34:56.000Z', input_text: '001',
-      failure_json: null,
+      created_at: '2026-07-12T12:34:56Z', integer_value: '42', decimal_value: '0.125',
+      payload: '{"score":"001","z":null}',
     }]
     const duckdbRows = [{
-      bundle_id: 'bundle-1', snapshot_seq: 42, row_count: BigInt('9007199254740991'),
-      pass_rate: 0.125, summary_json: { a: [2, 1], z: null },
-      created_at: new Date('2026-07-12T12:34:56.000Z'), input_text: '001',
-      failure_json: null,
+      created_at: new Date('2026-07-12T12:34:56Z'), integer_value: '42', decimal_value: 0.125,
+      payload: { score: '001', z: null },
     }]
-    expect(platformChecksum(postgresRows)).toBe(platformChecksum(duckdbRows))
+    const schema = [
+      { name: 'created_at', type: 'timestamp' }, { name: 'integer_value', type: 'integer' },
+      { name: 'decimal_value', type: 'numeric' }, { name: 'payload', type: 'json' },
+    ] as const
+    const publisherChecksum = 'f3839d90a868300be03df971783bce4e9d8d3ab142be7a0cb2e7672ed3949845'
+    expect(platformChecksum(postgresRows, schema)).toBe(publisherChecksum)
+    expect(platformChecksum(duckdbRows, schema)).toBe(publisherChecksum)
   })
   it('accepts only a complete, checksummed application bundle', async () => {
     await expect(
@@ -93,7 +96,7 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('reads every member from the resolved pinned table, never from a current pointer', async () => {
+  it('resolves the promoted pin without request-time member scans', async () => {
     const statements: string[] = []
     const database = databaseFor({
       bundle_id: 'bundle-1',
@@ -113,11 +116,7 @@ describe('resolveBundlePin', () => {
 
     await resolveBundlePin(recordingDatabase, ANALYSIS_BUNDLE_CONTRACT, pin)
 
-    expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual(
-      ANALYSIS_BUNDLE_CONTRACT.members.map(
-        member => `SELECT * FROM "public"."bundle_${member}" ORDER BY "bundle_id"`,
-      ),
-    )
+    expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual([])
     expect(statements.join('\n')).not.toContain('dr_platform_publication_state WHERE')
   })
 
@@ -145,7 +144,7 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('rejects a member checksum mismatch', async () => {
+  it('rejects malformed member checksums before allowing a pinned read', async () => {
     const members = JSON.parse(manifest()).members
     members[0].checksum = 'not-a-checksum'
     await expect(
@@ -162,11 +161,11 @@ describe('resolveBundlePin', () => {
         pin,
       ),
     ).rejects.toMatchObject({
-      code: 'BUNDLE_INTEGRITY_FAILED',
+      code: 'BUNDLE_MANIFEST_INVALID',
     })
   })
 
-  it('rejects a row-count mismatch even when the member checksum is otherwise valid', async () => {
+  it('does not materialize rows to recheck promoted member counts', async () => {
     const members = JSON.parse(manifest()).members
     members[0].row_count = 1
     await expect(
@@ -179,7 +178,7 @@ describe('resolveBundlePin', () => {
         ANALYSIS_BUNDLE_CONTRACT,
         pin,
       ),
-    ).rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
+    ).resolves.toMatchObject({ bundleId: 'bundle-1' })
   })
 })
 

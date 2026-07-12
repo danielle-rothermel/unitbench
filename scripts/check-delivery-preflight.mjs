@@ -89,7 +89,13 @@ function environmentAccesses(path, contents) {
     scriptKind,
   )
   const names = new Set()
+  const environmentAliases = new Set()
+  const constantStrings = new Map()
   let importsServerOnly = false
+
+  function isEnvironment(node) {
+    return isProcessEnvironment(node) || (ts.isIdentifier(node) && environmentAliases.has(node.text))
+  }
 
   function visit(node) {
     if (
@@ -102,30 +108,45 @@ function environmentAccesses(path, contents) {
 
     if (
       ts.isPropertyAccessExpression(node) &&
-      isProcessEnvironment(node.expression)
+      isEnvironment(node.expression)
     ) {
       names.add(node.name.text)
     }
 
     if (
       ts.isElementAccessExpression(node) &&
-      isProcessEnvironment(node.expression) &&
-      node.argumentExpression &&
-      (ts.isStringLiteral(node.argumentExpression) ||
-        ts.isNoSubstitutionTemplateLiteral(node.argumentExpression))
+      isEnvironment(node.expression) &&
+      node.argumentExpression
     ) {
-      names.add(node.argumentExpression.text)
+      const argument = node.argumentExpression
+      if (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) {
+        names.add(argument.text)
+      } else if (ts.isIdentifier(argument) && constantStrings.has(argument.text)) {
+        names.add(constantStrings.get(argument.text))
+      }
     }
 
     if (
       ts.isVariableDeclaration(node) &&
       ts.isObjectBindingPattern(node.name) &&
       node.initializer &&
-      isProcessEnvironment(node.initializer)
+      isEnvironment(node.initializer)
     ) {
       for (const element of node.name.elements) {
         const name = bindingEnvironmentName(element)
         if (name) names.add(name)
+      }
+    }
+
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      if (ts.isIdentifier(node.name) && isEnvironment(node.initializer)) {
+        environmentAliases.add(node.name.text)
+      }
+      if (
+        ts.isIdentifier(node.name) &&
+        (ts.isStringLiteral(node.initializer) || ts.isNoSubstitutionTemplateLiteral(node.initializer))
+      ) {
+        constantStrings.set(node.name.text, node.initializer.text)
       }
     }
 
@@ -142,6 +163,10 @@ const syntaxProbe = environmentAccesses(
     import 'server-only'
     const dot = process.env.DATABASE_URL
     const bracket = process.env['ANALYSIS_DATABASE_URL']
+    const env = process.env
+    const alias = env.DATABASE_URL
+    const key = 'ANALYSIS_DATABASE_URL'
+    const computed = process.env[key]
     const {
       DATABASE_URL: detail,
       NEXT_PUBLIC_ANALYSIS_DATABASE_URL: publicAnalysis,

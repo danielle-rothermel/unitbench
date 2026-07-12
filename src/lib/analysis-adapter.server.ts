@@ -7,6 +7,13 @@ import { enforceRemoteComputePolicy, type RemoteComputePolicy } from '@/lib/anal
 
 export type AnalysisAdapter = PublicationDatabase & Readonly<{ kind: 'duckdb' | 'postgres' }>
 
+export class AmbiguousAnalysisStoreConfigurationError extends Error {
+  constructor() {
+    super('Configure either LOCAL_ANALYSIS_DATABASE_PATH or ANALYSIS_DATABASE_URL, not both.')
+    this.name = 'AmbiguousAnalysisStoreConfigurationError'
+  }
+}
+
 function duckDbAdapter(path: string): AnalysisAdapter {
   // Load the native binding only when local Analysis is selected. Remote
   // deployments must not require a DuckDB binary in their server bundle.
@@ -56,9 +63,10 @@ export function configuredAnalysisAdapter(
   confirmed = false,
 ): AnalysisAdapter {
   const localPath = environment.LOCAL_ANALYSIS_DATABASE_PATH?.trim()
+  const remoteUrl = environment.ANALYSIS_DATABASE_URL?.trim()
+  if (localPath && remoteUrl) throw new AmbiguousAnalysisStoreConfigurationError()
   if (localPath) return duckDbAdapter(localPath)
   enforceRemoteComputePolicy(policy, false, confirmed)
-  const url = environment.ANALYSIS_DATABASE_URL?.trim()
-  if (!url) throw new Error('ANALYSIS_DATABASE_URL is not configured.')
-  return postgresAdapter(url)
+  if (!remoteUrl) throw new Error('ANALYSIS_DATABASE_URL is not configured.')
+  return postgresAdapter(remoteUrl)
 }

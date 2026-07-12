@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { BundleState } from '@/components/panels/BundleState'
 import { Tag } from '@/components/primitives'
-import { pinConfiguredBundle } from '@/lib/bundle-pins.server'
+import { withAnalysisBundle, withDetailBundle } from '@/lib/bundle-adapter.server'
 import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { getTableConfigs } from '@/lib/table-config'
 
@@ -11,7 +11,9 @@ type PlaneStatus = { plane: 'Analysis' | 'Detail'; failure?: BundleViewFailure }
 
 async function planeStatus(plane: 'analysis' | 'detail'): Promise<PlaneStatus> {
   try {
-    await pinConfiguredBundle(plane)
+    await (plane === 'analysis'
+      ? withAnalysisBundle(async () => undefined)
+      : withDetailBundle(async () => undefined))
     return { plane: plane === 'analysis' ? 'Analysis' : 'Detail' }
   } catch (error) {
     return { plane: plane === 'analysis' ? 'Analysis' : 'Detail', failure: bundleFailure(error) }
