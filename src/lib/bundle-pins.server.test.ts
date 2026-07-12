@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, createPrivateKey, sign as signPayload } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { ANALYSIS_BUNDLE_CONTRACT } from '@/lib/bundle-contract'
 import {
@@ -6,11 +6,18 @@ import {
   BundlePinError,
   releaseBundlePin,
   resolveBundlePin,
+  integrityCanonicalJson,
   platformChecksum,
   type PublicationDatabase,
 } from '@/lib/bundle-pins.server'
 
 const EMPTY_CHECKSUM = createHash('sha256').update('[]').digest('hex')
+const PHYSICAL_DIGEST = createHash('sha256').update('').digest('hex')
+const KEY_ID = 'test-ed25519'
+const TEST_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEID4v6djRiugbIu3mOJMBQLqV5QGHI1V2AkVe/hp4OyAR
+-----END PRIVATE KEY-----`
+const TEST_PUBLIC_KEY = 'MCowBQYDK2VwAyEA0ezQwg8kdwyTQPHwHKuqmndPWfGfc8NuYCFsbma+y/Y='
 
 function manifest(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -27,17 +34,27 @@ function manifest(overrides: Record<string, unknown> = {}): string {
   })
 }
 
-function attestation(manifestJson: string, overrides: Record<string, unknown> = {}): string {
+function signedPayload(manifestJson: string, overrides: Record<string, unknown> = {}) {
   const parsed = JSON.parse(manifestJson)
-  return JSON.stringify({
+  const payload = {
     destination_id: pin.destinationId,
     bundle_key: pin.bundleKey,
     bundle_id: pin.bundleId,
     snapshot_seq: 0,
-    manifest_sha256: createHash('sha256').update(manifestJson).digest('hex'),
-    members: parsed.members,
+    integrity_version: 'dr-platform.bundle-integrity.v1',
+    source_coordinates_sha256: EMPTY_CHECKSUM,
+    physical_digest_algorithm: 'postgres-pgcrypto-row-json-length-framed-sha256-v1',
+    members: parsed.members.map((member: Record<string, unknown>) => ({
+      ...member,
+      physical_digest: PHYSICAL_DIGEST,
+    })),
     ...overrides,
-  })
+  }
+  const canonical = integrityCanonicalJson(payload)
+  return {
+    payload: JSON.stringify(payload),
+    signature: signPayload(null, Buffer.from(`dr-platform.bundle-integrity.v1\0${canonical}`), createPrivateKey(TEST_PRIVATE_KEY)).toString('base64'),
+  }
 }
 
 function databaseFor(
@@ -51,14 +68,21 @@ function databaseFor(
       void values
       if (statement.includes('dr_platform_publication_state_pins')) {
         if (!published) return [] as Row[]
-        const manifestJson = String(published.manifest_json)
+        const payload = signedPayload(String(published.manifest_json), {
+          bundle_id: String(published.bundle_id),
+          snapshot_seq: Number(published.snapshot_seq),
+        })
         return [{
-          integrity_attestation_json: attestation(manifestJson, {
-            bundle_id: String(published.bundle_id),
-            snapshot_seq: Number(published.snapshot_seq),
-          }),
+          integrity_version: 'dr-platform.bundle-integrity.v1',
+          integrity_key_id: KEY_ID,
+          integrity_payload_json: payload.payload,
+          integrity_signature: payload.signature,
+          physical_digest_algorithm: 'postgres-pgcrypto-row-json-length-framed-sha256-v1',
           ...published,
         }] as unknown as Row[]
+      }
+      if (statement.startsWith('SELECT COUNT(*)')) {
+        return [{ row_count: 0, physical_digest: PHYSICAL_DIGEST }] as unknown as Row[]
       }
       return [] as Row[]
     },
@@ -73,6 +97,8 @@ const pin = {
   bundleId: 'bundle-1',
   expiresAtMs: 100,
 }
+
+process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({ [KEY_ID]: TEST_PUBLIC_KEY })
 
 describe('resolveBundlePin', () => {
   it('fails closed when a legacy unsigned promoted row is pinned', async () => {
@@ -109,7 +135,7 @@ describe('resolveBundlePin', () => {
     }]
     expect(platformChecksum(postgresRows)).toBe(platformChecksum(duckdbRows))
   })
-  it('accepts only a complete, checksummed application bundle', async () => {
+  it('accepts only a complete, signed and checksummed application bundle', async () => {
     await expect(
       resolveBundlePin(
         databaseFor({
@@ -134,7 +160,7 @@ describe('resolveBundlePin', () => {
     })
   })
 
-  it('reads only the resolved pinned attestation, never current state or member tables', async () => {
+  it('reads only the resolved signed payload, never current state or member tables', async () => {
     const statements: string[] = []
     const database = databaseFor({
       bundle_id: 'bundle-1',
@@ -156,7 +182,7 @@ describe('resolveBundlePin', () => {
 
     expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual([])
     expect(statements.join('\n')).not.toContain('dr_platform_publication_state WHERE')
-    expect(statements).toHaveLength(1)
+    expect(statements).toHaveLength(1 + ANALYSIS_BUNDLE_CONTRACT.members.length)
   })
 
   it('fails closed for an expired or missing pin', async () => {
@@ -186,6 +212,7 @@ describe('resolveBundlePin', () => {
   it('rejects a manifest mutated after promotion', async () => {
     const members = JSON.parse(manifest()).members
     const promotedManifest = manifest()
+    const proof = signedPayload(promotedManifest, { snapshot_seq: 4 })
     members[0].checksum = 'not-a-checksum'
     await expect(
       resolveBundlePin(
@@ -196,17 +223,21 @@ describe('resolveBundlePin', () => {
             source_families: ['application'],
             members,
           }),
-          integrity_attestation_json: attestation(promotedManifest, { snapshot_seq: 4 }),
+          integrity_payload_json: proof.payload,
+          integrity_signature: proof.signature,
         }),
         ANALYSIS_BUNDLE_CONTRACT,
         pin,
       ),
-    ).rejects.toMatchObject({
-      code: 'BUNDLE_INTEGRITY_FAILED',
-    })
+    ).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
   })
 
-  it('rejects a stale or malformed bundle attestation', async () => {
+  it.each([
+    ['wrong key', { integrity_key_id: 'unknown' }],
+    ['bad signature', { integrity_signature: 'not-base64' }],
+    ['payload identity', { integrity_payload_json: JSON.stringify({ bundle_id: 'forged' }) }],
+    ['missing payload', { integrity_payload_json: null }],
+  ])('rejects %s signed proof forgery', async (_name, override) => {
     const manifestJson = manifest()
     await expect(
       resolveBundlePin(
@@ -214,12 +245,34 @@ describe('resolveBundlePin', () => {
           bundle_id: 'bundle-1',
           snapshot_seq: 4,
           manifest_json: manifestJson,
-          integrity_attestation_json: '{',
+          ...override,
         }),
         ANALYSIS_BUNDLE_CONTRACT,
         pin,
       ),
-    ).rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
+    ).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+  })
+
+  it('fails closed when a signed member physical value is changed', async () => {
+    const base = databaseFor({ bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest() })
+    const tampered: PublicationDatabase = {
+      ...base,
+      query: async <Row extends Record<string, unknown>>(statement, values) => {
+        if (statement.startsWith('SELECT COUNT(*)') && statement.includes('bundle_experiments')) {
+          return [{ row_count: 1, physical_digest: PHYSICAL_DIGEST }] as unknown as Row[]
+        }
+        return base.query<Row>(statement, values)
+      },
+    }
+    await expect(resolveBundlePin(tampered, ANALYSIS_BUNDLE_CONTRACT, pin)).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+  })
+
+  it('fails closed after key revocation', async () => {
+    const database = databaseFor({ bundle_id: 'bundle-1', snapshot_seq: 0, manifest_json: manifest() })
+    await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin)).resolves.toMatchObject({ bundleId: 'bundle-1' })
+    process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({})
+    await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin)).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+    process.env.UNITBENCH_BUNDLE_INTEGRITY_PUBLIC_KEYS = JSON.stringify({ [KEY_ID]: TEST_PUBLIC_KEY })
   })
 })
 
