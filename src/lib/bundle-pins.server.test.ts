@@ -75,6 +75,25 @@ const pin = {
 }
 
 describe('resolveBundlePin', () => {
+  it('fails closed when a legacy unsigned promoted row is pinned', async () => {
+    await expect(
+      resolveBundlePin(
+        databaseFor({
+          bundle_id: 'bundle-1',
+          snapshot_seq: 0,
+          manifest_json: manifest(),
+          integrity_version: null,
+          integrity_key_id: null,
+          integrity_payload_json: null,
+          integrity_signature: null,
+          physical_digest_algorithm: null,
+        }),
+        ANALYSIS_BUNDLE_CONTRACT,
+        pin,
+      ),
+    ).rejects.toMatchObject({ code: 'PINNED_BUNDLE_GONE' })
+  })
+
   it('uses dr-platform canonical scalar values across postgres.js and DuckDB', () => {
     const postgresRows = [{
       bundle_id: 'bundle-1', snapshot_seq: '42', row_count: '9007199254740991',
