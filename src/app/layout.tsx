@@ -32,6 +32,8 @@ export const metadata: Metadata = {
   description: 'Experiment result viewers for Unitbench.',
 }
 
+export const runtime = 'nodejs'
+
 type RootLayoutProps = {
   children: ReactNode
 }

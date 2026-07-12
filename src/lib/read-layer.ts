@@ -1,62 +1,31 @@
 /**
- * The dashboard read layer — the single module that knows how
- * analytical rows are physically stored. Today: a join over
+ * The server-only dashboard query layer — the module that knows how
+ * analytical rows are physically stored. Client-safe row parsing and view
+ * models live in dashboard-model.ts. Today this queries a join over
  * `published_predictions` + `published_prediction_details` with JSONB
  * extraction. When v1 projections land (see
  * docs/workbench/projections.md), only the SQL in here changes;
  * signatures and consumers stay put.
  */
 
+import 'server-only'
+
+import {
+  DISTRIBUTION_BUCKETS,
+  DISTRIBUTION_MAX_RATIO,
+  parseCorrectnessCompressionRow,
+  parseDistributionRow,
+  type CompressionDistributionBin,
+  type CorrectnessCompressionPoint,
+} from '@/lib/dashboard-model'
 import { neonSql } from '@/lib/neon'
 
+export type {
+  CompressionDistributionBin,
+  CorrectnessCompressionPoint,
+} from '@/lib/dashboard-model'
+
 export const DASHBOARD_POINT_LIMIT = 1500
-
-export type CorrectnessCompressionPoint = {
-  predictionId: string
-  model: string
-  resultState: string
-  score: number | null
-  compressionRatio: number | null
-  providerCost: number | null
-}
-
-function asFiniteNumber(value: unknown): number | null {
-  if (value === null || value === undefined) return null
-  const parsed = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-export function parseCorrectnessCompressionRow(
-  row: Record<string, unknown>,
-): CorrectnessCompressionPoint {
-  return {
-    predictionId: String(row.prediction_id),
-    model: String(row.model),
-    resultState: String(row.result_state),
-    score: asFiniteNumber(row.score),
-    compressionRatio: asFiniteNumber(row.compression_ratio),
-    providerCost: asFiniteNumber(row.provider_cost),
-  }
-}
-
-export const DISTRIBUTION_MAX_RATIO = 3
-export const DISTRIBUTION_BUCKETS = 12
-
-export type CompressionDistributionBin = {
-  bucket: number
-  resultState: string
-  count: number
-}
-
-export function parseDistributionRow(
-  row: Record<string, unknown>,
-): CompressionDistributionBin {
-  return {
-    bucket: Number(row.bucket),
-    resultState: String(row.result_state),
-    count: Number(row.count),
-  }
-}
 
 /**
  * Exact histogram over every qualifying prediction (not the scatter

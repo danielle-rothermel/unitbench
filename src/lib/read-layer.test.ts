@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseCorrectnessCompressionRow,
   parseDistributionRow,
-} from '@/lib/read-layer'
+} from '@/lib/dashboard-model'
 
 describe('parseCorrectnessCompressionRow', () => {
   it('maps a joined row into a typed point', () => {
