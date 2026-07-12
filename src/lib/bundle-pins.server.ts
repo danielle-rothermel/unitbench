@@ -170,9 +170,6 @@ function canonicalScalar(value: unknown, column?: string): unknown {
   if (typeof value === 'string') {
     if (TEMPORAL_COLUMNS.has(column ?? '')) return value
     if (FLOAT_COLUMNS.has(column ?? '') && value.trim() !== '') return Number(value)
-    if (JSON_COLUMNS.has(column ?? '')) {
-      try { return JSON.parse(value) } catch { return value }
-    }
   }
   return value
 }
@@ -208,6 +205,191 @@ export function platformNumericJson(value: unknown): string {
   return `${sign}${mantissa}e${exponent >= 0 ? '+' : '-'}${String(Math.abs(exponent)).padStart(2, '0')}`
 }
 
+type JsonValue = null | boolean | string | JsonInteger | JsonFloat | JsonValue[] | Map<string, JsonValue>
+type JsonInteger = Readonly<{ kind: 'integer', token: string }>
+type JsonFloat = Readonly<{ kind: 'float', value: number }>
+
+/** Compare JavaScript strings by Unicode scalar value, as Python sort_keys does. */
+function compareUnicodeCodePoints(left: string, right: string): number {
+  let leftIndex = 0
+  let rightIndex = 0
+  while (leftIndex < left.length && rightIndex < right.length) {
+    const leftCodePoint = left.codePointAt(leftIndex)!
+    const rightCodePoint = right.codePointAt(rightIndex)!
+    if (leftCodePoint !== rightCodePoint) return leftCodePoint - rightCodePoint
+    leftIndex += leftCodePoint > 0xffff ? 2 : 1
+    rightIndex += rightCodePoint > 0xffff ? 2 : 1
+  }
+  return left.length - leftIndex - (right.length - rightIndex)
+}
+
+/** Python json.dumps default string spelling: ASCII-only, compact, and lower-case escapes. */
+function platformJsonString(value: string): string {
+  let result = '"'
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+    if (codeUnit === 0x22) result += '\\"'
+    else if (codeUnit === 0x5c) result += '\\\\'
+    else if (codeUnit === 0x08) result += '\\b'
+    else if (codeUnit === 0x09) result += '\\t'
+    else if (codeUnit === 0x0a) result += '\\n'
+    else if (codeUnit === 0x0c) result += '\\f'
+    else if (codeUnit === 0x0d) result += '\\r'
+    else if (codeUnit < 0x20 || codeUnit > 0x7e) result += `\\u${codeUnit.toString(16).padStart(4, '0')}`
+    else result += value[index]
+  }
+  return `${result}"`
+}
+
+/**
+ * Losslessly parse JSON columns before checksumming. JSON.parse is unsuitable:
+ * it converts every number to Number and therefore rounds valid JSON integers.
+ */
+class PlatformJsonParser {
+  private index = 0
+
+  constructor(private readonly source: string) {}
+
+  parse(): JsonValue {
+    const value = this.parseValue()
+    this.skipWhitespace()
+    if (this.index !== this.source.length) this.invalid()
+    return value
+  }
+
+  private parseValue(): JsonValue {
+    this.skipWhitespace()
+    const character = this.source[this.index]
+    if (character === '"') return this.parseString()
+    if (character === '{') return this.parseObject()
+    if (character === '[') return this.parseArray()
+    if (character === 't' && this.consume('true')) return true
+    if (character === 'f' && this.consume('false')) return false
+    if (character === 'n' && this.consume('null')) return null
+    if (character === '-' || (character !== undefined && character >= '0' && character <= '9')) return this.parseNumber()
+    return this.invalid()
+  }
+
+  private parseObject(): Map<string, JsonValue> {
+    this.index += 1
+    const result = new Map<string, JsonValue>()
+    this.skipWhitespace()
+    if (this.source[this.index] === '}') { this.index += 1; return result }
+    while (true) {
+      this.skipWhitespace()
+      if (this.source[this.index] !== '"') this.invalid()
+      const key = this.parseString()
+      this.skipWhitespace()
+      if (this.source[this.index] !== ':') this.invalid()
+      this.index += 1
+      // json.loads and PostgreSQL JSONB both retain the final duplicate key.
+      result.set(key, this.parseValue())
+      this.skipWhitespace()
+      if (this.source[this.index] === '}') { this.index += 1; return result }
+      if (this.source[this.index] !== ',') this.invalid()
+      this.index += 1
+    }
+  }
+
+  private parseArray(): JsonValue[] {
+    this.index += 1
+    const result: JsonValue[] = []
+    this.skipWhitespace()
+    if (this.source[this.index] === ']') { this.index += 1; return result }
+    while (true) {
+      result.push(this.parseValue())
+      this.skipWhitespace()
+      if (this.source[this.index] === ']') { this.index += 1; return result }
+      if (this.source[this.index] !== ',') this.invalid()
+      this.index += 1
+    }
+  }
+
+  private parseString(): string {
+    this.index += 1
+    let result = ''
+    while (this.index < this.source.length) {
+      const character = this.source[this.index++]!
+      if (character === '"') return result
+      if (character === '\\') {
+        const escape = this.source[this.index++]
+        if (escape === '"' || escape === '\\' || escape === '/') result += escape
+        else if (escape === 'b') result += '\b'
+        else if (escape === 'f') result += '\f'
+        else if (escape === 'n') result += '\n'
+        else if (escape === 'r') result += '\r'
+        else if (escape === 't') result += '\t'
+        else if (escape === 'u') {
+          const hex = this.source.slice(this.index, this.index + 4)
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) this.invalid()
+          result += String.fromCharCode(Number.parseInt(hex, 16))
+          this.index += 4
+        } else this.invalid()
+      } else {
+        if (character.charCodeAt(0) < 0x20) this.invalid()
+        result += character
+      }
+    }
+    return this.invalid()
+  }
+
+  private parseNumber(): JsonInteger | JsonFloat {
+    const start = this.index
+    if (this.source[this.index] === '-') this.index += 1
+    if (this.source[this.index] === '0') this.index += 1
+    else {
+      if (!this.isDigit(this.source[this.index])) this.invalid()
+      while (this.isDigit(this.source[this.index])) this.index += 1
+    }
+    let float = false
+    if (this.source[this.index] === '.') {
+      float = true; this.index += 1
+      if (!this.isDigit(this.source[this.index])) this.invalid()
+      while (this.isDigit(this.source[this.index])) this.index += 1
+    }
+    if (this.source[this.index] === 'e' || this.source[this.index] === 'E') {
+      float = true; this.index += 1
+      if (this.source[this.index] === '+' || this.source[this.index] === '-') this.index += 1
+      if (!this.isDigit(this.source[this.index])) this.invalid()
+      while (this.isDigit(this.source[this.index])) this.index += 1
+    }
+    const token = this.source.slice(start, this.index)
+    if (!float) return { kind: 'integer', token: BigInt(token).toString() }
+    const value = Number(token)
+    if (!Number.isFinite(value)) this.invalid()
+    return { kind: 'float', value }
+  }
+
+  private consume(token: string): boolean {
+    if (!this.source.startsWith(token, this.index)) return false
+    this.index += token.length
+    return true
+  }
+
+  private skipWhitespace(): void {
+    while (this.source[this.index] === ' ' || this.source[this.index] === '\n' || this.source[this.index] === '\r' || this.source[this.index] === '\t') this.index += 1
+  }
+
+  private isDigit(value: string | undefined): boolean { return value !== undefined && value >= '0' && value <= '9' }
+
+  private invalid(): never { throw new BundlePinError('PINNED_BUNDLE_GONE') }
+}
+
+function canonicalizeJsonValue(value: JsonValue): string {
+  if (value === null || typeof value === 'boolean') return String(value)
+  if (typeof value === 'string') return platformJsonString(value)
+  if (Array.isArray(value)) return `[${value.map(canonicalizeJsonValue).join(',')}]`
+  if (value instanceof Map) return `{${[...value.keys()].sort(compareUnicodeCodePoints).map(key => `${platformJsonString(key)}:${canonicalizeJsonValue(value.get(key)!)}`).join(',')}}`
+  if (value.kind === 'integer') return value.token
+  return platformNumericJson(value.value)
+}
+
+function canonicalizeStructuredJson(source: string): string {
+  const value = new PlatformJsonParser(source).parse()
+  if (!Array.isArray(value) && !(value instanceof Map)) throw new BundlePinError('PINNED_BUNDLE_GONE')
+  return canonicalizeJsonValue(value)
+}
+
 function canonicalJson(value: unknown, column?: string, jsonNumber = false): string {
   // json.dumps emits Python int values as JSON numbers.  Keep PostgreSQL int8
   // strings textual here so values above JS's safe integer limit stay exact.
@@ -218,6 +400,7 @@ function canonicalJson(value: unknown, column?: string, jsonNumber = false): str
   if (FLOAT_COLUMNS.has(column ?? '') && (typeof value === 'string' || typeof value === 'number')) {
     return platformNumericJson(value)
   }
+  if (JSON_COLUMNS.has(column ?? '') && typeof value === 'string') return canonicalizeStructuredJson(value)
   value = canonicalScalar(value, column)
   // JSON has a distinct integer type in Platform's Python decoder. DuckDB
   // renders JSONB 1.234e16 as an integer token, so preserve that source type;
@@ -232,11 +415,11 @@ function canonicalJson(value: unknown, column?: string, jsonNumber = false): str
   if (value !== null && typeof value === 'object') {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key], key, nestedJsonNumber)}`)
+      .sort(compareUnicodeCodePoints)
+      .map((key) => `${platformJsonString(key)}:${canonicalJson(record[key], key, nestedJsonNumber)}`)
       .join(',')}}`
   }
-  return JSON.stringify(value)
+  return typeof value === 'string' ? platformJsonString(value) : JSON.stringify(value)
 }
 
 /** RFC8785-equivalent canonicalization for the deliberately JSON-only payload. */

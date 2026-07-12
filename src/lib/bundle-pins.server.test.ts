@@ -1,6 +1,7 @@
 import { createHash, createPrivateKey, sign as signPayload } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import numericVectors from '@/lib/platform-numeric-json-vectors.json'
+import jsonChecksumVectors from '@/lib/platform-json-checksum-vectors.json'
 import { ANALYSIS_BUNDLE_CONTRACT } from '@/lib/bundle-contract'
 import {
   acquireBundlePin,
@@ -191,6 +192,23 @@ describe('resolveBundlePin', () => {
     for (const vector of numericVectors) {
       expect(platformNumericJson(vector.input), vector.name).toBe(vector.expected)
     }
+  })
+
+  it('matches Python-authored lossless structured JSON checksum vectors', () => {
+    for (const vector of jsonChecksumVectors) {
+      expect(platformChecksum([{ config_json: vector.json }]), vector.name).toBe(vector.expected)
+    }
+  })
+
+  it.each([
+    '{"number":01}',
+    '{"number":1e9999}',
+    '{"number":NaN}',
+    '{"number":Infinity}',
+    '{"number":-Infinity}',
+    '{"unterminated":"value}',
+  ])('rejects non-standard or non-finite structured JSON: %s', (configJson) => {
+    expect(() => platformChecksum([{ config_json: configJson }])).toThrow(BundlePinError)
   })
 
   it.each(['NaN', 'Infinity', '-Infinity'])('rejects non-finite numeric values', (value) => {
