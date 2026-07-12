@@ -27,6 +27,15 @@ function manifest(overrides: Record<string, unknown> = {}): string {
   })
 }
 
+function integrityAttestation(manifestJson: string): string {
+  return JSON.stringify(Object.fromEntries(
+    JSON.parse(manifestJson).members.map((member: { member: string; checksum: string }) => [
+      member.member,
+      member.checksum,
+    ]),
+  ))
+}
+
 function databaseFor(
   published: Record<string, unknown> | undefined,
 ): PublicationDatabase {
@@ -37,7 +46,13 @@ function databaseFor(
     ) => {
       void values
       if (statement.includes('dr_platform_publication_state_pins')) {
-        return (published ? [published] : []) as Row[]
+        if (!published) return [] as Row[]
+        const manifestJson = String(published.manifest_json)
+        return [{
+          committed_snapshot_seq: published.snapshot_seq,
+          checksums_json: integrityAttestation(manifestJson),
+          ...published,
+        }] as unknown as Row[]
       }
       return [] as Row[]
     },
@@ -118,6 +133,7 @@ describe('resolveBundlePin', () => {
 
     expect(statements.filter(statement => statement.startsWith('SELECT * FROM'))).toEqual([])
     expect(statements.join('\n')).not.toContain('dr_platform_publication_state WHERE')
+    expect(statements).toHaveLength(1)
   })
 
   it('fails closed for an expired or missing pin', async () => {
@@ -163,6 +179,53 @@ describe('resolveBundlePin', () => {
     ).rejects.toMatchObject({
       code: 'BUNDLE_MANIFEST_INVALID',
     })
+  })
+
+  it('detects a promoted-member checksum tampered after its promotion attestation', async () => {
+    const members = JSON.parse(manifest()).members
+    const checksumsJson = integrityAttestation(JSON.stringify({ source_families: ['application'], members }))
+    members[0].checksum = EMPTY_CHECKSUM.replace(/^./, 'f')
+    await expect(
+      resolveBundlePin(
+        {
+          query: async <Row extends Record<string, unknown>>() => [{
+            bundle_id: 'bundle-1', snapshot_seq: 4,
+            committed_snapshot_seq: 4,
+            manifest_json: JSON.stringify({ source_families: ['application'], members }),
+            checksums_json: checksumsJson,
+          }] as unknown as Row[],
+          transaction: async (operation) => operation(databaseFor(undefined)),
+        },
+        ANALYSIS_BUNDLE_CONTRACT,
+        pin,
+      ),
+    ).rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
+  })
+
+  it('fails closed when the destination promotion attestation is missing', async () => {
+    const published = {
+      bundle_id: 'bundle-1', snapshot_seq: 4, manifest_json: manifest(),
+      committed_snapshot_seq: 4, checksums_json: '',
+    }
+    const database: PublicationDatabase = {
+      query: async <Row extends Record<string, unknown>>() => [published] as unknown as Row[],
+      transaction: async (operation) => operation(database),
+    }
+    await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin))
+      .rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
+  })
+
+  it('fails closed when the destination promotion attestation is stale', async () => {
+    const published = {
+      bundle_id: 'bundle-1', snapshot_seq: 4, manifest_json: manifest(),
+      committed_snapshot_seq: 3, checksums_json: '{}',
+    }
+    const database: PublicationDatabase = {
+      query: async <Row extends Record<string, unknown>>() => [published] as unknown as Row[],
+      transaction: async (operation) => operation(database),
+    }
+    await expect(resolveBundlePin(database, ANALYSIS_BUNDLE_CONTRACT, pin))
+      .rejects.toMatchObject({ code: 'BUNDLE_INTEGRITY_FAILED' })
   })
 
   it('does not materialize rows to recheck promoted member counts', async () => {

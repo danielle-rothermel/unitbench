@@ -67,6 +67,8 @@ type PublishedBundleRow = QueryRow & {
   bundle_id: string
   snapshot_seq: number | string
   manifest_json: string
+  committed_snapshot_seq: number | string
+  checksums_json: string
 }
 
 export class BundlePinError extends Error {
@@ -238,19 +240,59 @@ function manifestMembers(
   ) as Readonly<Record<BundleMember, ManifestMember>>
 }
 
+/**
+ * The publisher writes this destination-local record in the same promotion
+ * transaction that validates every physical member. Readers trust it as the
+ * bounded integrity attestation. Its trust boundary is the publisher-owned
+ * destination state plus immutable promoted tables; reader credentials must
+ * not have direct member-write permission.
+ */
+function verifiedChecksums(
+  contract: BundleContract,
+  value: string,
+): Readonly<Record<BundleMember, string>> {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  const checksums = parsed as Record<string, unknown>
+  if (
+    Object.keys(checksums).length !== contract.members.length
+    || contract.members.some((member) => !/^[a-f0-9]{64}$/.test(String(checksums[member])))
+  ) {
+    throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  }
+  return checksums as Readonly<Record<BundleMember, string>>
+}
+
 async function verifyPinnedBundle<Member extends BundleMember>(
   database: PublicationDatabase,
   contract: BundleContract<BundlePlane, Member>,
   row: PublishedBundleRow,
 ): Promise<PinnedBundle<Member>> {
   const snapshotSeq = asNonNegativeInteger(row.snapshot_seq)
+  const committedSnapshotSeq = asNonNegativeInteger(row.committed_snapshot_seq)
   if (snapshotSeq === null) throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
+  if (committedSnapshotSeq === null) throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
+  if (snapshotSeq !== committedSnapshotSeq) throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
   const manifest = parseManifest(row.manifest_json)
   const members = manifestMembers(contract, manifest)
   for (const member of contract.members) {
     const publishedMember = members[member]
     if (!/^[a-f0-9]{64}$/.test(publishedMember.checksum)) {
       throw new BundlePinError('BUNDLE_MANIFEST_INVALID')
+    }
+  }
+  const checksums = verifiedChecksums(contract, row.checksums_json)
+  for (const member of contract.members) {
+    const publishedMember = members[member]
+    if (publishedMember.checksum !== checksums[member]) {
+      throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
     }
   }
   return {
@@ -336,7 +378,7 @@ export async function resolveBundlePin<Member extends BundleMember>(
     throw new BundlePinError('PIN_EXPIRED_OR_GONE')
   }
   const [published] = await database.query<PublishedBundleRow>(
-    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
+    `SELECT b.bundle_id, b.snapshot_seq, b.manifest_json, s.committed_snapshot_seq, s.checksums_json FROM ${PUBLICATION_PINS_TABLE} p JOIN ${PUBLICATION_BUNDLES_TABLE} b ON b.destination_id = p.destination_id AND b.bundle_key = p.bundle_key AND b.bundle_id = p.bundle_id LEFT JOIN ${PUBLICATION_STATE_TABLE} s ON s.destination_id = p.destination_id AND s.bundle_key = p.bundle_key AND s.bundle_id = p.bundle_id WHERE p.destination_id = $1 AND p.bundle_key = $2 AND p.pin_id = $3 AND p.bundle_id = $4 AND p.expires_at > CURRENT_TIMESTAMP AND b.status = 'PROMOTED'`,
     [pin.destinationId, pin.bundleKey, pin.pinId, pin.bundleId],
   )
   if (!published) throw new BundlePinError('PIN_EXPIRED_OR_GONE')

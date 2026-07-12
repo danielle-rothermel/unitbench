@@ -1,6 +1,6 @@
 # R3 — Compression-results visualizer (REL-4)
 
-Status: PLAN — implementation to follow on branch `rel4-compression-results`.
+Status: REVIEWED — historical v0 implementation plan; the implementation is recorded in the frozen packet.
 
 Per-sample visualizer that validates enc-dec infra behavior: did the encoder hit its
 compression target, what did the intermediate representation cost in characters, and
