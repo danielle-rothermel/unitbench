@@ -16,7 +16,7 @@ import {
 } from '@/lib/heatmap-config'
 import type { HeatmapState } from '@/lib/heatmap-params'
 import { withAnalysisBundle } from '@/lib/bundle-adapter.server'
-import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
+import { bundleFailure, bundleIdentity, type BundleIdentity, type BundleViewFailure } from '@/lib/bundle-view'
 import { totalPages } from '@/lib/pagination'
 import {
   orderByForSort,
@@ -60,6 +60,8 @@ export type AggregatePage =
       rows: TableRow[]
       total: number
       totalPages: number
+      facets: AggregateFacets
+      bundle: BundleIdentity
     }
   | {
       status: 'failure'
@@ -87,22 +89,7 @@ function queryWithParams<T extends TableRow>(
   )
 }
 
-function queryBatchWithParams<T extends TableRow>(
-  queries: readonly SqlQuery[],
-): Promise<T[][]> {
-  return withAnalysisBundle(async (database, bundle) =>
-    Promise.all(
-      queries.map(({ text, params }) =>
-        database.query<T>(
-          text.replaceAll('"predictions"', bundle.members.predictions),
-          params,
-        ) as Promise<T[]>,
-      ),
-    ),
-  )
-}
-
-function countFromRows(rows: TableRow[]): number {
+function countFromRows(rows: readonly TableRow[]): number {
   const first = rows[0]
   const raw = first?.total
   if (typeof raw === 'number') return raw
@@ -440,15 +427,25 @@ export async function getAggregatePage(
   try {
     const countQuery = buildAggregateCountQuery(state)
     const selectQuery = buildAggregateQuery(state)
-    const [countRows, rows] = await queryBatchWithParams([countQuery, selectQuery])
-    const total = countFromRows(countRows)
+    const result = await withAnalysisBundle(async (database, bundle) => {
+      const source = bundle.members.predictions
+      const [countRows, rows, facets] = await Promise.all([
+        database.query<TableRow>(countQuery.text.replaceAll('"predictions"', source), countQuery.params),
+        database.query<TableRow>(selectQuery.text.replaceAll('"predictions"', source), selectQuery.params),
+        getAggregateFacetsFromDatabase(state, database, source),
+      ])
+      return { countRows, rows, facets, bundle: bundleIdentity(bundle) }
+    })
+    const total = countFromRows(result.countRows)
     return {
       status: 'ok',
       state,
       tableConfig,
-      rows,
+      rows: [...result.rows],
       total,
       totalPages: totalPages(total, state.pageSize),
+      facets: result.facets,
+      bundle: result.bundle,
     }
   } catch (error) {
     return {
@@ -481,7 +478,17 @@ function predictionsFacetWhere(
 export async function getAggregateFacets(
   state: Pick<AggregateState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const table = qualifiedTableName(AGGREGATE_TABLE)
+  return withAnalysisBundle((database, bundle) =>
+    getAggregateFacetsFromDatabase(state, database, bundle.members.predictions),
+  )
+}
+
+async function getAggregateFacetsFromDatabase(
+  state: Pick<AggregateState, 'hideTestExperiments'>,
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+  source: string,
+): Promise<AggregateFacets> {
+  const table = source
   const keys = ['model', 'experiment_kind'] as const
   const entries = await Promise.all(
     keys.map(async key => {
@@ -492,14 +499,14 @@ export async function getAggregateFacets(
           : `${quoteIdentifier(key)} IS NOT NULL`,
       )
       if (key === 'model') {
-        const rows = await queryWithParams<{ value: unknown }>(
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
         return [key, rows.map(row => String(row.value))] as const
       }
       const id = quoteIdentifier(key)
-      const rows = await queryWithParams<{ value: unknown }>(
+      const rows = await database.query<{ value: unknown }>(
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -512,7 +519,17 @@ export async function getAggregateFacets(
 export async function getHeatmapFacets(
   state: Pick<HeatmapState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const table = qualifiedTableName(AGGREGATE_TABLE)
+  return withAnalysisBundle((database, bundle) =>
+    getHeatmapFacetsFromDatabase(state, database, bundle.members.predictions),
+  )
+}
+
+async function getHeatmapFacetsFromDatabase(
+  state: Pick<HeatmapState, 'hideTestExperiments'>,
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+  source: string,
+): Promise<AggregateFacets> {
+  const table = source
   const entries = await Promise.all(
     HEATMAP_FILTER_COLUMNS.map(async key => {
       if (key === 'model') {
@@ -520,7 +537,7 @@ export async function getHeatmapFacets(
           state.hideTestExperiments,
           `${quoteIdentifier('model')} IS NOT NULL`,
         )
-        const rows = await queryWithParams<{ value: unknown }>(
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -528,7 +545,7 @@ export async function getHeatmapFacets(
       }
       if (key === 'budget') {
         const { where, params } = predictionsFacetWhere(state.hideTestExperiments)
-        const rows = await queryWithParams<{ value: unknown }>(
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -539,7 +556,7 @@ export async function getHeatmapFacets(
         state.hideTestExperiments,
         `${id} IS NOT NULL`,
       )
-      const rows = await queryWithParams<{ value: unknown }>(
+      const rows = await database.query<{ value: unknown }>(
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -552,4 +569,21 @@ export async function getHeatmapFacets(
 export async function getHeatmapRows(state: HeatmapState): Promise<TableRow[]> {
   const query = buildHeatmapQuerySql(state)
   return queryWithParams(query.text, query.params)
+}
+
+/** A heatmap is one Analysis view: facets and cells must share one pin. */
+export async function getHeatmapPage(state: HeatmapState): Promise<{
+  rows: readonly TableRow[]
+  facets: AggregateFacets
+  bundle: BundleIdentity
+}> {
+  return withAnalysisBundle(async (database, bundle) => {
+    const source = bundle.members.predictions
+    const query = buildHeatmapQuerySql(state)
+    const [rows, facets] = await Promise.all([
+      database.query<TableRow>(query.text.replaceAll('"predictions"', source), query.params),
+      getHeatmapFacetsFromDatabase(state, database, source),
+    ])
+    return { rows, facets, bundle: bundleIdentity(bundle) }
+  })
 }

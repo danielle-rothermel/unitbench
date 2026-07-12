@@ -11,6 +11,7 @@ import {
   type DetailBundleMember,
 } from '@/lib/bundle-contract'
 import { publicationStoreConfiguration } from '@/lib/store-environment.server'
+import { configuredAnalysisAdapter } from '@/lib/analysis-adapter.server'
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
 const PUBLICATION_STATE_TABLE = 'dr_platform_publication_state'
@@ -89,21 +90,64 @@ function physicalTable(member: ManifestMember): string {
   return `${quoteIdentifier(member.schema_name)}.${quoteIdentifier(member.table_name)}`
 }
 
-function canonicalJson(value: unknown): string {
+/**
+ * Mirrors dr-platform's `_canonical`: compact JSON, sorted object keys, and
+ * ISO temporal values.  postgres.js returns int8/numeric as strings while
+ * DuckDB returns numbers; the member column contract tells us which strings
+ * are database scalars rather than application text.
+ */
+const INTEGER_COLUMNS = new Set([
+  'snapshot_seq', 'row_count', 'sample_index', 'attempt_index', 'platform_attempt',
+  'failure_count',
+])
+const FLOAT_COLUMNS = new Set([
+  'pass_rate', 'score', 'provider_cost', 'latency_ms', 'compression_ratio', 'metric_value',
+])
+const JSON_COLUMNS = new Set([
+  'config_json', 'summary_json', 'metrics_json', 'request_json', 'response_json',
+  'validation_json', 'raw_generation', 'provider_config_json', 'output_json',
+  'usage_cost_json', 'response_metadata_json', 'failure_json',
+  'dataset_snapshot_json', 'extracted_submission_json', 'per_test_results_json',
+])
+const TEMPORAL_COLUMNS = new Set([
+  'created_at', 'updated_at', 'started_at', 'completed_at', 'enqueued_at', 'terminal_at',
+])
+
+function canonicalScalar(value: unknown, column?: string): unknown {
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'bigint') return Number(value)
+  if (typeof value === 'string') {
+    if (TEMPORAL_COLUMNS.has(column ?? '')) return new Date(value).toISOString()
+    if (FLOAT_COLUMNS.has(column ?? '') && value.trim() !== '') return Number(value)
+    if (JSON_COLUMNS.has(column ?? '')) {
+      try { return JSON.parse(value) } catch { return value }
+    }
+  }
+  return value
+}
+
+function canonicalJson(value: unknown, column?: string): string {
+  // json.dumps emits Python int values as JSON numbers.  Keep PostgreSQL int8
+  // strings textual here so values above JS's safe integer limit stay exact.
+  if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'string' && /^-?\d+$/.test(value)) {
+    return value
+  }
+  if (INTEGER_COLUMNS.has(column ?? '') && typeof value === 'bigint') return value.toString()
+  value = canonicalScalar(value, column)
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`
+    return `[${value.map(item => canonicalJson(item)).join(',')}]`
   }
   if (value !== null && typeof value === 'object') {
     const record = value as Record<string, unknown>
     return `{${Object.keys(record)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key], key)}`)
       .join(',')}}`
   }
   return JSON.stringify(value)
 }
 
-function checksum(rows: readonly QueryRow[]): string {
+export function platformChecksum(rows: readonly QueryRow[]): string {
   return createHash('sha256').update(canonicalJson(rows)).digest('hex')
 }
 
@@ -218,7 +262,7 @@ async function verifyPinnedBundle<Member extends BundleMember>(
     const rows = await rowsForMember(database, publishedMember)
     if (
       rows.length !== publishedMember.row_count ||
-      checksum(rows) !== publishedMember.checksum
+      platformChecksum(rows) !== publishedMember.checksum
     ) {
       throw new BundlePinError('BUNDLE_INTEGRITY_FAILED')
     }
@@ -326,7 +370,9 @@ export async function withConfiguredPinnedBundle<
   ) => Promise<Result>,
 ): Promise<Result> {
   const configuration = publicationStoreConfiguration(plane)
-  const database = nativePublicationDatabase(configuration.databaseUrl)
+  const database = plane === 'analysis'
+    ? configuredAnalysisAdapter()
+    : nativePublicationDatabase(configuration.databaseUrl)
   const contract = bundleContract(plane)
   try {
     const pin = await acquireBundlePin(database, contract, configuration.destinationId)

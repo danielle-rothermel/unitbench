@@ -5,6 +5,7 @@ import {
   acquireBundlePin,
   BundlePinError,
   resolveBundlePin,
+  platformChecksum,
   type PublicationDatabase,
 } from '@/lib/bundle-pins.server'
 
@@ -52,6 +53,21 @@ const pin = {
 }
 
 describe('resolveBundlePin', () => {
+  it('uses dr-platform canonical scalar values across postgres.js and DuckDB', () => {
+    const postgresRows = [{
+      bundle_id: 'bundle-1', snapshot_seq: '42', row_count: '9007199254740991',
+      pass_rate: '0.125', summary_json: '{"z":null,"a":[2,1]}',
+      created_at: '2026-07-12T12:34:56.000Z', input_text: '001',
+      failure_json: null,
+    }]
+    const duckdbRows = [{
+      bundle_id: 'bundle-1', snapshot_seq: 42, row_count: BigInt('9007199254740991'),
+      pass_rate: 0.125, summary_json: { a: [2, 1], z: null },
+      created_at: new Date('2026-07-12T12:34:56.000Z'), input_text: '001',
+      failure_json: null,
+    }]
+    expect(platformChecksum(postgresRows)).toBe(platformChecksum(duckdbRows))
+  })
   it('accepts only a complete, checksummed application bundle', async () => {
     await expect(
       resolveBundlePin(

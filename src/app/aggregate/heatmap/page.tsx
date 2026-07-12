@@ -2,7 +2,7 @@ import { AggregatePageShell } from '@/components/AggregatePageShell'
 import { HeatmapFilters } from '@/components/HeatmapFilters'
 import { BundleState } from '@/components/panels/BundleState'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
-import { getHeatmapFacets, getHeatmapRows } from '@/lib/aggregate-data'
+import { getHeatmapPage } from '@/lib/aggregate-data'
 import { heatmapTitle } from '@/lib/heatmap-config'
 import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { parseHeatmapState } from '@/lib/heatmap-params'
@@ -17,13 +17,14 @@ export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const state = parseHeatmapState(resolvedSearchParams)
 
-  let facets: Awaited<ReturnType<typeof getHeatmapFacets>> = {}
-  let heatmapRows: Awaited<ReturnType<typeof getHeatmapRows>> = []
+  let facets: Record<string, string[]> = {}
+  let heatmapRows: readonly Record<string, unknown>[] = []
   let failure: BundleViewFailure | null = null
 
   try {
-    facets = await getHeatmapFacets(state)
-    heatmapRows = await getHeatmapRows(state)
+    const result = await getHeatmapPage(state)
+    facets = result.facets
+    heatmapRows = result.rows
   } catch (error) {
     failure = bundleFailure(error)
   }
@@ -41,7 +42,7 @@ export default async function Page({ searchParams }: PageProps) {
       {!failure && (
         <>
           <HeatmapFilters state={state} facets={facets} />
-          <ScoreHeatmap rows={heatmapRows} state={state} />
+          <ScoreHeatmap rows={[...heatmapRows]} state={state} />
         </>
       )}
     </AggregatePageShell>
