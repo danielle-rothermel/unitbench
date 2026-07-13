@@ -58,20 +58,19 @@ export function buildTestExperimentWhereParts(
   }
 
   const patterns = testExperimentPatterns()
-  const paramIndex = options.paramOffset + 1
-  const idMatch = `${options.experimentIdExpr} ILIKE ANY($${paramIndex}::text[])`
+  const matches = (expression: string) => patterns.map((_, index) =>
+    `${expression} ILIKE $${options.paramOffset + index + 1}`,
+  ).join(' OR ')
+  const idMatch = `(${matches(options.experimentIdExpr)})`
 
   if (options.displayNameExpr) {
     return {
       conditions: [
-        `NOT (${idMatch} OR ${options.displayNameExpr} ILIKE ANY($${paramIndex}::text[]))`,
+        `NOT (${idMatch} OR (${matches(options.displayNameExpr)}))`,
       ],
-      params: [patterns],
+      params: patterns,
     }
   }
 
-  return {
-    conditions: [`NOT (${idMatch})`],
-    params: [patterns],
-  }
+  return { conditions: [`NOT (${idMatch})`], params: patterns }
 }

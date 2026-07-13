@@ -1,0 +1,13 @@
+name: Unitbench release parity
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  whetstone-owned-fixture:
+    uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@9a290669efb5b5016b0edb6a4503159de280f5af
+    with:
+      whetstone_sha: 9a290669efb5b5016b0edb6a4503159de280f5af
+    secrets: inherit

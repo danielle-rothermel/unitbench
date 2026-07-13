@@ -15,7 +15,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Authenticate private Git dependencies
+        env:
+          GH_DR_ORG_REPOS_READ_TOKEN: ${{ secrets.GH_DR_ORG_REPOS_READ_TOKEN }}
+        run: |
+          test -n "${GH_DR_ORG_REPOS_READ_TOKEN}"
+          git config --global url."https://x-access-token:${GH_DR_ORG_REPOS_READ_TOKEN}@github.com/danielle-rothermel/".insteadOf "https://github.com/danielle-rothermel/"
       - run: pnpm install --frozen-lockfile
+      - name: Remove private Git authentication
+        if: always()
+        env:
+          GH_DR_ORG_REPOS_READ_TOKEN: ${{ secrets.GH_DR_ORG_REPOS_READ_TOKEN }}
+        run: git config --global --remove-section url."https://x-access-token:${GH_DR_ORG_REPOS_READ_TOKEN}@github.com/danielle-rothermel/" || true
       - run: pnpm exec tsc --noEmit
       - run: pnpm lint
       - run: pnpm test

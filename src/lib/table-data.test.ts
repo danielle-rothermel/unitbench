@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getTableConfig } from '@/lib/table-config'
+import { CANONICAL_MODEL_SQL } from '@/lib/canonical-model'
 import { buildCountQuery, buildSelectQuery } from '@/lib/table-data'
 import { testExperimentPatterns } from '@/lib/test-experiment-filter'
 import { parseTableState } from '@/lib/table-params'
@@ -8,17 +9,19 @@ const config = getTableConfig('predictions')
 const experimentsConfig = getTableConfig('experiments')
 const detailsConfig = getTableConfig('detail-predictions')
 const patterns = testExperimentPatterns()
+const scalarMatches = (expression: string, offset: number): string =>
+  patterns.map((_, index) => `${expression} ILIKE $${offset + index}`).join(' OR ')
 
 describe('table query builders', () => {
   it('builds an unfiltered, default-sorted page query with test experiment filter', () => {
     const state = parseTableState(config, {})
     const count = buildCountQuery(config, state)
-    expect(count.text).toContain('NOT ("experiment_id" ILIKE ANY($1::text[]))')
-    expect(count.params).toEqual([patterns])
+    expect(count.text).toContain(`NOT ((${scalarMatches('"experiment_id"', 1)}))`)
+    expect(count.params).toEqual(patterns)
     const select = buildSelectQuery(config, state)
     expect(select.text).toContain('ORDER BY "updated_at" DESC')
-    expect(select.text).toContain('LIMIT $2 OFFSET $3')
-    expect(select.params).toEqual([patterns, 25, 0])
+    expect(select.text).toContain('LIMIT $8 OFFSET $9')
+    expect(select.params).toEqual([...patterns, 25, 0])
   })
 
   it('builds facet (= ANY) and text (ILIKE) conditions with parameter offsets', () => {
@@ -31,16 +34,16 @@ describe('table query builders', () => {
     })
     const count = buildCountQuery(config, state)
     expect(count.text).toContain('"task_id" ILIKE $1')
-    expect(count.text).toContain('= ANY($2::text[])')
-    expect(count.text).toContain('NOT ("experiment_id" ILIKE ANY($3::text[]))')
-    expect(count.params).toEqual(['%HumanEval%', ['openai/test'], patterns])
+    expect(count.text).toContain(`${CANONICAL_MODEL_SQL} = $2`)
+    expect(count.text).toContain(`NOT ((${scalarMatches('"experiment_id"', 3)}))`)
+    expect(count.params).toEqual(['%HumanEval%', 'openai/test', ...patterns])
     const select = buildSelectQuery(config, state)
     expect(select.text).toContain('ORDER BY "score" ASC')
-    expect(select.text).toContain('LIMIT $4 OFFSET $5')
+    expect(select.text).toContain('LIMIT $10 OFFSET $11')
     expect(select.params).toEqual([
       '%HumanEval%',
-      ['openai/test'],
-      patterns,
+      'openai/test',
+      ...patterns,
       25,
       25,
     ])
@@ -52,12 +55,12 @@ describe('table query builders', () => {
       generation_status: 'generated',
     })
     const count = buildCountQuery(config, state)
-    expect(count.text).toContain('= ANY($1::text[])')
-    expect(count.text).toContain('= ANY($2::text[])')
+    expect(count.text).toContain('"experiment_kind" = $1')
+    expect(count.text).toContain('"generation_status" = $2')
     expect(count.params).toEqual([
-      ['humaneval_encdec'],
-      ['generated'],
-      patterns,
+      'humaneval_encdec',
+      'generated',
+      ...patterns,
     ])
   })
 
@@ -77,8 +80,8 @@ describe('table query builders', () => {
   it('filters experiments by experiment_id and display_name', () => {
     const state = parseTableState(experimentsConfig, {})
     const count = buildCountQuery(experimentsConfig, state)
-    expect(count.text).toContain('"display_name" ILIKE ANY($1::text[])')
-    expect(count.params).toEqual([patterns])
+    expect(count.text).toContain(scalarMatches('"display_name"', 1))
+    expect(count.params).toEqual(patterns)
   })
 
   it('reads detail predictions without a cross-plane join', () => {
@@ -88,13 +91,13 @@ describe('table query builders', () => {
     })
     const count = buildCountQuery(detailsConfig, state)
     expect(count.text).toContain('FROM "detail_predictions"')
-    expect(count.text).toContain('"experiment_id" ILIKE ANY(')
+    expect(count.text).toContain(scalarMatches('"experiment_id"', 3))
   })
 
   it('omits test experiment filter when includeTestExps=1', () => {
     const state = parseTableState(config, { includeTestExps: '1' })
     const count = buildCountQuery(config, state)
-    expect(count.text).not.toContain('NOT ("experiment_id" ILIKE ANY(')
+    expect(count.text).not.toContain('"experiment_id" ILIKE')
     expect(count.params).toEqual([])
   })
 })

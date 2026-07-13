@@ -14,7 +14,7 @@ export class AmbiguousAnalysisStoreConfigurationError extends Error {
   }
 }
 
-function duckDbAdapter(path: string): AnalysisAdapter {
+export function localDuckDbAdapter(path: string): AnalysisAdapter {
   // Load the native binding only when local Analysis is selected. Remote
   // deployments must not require a DuckDB binary in their server bundle.
   const moduleName = ['duck', 'db'].join('')
@@ -41,7 +41,7 @@ function duckDbAdapter(path: string): AnalysisAdapter {
   return adapter
 }
 
-function postgresAdapter(url: string): AnalysisAdapter {
+export function postgresPublicationAdapter(url: string): AnalysisAdapter {
   const sql = postgres(url, { connect_timeout: 10, idle_timeout: 20, max: 1 })
   const adapter: AnalysisAdapter = {
     kind: 'postgres',
@@ -50,6 +50,7 @@ function postgresAdapter(url: string): AnalysisAdapter {
     transaction: async operation => sql.begin(async transaction => operation({
       query: async <Row extends Record<string, unknown>>(statement: string, values: readonly unknown[]) =>
         transaction.unsafe(statement, values as never[]) as Promise<readonly Row[]>,
+      kind: 'postgres',
       transaction: async nested => nested(adapter),
     })) as Promise<Awaited<ReturnType<typeof operation>>>,
     close: () => sql.end({ timeout: 5 }),
@@ -65,8 +66,8 @@ export function configuredAnalysisAdapter(
   const localPath = environment.LOCAL_ANALYSIS_DATABASE_PATH?.trim()
   const remoteUrl = environment.ANALYSIS_DATABASE_URL?.trim()
   if (localPath && remoteUrl) throw new AmbiguousAnalysisStoreConfigurationError()
-  if (localPath) return duckDbAdapter(localPath)
+  if (localPath) return localDuckDbAdapter(localPath)
   enforceRemoteComputePolicy(policy, false, confirmed)
   if (!remoteUrl) throw new Error('ANALYSIS_DATABASE_URL is not configured.')
-  return postgresAdapter(remoteUrl)
+  return postgresPublicationAdapter(remoteUrl)
 }

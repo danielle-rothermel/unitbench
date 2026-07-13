@@ -11,6 +11,8 @@ import { parseTableState } from '@/lib/table-params'
 import { testExperimentPatterns } from '@/lib/test-experiment-filter'
 
 const patterns = testExperimentPatterns()
+const scalarMatches = (expression: string, offset: number): string =>
+  patterns.map((_, index) => `${expression} ILIKE $${offset + index}`).join(' OR ')
 
 describe('SQL identifier helpers', () => {
   it('quotes valid identifiers', () => {
@@ -37,11 +39,11 @@ describe('SQL identifier helpers', () => {
     const state = parseTableState(config, {})
     expect(buildCountQuery(config, state)).toEqual({
       text:
-        'SELECT count(*)::int AS total FROM "experiments" WHERE NOT ("experiment_id" ILIKE ANY($1::text[]) OR "display_name" ILIKE ANY($1::text[]))',
-      params: [patterns],
+        `SELECT count(*)::int AS total FROM "experiments" WHERE NOT ((${scalarMatches('"experiment_id"', 1)}) OR (${scalarMatches('"display_name"', 1)}))`,
+      params: patterns,
     })
     const select = buildSelectQuery(config, state)
-    expect(select.text).toContain('LIMIT $2 OFFSET $3')
-    expect(select.params).toEqual([patterns, 25, 0])
+    expect(select.text).toContain('LIMIT $8 OFFSET $9')
+    expect(select.params).toEqual([...patterns, 25, 0])
   })
 })

@@ -30,7 +30,7 @@ import {
   modelGroupBySql,
 } from '@/lib/canonical-model'
 import type { TableRow } from '@/lib/table-data'
-import { buildTestExperimentWhereParts } from '@/lib/test-experiment-filter'
+import { testExperimentPatterns } from '@/lib/test-experiment-filter'
 
 export type { AggregateFilters } from '@/lib/aggregate-filters'
 
@@ -175,13 +175,22 @@ function appendPredictionsTestExperimentFilter(
   params: unknown[],
   hide: boolean,
 ): void {
-  const testParts = buildTestExperimentWhereParts({
-    hide,
-    paramOffset: params.length,
-    experimentIdExpr: quoteIdentifier('experiment_id'),
+  if (!hide) return
+  const expression = quoteIdentifier('experiment_id')
+  conditions.push(`NOT (${scalarPlaceholders(expression, 'ILIKE', testExperimentPatterns(), params).join(' OR ')})`)
+}
+
+/** Scalar bindings work identically in postgres.js, MotherDuck, and DuckDB's native callback API. */
+function scalarPlaceholders(
+  expression: string,
+  operator: 'ILIKE' | '=',
+  values: readonly string[],
+  params: unknown[],
+): string[] {
+  return values.map(value => {
+    params.push(value)
+    return `${expression} ${operator} $${params.length}`
   })
-  conditions.push(...testParts.conditions)
-  params.push(...testParts.params)
 }
 
 function buildHeatmapWhere(state: TestExperimentFilterState): SqlQuery {
@@ -191,19 +200,14 @@ function buildHeatmapWhere(state: TestExperimentFilterState): SqlQuery {
   for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `${heatmapFilterExpression(column)} = ANY($${params.length}::text[])`,
-    )
+    conditions.push(`(${scalarPlaceholders(heatmapFilterExpression(column), '=', values, params).join(' OR ')})`)
   }
 
   for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `(${heatmapFilterExpression(column)} IS NULL OR ${heatmapFilterExpression(column)} <> ALL($${params.length}::text[]))`,
-    )
+    const expression = heatmapFilterExpression(column)
+    conditions.push(`(${expression} IS NULL OR NOT (${scalarPlaceholders(expression, '=', values, params).join(' OR ')}))`)
   }
 
   appendPredictionsTestExperimentFilter(
@@ -295,19 +299,14 @@ function buildWhere(state: TestExperimentFilterState): SqlQuery {
   for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `${filterExpression(column)} = ANY($${params.length}::text[])`,
-    )
+    conditions.push(`(${scalarPlaceholders(filterExpression(column), '=', values, params).join(' OR ')})`)
   }
 
   for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `(${filterExpression(column)} IS NULL OR ${filterExpression(column)} <> ALL($${params.length}::text[]))`,
-    )
+    const expression = filterExpression(column)
+    conditions.push(`(${expression} IS NULL OR NOT (${scalarPlaceholders(expression, '=', values, params).join(' OR ')}))`)
   }
 
   appendPredictionsTestExperimentFilter(
@@ -461,17 +460,12 @@ function predictionsFacetWhere(
   hide: boolean,
   extraCondition?: string,
 ): { where: string; params: unknown[] } {
-  const testParts = buildTestExperimentWhereParts({
-    hide,
-    paramOffset: 0,
-    experimentIdExpr: quoteIdentifier('experiment_id'),
-  })
-  const conditions = extraCondition
-    ? [extraCondition, ...testParts.conditions]
-    : [...testParts.conditions]
+  const conditions = extraCondition ? [extraCondition] : []
+  const params: unknown[] = []
+  appendPredictionsTestExperimentFilter(conditions, params, hide)
   return {
     where: conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '',
-    params: testParts.params,
+    params,
   }
 }
 
