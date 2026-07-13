@@ -7,6 +7,8 @@ permissions: {}
 
 jobs:
   whetstone-owned-fixture:
+    permissions:
+      contents: read
     uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@3193c29df89c2776479b1b98d279b6d60d89965a
     with:
       whetstone_sha: 3193c29df89c2776479b1b98d279b6d60d89965a

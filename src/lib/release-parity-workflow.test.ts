@@ -15,6 +15,15 @@ const CalledWorkflowSecrets = [
 ]
 
 describe('release parity reusable workflow caller', () => {
+  it('denies permissions globally and grants only job-scoped contents read', async () => {
+    const workflow = await readFile(resolve(process.cwd(), '.github/workflows/release-parity.yml'), 'utf8')
+
+    expect(workflow.match(/permissions:/g)).toHaveLength(2)
+    expect(workflow).toContain(
+      'permissions: {}\n\njobs:\n  whetstone-owned-fixture:\n    permissions:\n      contents: read\n',
+    )
+  })
+
   it('pins the exact immutable Whetstone producer and input', async () => {
     const workflow = await readFile(resolve(process.cwd(), '.github/workflows/release-parity.yml'), 'utf8')
     const match = workflow.match(/release-parity\.yml@([0-9a-f]{40})/)
