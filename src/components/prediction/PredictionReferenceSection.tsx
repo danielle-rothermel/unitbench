@@ -1,4 +1,4 @@
-import { CodePane } from '@/components/code/CodePane'
+import { CodePanel } from '@/components/code/CodePanel'
 import { SECTION_LABEL, Tag } from '@/components/primitives'
 import type { ReferenceFields } from '@/lib/prediction-diagnostics'
 import {
@@ -27,19 +27,19 @@ export function PredictionReferenceSection({
         </div>
       )}
       <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1">
-        <CodePane
+        <CodePanel
           label="Canonical solution"
           value={reference.canonicalSolution}
           language="python"
         />
         {shouldShowGroundTruth(reference) && (
-          <CodePane
+          <CodePanel
             label="Ground truth code"
             value={reference.groundTruthCode}
             language="python"
           />
         )}
-        <CodePane
+        <CodePanel
           label="Test harness"
           value={reference.test}
           language="python"
