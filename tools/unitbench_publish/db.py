@@ -32,8 +32,10 @@ def connect(database_url: str) -> Connection[DictRow]:
 def init_published_schema(connection: Connection[Any]) -> None:
     for statement in (
         *schema.CREATE_TABLE_SQL,
+        *schema.ALTER_TABLE_SQL,
         *schema.CREATE_INDEX_SQL,
         *schema.CREATE_TABLE_SQL_V1,
+        *schema.ALTER_TABLE_SQL_V1,
         *schema.CREATE_INDEX_SQL_V1,
     ):
         connection.execute(statement)

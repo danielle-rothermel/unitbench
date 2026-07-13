@@ -24,6 +24,7 @@ function makeDetail(overrides: Partial<PredictionDetail> = {}): PredictionDetail
     result_state: 'passed',
     generation_status: 'generated',
     scoring_status: 'scored',
+    harness_failure_count: 0,
     score: 1,
     provider_cost: 0.0012,
     created_at: '2026-06-28T12:00:00Z',
@@ -175,6 +176,17 @@ describe('buildPredictionDiagnostics', () => {
     expect(diagnostics.primaryFailureReason).toBeNull()
     expect(diagnostics.testSummary).toBeNull()
     expect(shouldShowDiagnostics(diagnostics, detail)).toBe(false)
+  })
+
+  it('surfaces harness failures separately from evaluation failures', () => {
+    const detail = makeDetail({ harness_failure_count: 2 })
+    const diagnostics = buildPredictionDiagnostics(detail)
+
+    expect(diagnostics.primaryFailureReason).toBeNull()
+    expect(diagnostics.harnessFailureSummary).toBe(
+      '2 scoring harness failures recorded separately from model test failures',
+    )
+    expect(shouldShowDiagnostics(diagnostics, detail)).toBe(true)
   })
 })
 

@@ -40,7 +40,7 @@ SCORING_ERROR_STATUSES = frozenset({"score_error", "score_recoverable_error"})
 
 V1_GENERATION_ERROR_STATUSES = frozenset({"error", "blocked"})
 V1_SCORE_ERROR_STATUSES = frozenset({"error"})
-V1_GENERATED_CODE_PASSED = "passed"
+V1_SUBMISSION_PASSED = "passed"
 
 
 def result_state_for_prediction(
@@ -65,14 +65,16 @@ def result_state_for_v1_prediction(
     generation_status: str,
     scoring_status: str | None,
     score: float | None,
-    generated_code_outcome: str | None = None,
+    submission_outcome: str | None = None,
 ) -> ResultState:
     if generation_status in V1_GENERATION_ERROR_STATUSES:
         return ResultState.ERROR
     if scoring_status in V1_SCORE_ERROR_STATUSES:
         return ResultState.ERROR
+    if scoring_status == "harness_failure":
+        return ResultState.ERROR
     if scoring_status == "success":
-        if generated_code_outcome == V1_GENERATED_CODE_PASSED:
+        if submission_outcome == V1_SUBMISSION_PASSED:
             return ResultState.PASSED
         if score is not None and score >= 1.0:
             return ResultState.PASSED
@@ -95,6 +97,7 @@ class PublishedPrediction(BaseModel):
     result_state: ResultState
     generation_status: StrictStr | None
     scoring_status: StrictStr | None
+    harness_failure_count: StrictInt = 0
     score: float | None
     provider_cost: float | None
     created_at: datetime | None

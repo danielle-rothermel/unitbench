@@ -194,6 +194,13 @@ export const TABLE_CONFIGS = [
         filter: 'facet',
         sortable: true,
       },
+      {
+        key: 'harness_failure_count',
+        label: 'Harness failures',
+        kind: 'number',
+        sortable: true,
+        filter: 'range',
+      },
       { key: 'score', label: 'Score', kind: 'number', sortable: true, filter: 'range' },
       {
         key: 'provider_cost',
@@ -239,6 +246,13 @@ export const TABLE_CONFIGS = [
           kind: 'status',
           sortable: true,
           filter: 'facet',
+        },
+        {
+          key: 'harness_failure_count',
+          label: 'Harness failures',
+          kind: 'number',
+          sortable: true,
+          filter: 'range',
         },
         {
           key: 'experiment_kind',
@@ -384,6 +398,13 @@ export const TABLE_CONFIGS = [
         filter: 'facet',
         sortable: true,
       },
+      {
+        key: 'harness_failure_count',
+        label: 'Harness failures',
+        kind: 'number',
+        sortable: true,
+        filter: 'range',
+      },
       { key: 'score', label: 'Score', kind: 'number', sortable: true, filter: 'range' },
       {
         key: 'provider_cost',
@@ -429,6 +450,13 @@ export const TABLE_CONFIGS = [
           kind: 'status',
           sortable: true,
           filter: 'facet',
+        },
+        {
+          key: 'harness_failure_count',
+          label: 'Harness failures',
+          kind: 'number',
+          sortable: true,
+          filter: 'range',
         },
         {
           key: 'experiment_kind',

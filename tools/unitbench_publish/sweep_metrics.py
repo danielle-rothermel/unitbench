@@ -78,7 +78,7 @@ SELECT
     generation_summary,
     score_status,
     score,
-    generated_code_outcome
+    submission_outcome
 FROM ({canonical_query}) canonical
 """
 
@@ -128,7 +128,7 @@ class MetricsPredictionRow(BaseModel):
     generation_summary: dict[str, Any] = Field(default_factory=dict)
     score_status: StrictStr | None
     score: float | None
-    generated_code_outcome: StrictStr | None
+    submission_outcome: StrictStr | None
 
     def display_model(self) -> str:
         return display_model_label(
@@ -227,7 +227,7 @@ def has_v0_source_marker(generation_summary: Mapping[str, Any]) -> bool:
 def prediction_included_in_pass_rate(
     *,
     result_state: ResultState,
-    generated_code_outcome: str | None,
+    submission_outcome: str | None,
 ) -> bool:
     """Q3 denominator rule.
 
@@ -241,7 +241,7 @@ def prediction_included_in_pass_rate(
     """
     if result_state not in (ResultState.PASSED, ResultState.FAILED):
         return False
-    return generated_code_outcome not in PASS_RATE_EXCLUDED_OUTCOMES
+    return submission_outcome not in PASS_RATE_EXCLUDED_OUTCOMES
 
 
 def provider_latency_proxy_sql_expression() -> str:
@@ -307,7 +307,7 @@ def prediction_metrics_record(
         generation_status=row.generation_status,
         scoring_status=row.score_status,
         score=row.score,
-        generated_code_outcome=row.generated_code_outcome,
+        submission_outcome=row.submission_outcome,
     )
     return PredictionMetricsRecord(
         prediction_id=row.prediction_id,
@@ -318,7 +318,7 @@ def prediction_metrics_record(
         scored=row.score_status == SCORE_SUCCESS_STATUS,
         included_in_pass_rate=prediction_included_in_pass_rate(
             result_state=result_state,
-            generated_code_outcome=row.generated_code_outcome,
+            submission_outcome=row.submission_outcome,
         ),
         score=row.score,
         provider_cost=run_provider_cost(run_attempts),

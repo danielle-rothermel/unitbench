@@ -29,6 +29,7 @@ export type PredictionDiagnostics = {
   primaryFailureReason: string | null
   pipelineStages: PipelineStageInfo[]
   testSummary: string | null
+  harnessFailureSummary: string | null
 }
 
 export type RunConfigField = {
@@ -350,6 +351,15 @@ function buildScoringStage(detail: PredictionDetail): PipelineStageInfo {
   }
 }
 
+function harnessFailureSummary(detail: PredictionDetail): string | null {
+  if (detail.harness_failure_count <= 0) return null
+  const label =
+    detail.harness_failure_count === 1
+      ? '1 scoring harness failure'
+      : `${detail.harness_failure_count} scoring harness failures`
+  return `${label} recorded separately from model test failures`
+}
+
 function derivePrimaryFailureReason(
   detail: PredictionDetail,
   validation: Record<string, unknown>,
@@ -414,7 +424,13 @@ function hasVisibleDiagnostics(
   diagnostics: PredictionDiagnostics,
   detail: PredictionDetail,
 ): boolean {
-  if (diagnostics.primaryFailureReason || diagnostics.testSummary) return true
+  if (
+    diagnostics.primaryFailureReason ||
+    diagnostics.testSummary ||
+    diagnostics.harnessFailureSummary
+  ) {
+    return true
+  }
   if (
     detail.result_state === 'failed' ||
     detail.result_state === 'error' ||
@@ -457,11 +473,13 @@ export function buildPredictionDiagnostics(
     validation,
     metrics,
   )
+  const harnessSummary = harnessFailureSummary(detail)
 
   const diagnostics: PredictionDiagnostics = {
     primaryFailureReason,
     pipelineStages,
     testSummary: evaluation.testSummary,
+    harnessFailureSummary: harnessSummary,
   }
 
   if (!hasVisibleDiagnostics(diagnostics, detail)) {
@@ -469,6 +487,7 @@ export function buildPredictionDiagnostics(
       primaryFailureReason: null,
       pipelineStages,
       testSummary: null,
+      harnessFailureSummary: harnessSummary,
     }
   }
 

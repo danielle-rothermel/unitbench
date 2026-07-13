@@ -16,6 +16,7 @@ function makeDetail(overrides: Partial<PredictionDetail> = {}): PredictionDetail
     result_state: 'failed',
     generation_status: 'generated',
     scoring_status: 'scored',
+    harness_failure_count: 0,
     score: 0,
     provider_cost: 0.0012,
     created_at: '2026-06-28T12:00:00Z',

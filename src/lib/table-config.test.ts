@@ -43,6 +43,7 @@ describe('table config allowlist', () => {
         'source',
         'generation_status',
         'scoring_status',
+        'harness_failure_count',
         'provider_cost',
       ]),
     )

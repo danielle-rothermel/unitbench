@@ -84,9 +84,14 @@ export function PredictionDetailPage({
 
       {outcomeBanner && <PredictionOutcomeBanner banner={outcomeBanner} />}
 
-      <section className="mb-7 grid max-w-[1280px] grid-cols-4 gap-px border-y border-[var(--border)] bg-[var(--border-subtle)] max-md:grid-cols-2">
+      <section className="mb-7 grid max-w-[1280px] grid-cols-5 gap-px border-y border-[var(--border)] bg-[var(--border-subtle)] max-lg:grid-cols-3 max-md:grid-cols-2">
         <StatCell label="Model" value={detail.model} mono />
         <StatCell label="Score" value={formatScore(detail.score)} mono />
+        <StatCell
+          label="Harness failures"
+          value={detail.harness_failure_count}
+          mono
+        />
         <StatCell
           label="Provider cost"
           value={formatCost(detail.provider_cost)}
