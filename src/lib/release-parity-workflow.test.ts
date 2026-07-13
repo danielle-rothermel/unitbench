@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const WhetstoneProducerSha = '3193c29df89c2776479b1b98d279b6d60d89965a'
+const WhetstoneProducerSha = '679177ca99a3b608bb1b91978d7d9cdd74b095e7'
 const CalledWorkflowSecrets = [
   'DATABASE_URL',
   'GH_DR_ORG_REPOS_READ_TOKEN',

@@ -9,9 +9,9 @@ jobs:
   whetstone-owned-fixture:
     permissions:
       contents: read
-    uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@3193c29df89c2776479b1b98d279b6d60d89965a
+    uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@679177ca99a3b608bb1b91978d7d9cdd74b095e7
     with:
-      whetstone_sha: 3193c29df89c2776479b1b98d279b6d60d89965a
+      whetstone_sha: 679177ca99a3b608bb1b91978d7d9cdd74b095e7
     secrets:
       GH_DR_ORG_REPOS_READ_TOKEN: ${{ secrets.GH_DR_ORG_REPOS_READ_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
