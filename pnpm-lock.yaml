@@ -18,8 +18,8 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.7)
       '@dr-code/viewer':
-        specifier: github:danielle-rothermel/dr-code#4bdb5d423cafa8f6ce947ed8419b214acc2c4912&path:/viewer/packages/viewer
-        version: git+https://github.com/danielle-rothermel/dr-code.git#4bdb5d423cafa8f6ce947ed8419b214acc2c4912&path:/viewer/packages/viewer(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: github:danielle-rothermel/dr-code#a7e81d0e8b9b8e2b27ecd60215bb2d9a5dda6ce6&path:/viewer/packages/viewer
+        version: git+https://github.com/danielle-rothermel/dr-code.git#a7e81d0e8b9b8e2b27ecd60215bb2d9a5dda6ce6&path:/viewer/packages/viewer(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -293,8 +293,8 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
-  '@dr-code/viewer@git+https://github.com/danielle-rothermel/dr-code.git#4bdb5d423cafa8f6ce947ed8419b214acc2c4912&path:/viewer/packages/viewer':
-    resolution: {commit: 4bdb5d423cafa8f6ce947ed8419b214acc2c4912, path: /viewer/packages/viewer, repo: https://github.com/danielle-rothermel/dr-code.git, type: git}
+  '@dr-code/viewer@git+https://github.com/danielle-rothermel/dr-code.git#a7e81d0e8b9b8e2b27ecd60215bb2d9a5dda6ce6&path:/viewer/packages/viewer':
+    resolution: {commit: a7e81d0e8b9b8e2b27ecd60215bb2d9a5dda6ce6, path: /viewer/packages/viewer, repo: https://github.com/danielle-rothermel/dr-code.git, type: git}
     version: 0.1.0
     peerDependencies:
       react: ^19.0.0
@@ -3290,7 +3290,7 @@ snapshots:
       react: 19.2.7
       tslib: 2.8.1
 
-  '@dr-code/viewer@git+https://github.com/danielle-rothermel/dr-code.git#4bdb5d423cafa8f6ce947ed8419b214acc2c4912&path:/viewer/packages/viewer(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@dr-code/viewer@git+https://github.com/danielle-rothermel/dr-code.git#a7e81d0e8b9b8e2b27ecd60215bb2d9a5dda6ce6&path:/viewer/packages/viewer(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@git-diff-view/file': 0.1.6
       '@git-diff-view/react': 0.1.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
