@@ -15,6 +15,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Authenticate private Git dependencies
+        env:
+          GH_DR_ORG_REPOS_READ_TOKEN: ${{ secrets.GH_DR_ORG_REPOS_READ_TOKEN }}
+        run: git config --global url."https://x-access-token:${GH_DR_ORG_REPOS_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit
       - run: pnpm lint
