@@ -1,12 +1,26 @@
 {
   "components": {
     "schemas": {
-      "CandidateExplanation": {
+      "CandidateSelectionTrace": {
         "additionalProperties": false,
         "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionTraceNode"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
           "compile_ok": {
-            "title": "Compile Ok",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compile Ok"
           },
           "index": {
             "title": "Index",
@@ -34,10 +48,9 @@
         "required": [
           "index",
           "source",
-          "status",
-          "compile_ok"
+          "status"
         ],
-        "title": "CandidateExplanation",
+        "title": "CandidateSelectionTrace",
         "type": "object"
       },
       "CandidateStatus": {
@@ -49,38 +62,68 @@
         "title": "CandidateStatus",
         "type": "string"
       },
-      "CodeExtractionResult": {
+      "CodeParserProfile": {
         "additionalProperties": false,
         "properties": {
-          "candidate_count": {
-            "title": "Candidate Count",
-            "type": "integer"
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
           },
-          "compile_error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Compile Error"
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "version"
+        ],
+        "title": "CodeParserProfile",
+        "type": "object"
+      },
+      "ExplainRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "parser_version": {
+            "default": "v1",
+            "title": "Parser Version",
+            "type": "string"
           },
-          "compile_ok": {
-            "title": "Compile Ok",
-            "type": "boolean"
+          "profile_id": {
+            "default": "humaneval-best-effort",
+            "title": "Profile Id",
+            "type": "string"
           },
-          "extracted_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extracted Code"
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ExplainRequest",
+        "type": "object"
+      },
+      "ExtractionMethod": {
+        "enum": [
+          "fenced_code",
+          "cleaned_candidate",
+          "bare_python",
+          "field_marker"
+        ],
+        "title": "ExtractionMethod",
+        "type": "string"
+      },
+      "ExtractionTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateSelectionTrace"
+            },
+            "title": "Candidates",
+            "type": "array"
           },
           "extraction_error": {
             "anyOf": [
@@ -103,21 +146,19 @@
               }
             ]
           },
-          "metadata": {
-            "additionalProperties": true,
-            "title": "Metadata",
-            "type": "object"
+          "profile": {
+            "$ref": "#/components/schemas/CodeParserProfile"
           },
-          "raw_generation": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Raw Generation"
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionTraceNode"
+            },
+            "title": "Roots",
+            "type": "array"
           },
           "selected_candidate_index": {
             "anyOf": [
@@ -132,143 +173,79 @@
           }
         },
         "required": [
-          "raw_generation",
-          "extracted_code",
-          "extraction_method",
-          "candidate_count",
-          "compile_ok"
-        ],
-        "title": "CodeExtractionResult",
-        "type": "object"
-      },
-      "CodeParserProfile": {
-        "additionalProperties": false,
-        "properties": {
-          "code_field": {
-            "default": "code",
-            "title": "Code Field",
-            "type": "string"
-          },
-          "profile_id": {
-            "title": "Profile Id",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "profile_id",
-          "version"
-        ],
-        "title": "CodeParserProfile",
-        "type": "object"
-      },
-      "ExplainRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "code_field": {
-            "default": "code",
-            "title": "Code Field",
-            "type": "string"
-          },
-          "parser_version": {
-            "default": "v1",
-            "title": "Parser Version",
-            "type": "string"
-          },
-          "profile_id": {
-            "default": "humaneval-best-effort",
-            "title": "Profile Id",
-            "type": "string"
-          },
-          "stages": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/ExplainStage"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stages"
-          },
-          "text": {
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "title": "ExplainRequest",
-        "type": "object"
-      },
-      "ExplainStage": {
-        "enum": [
-          "unwrap",
+          "profile",
+          "roots",
           "candidates",
-          "selection",
-          "result"
+          "rationale"
         ],
-        "title": "ExplainStage",
-        "type": "string"
+        "title": "ExtractionTrace",
+        "type": "object"
       },
-      "ExtractionExplanation": {
+      "ExtractionTraceNode": {
         "additionalProperties": false,
         "properties": {
-          "candidates": {
+          "after_text": {
             "anyOf": [
               {
-                "items": {
-                  "$ref": "#/components/schemas/CandidateExplanation"
-                },
-                "type": "array"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Candidates"
+            "title": "After Text"
           },
-          "profile": {
-            "$ref": "#/components/schemas/CodeParserProfile"
-          },
-          "result": {
+          "before_text": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CodeExtractionResult"
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Before Text"
           },
-          "selection": {
+          "check_name": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SelectionExplanation"
+                "type": "string"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Check Name"
           },
-          "stages": {
+          "children": {
             "items": {
-              "$ref": "#/components/schemas/ExplainStage"
+              "$ref": "#/components/schemas/ExtractionTraceNode"
             },
-            "title": "Stages",
+            "title": "Children",
             "type": "array"
           },
-          "unwrap": {
+          "kind": {
+            "$ref": "#/components/schemas/TraceNodeKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/UnwrapExplanation"
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceCheckVerdict"
               },
               {
                 "type": "null"
@@ -277,24 +254,11 @@
           }
         },
         "required": [
-          "profile",
-          "stages"
+          "kind",
+          "name"
         ],
-        "title": "ExtractionExplanation",
+        "title": "ExtractionTraceNode",
         "type": "object"
-      },
-      "ExtractionMethod": {
-        "enum": [
-          "dspy_code_field",
-          "json_code_field",
-          "json_string",
-          "fenced_code",
-          "cleaned_candidate",
-          "bare_python",
-          "field_marker"
-        ],
-        "title": "ExtractionMethod",
-        "type": "string"
       },
       "HTTPValidationError": {
         "properties": {
@@ -348,81 +312,22 @@
         "title": "ProfilesResponse",
         "type": "object"
       },
-      "SelectionExplanation": {
-        "additionalProperties": false,
-        "properties": {
-          "method": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Method"
-          },
-          "rationale": {
-            "title": "Rationale",
-            "type": "string"
-          },
-          "selected_index": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Selected Index"
-          }
-        },
-        "required": [
-          "selected_index",
-          "method",
-          "rationale"
+      "TraceCheckVerdict": {
+        "enum": [
+          "pass",
+          "fail"
         ],
-        "title": "SelectionExplanation",
-        "type": "object"
+        "title": "TraceCheckVerdict",
+        "type": "string"
       },
-      "UnwrapExplanation": {
-        "additionalProperties": false,
-        "properties": {
-          "metadata": {
-            "additionalProperties": true,
-            "title": "Metadata",
-            "type": "object"
-          },
-          "method": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Method"
-          },
-          "unwrapped_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unwrapped Text"
-          }
-        },
-        "required": [
-          "unwrapped_text",
-          "method"
+      "TraceNodeKind": {
+        "enum": [
+          "fork",
+          "transform",
+          "check"
         ],
-        "title": "UnwrapExplanation",
-        "type": "object"
+        "title": "TraceNodeKind",
+        "type": "string"
       },
       "ValidationError": {
         "properties": {
@@ -490,7 +395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtractionExplanation"
+                  "$ref": "#/components/schemas/ExtractionTrace"
                 }
               }
             },

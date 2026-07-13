@@ -3,7 +3,7 @@
  * Do not make direct changes to the file.
  */
 
-export interface paths {
+export type paths = {
     "/explain": {
         parameters: {
             query?: never;
@@ -55,14 +55,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-}
+};
 export type webhooks = Record<string, never>;
-export interface components {
+export type components = {
     schemas: {
-        /** CandidateExplanation */
-        CandidateExplanation: {
+        /** CandidateSelectionTrace */
+        CandidateSelectionTrace: {
+            /** Checks */
+            checks?: components["schemas"]["ExtractionTraceNode"][];
             /** Compile Ok */
-            compile_ok: boolean;
+            compile_ok?: boolean | null;
             /** Index */
             index: number;
             /** Rejection Reason */
@@ -76,35 +78,8 @@ export interface components {
          * @enum {string}
          */
         CandidateStatus: "selected" | "rejected" | "not_reached";
-        /** CodeExtractionResult */
-        CodeExtractionResult: {
-            /** Candidate Count */
-            candidate_count: number;
-            /** Compile Error */
-            compile_error?: string | null;
-            /** Compile Ok */
-            compile_ok: boolean;
-            /** Extracted Code */
-            extracted_code: string | null;
-            /** Extraction Error */
-            extraction_error?: string | null;
-            extraction_method: components["schemas"]["ExtractionMethod"] | null;
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            };
-            /** Raw Generation */
-            raw_generation: string | null;
-            /** Selected Candidate Index */
-            selected_candidate_index?: number | null;
-        };
         /** CodeParserProfile */
         CodeParserProfile: {
-            /**
-             * Code Field
-             * @default code
-             */
-            code_field: string;
             /** Profile Id */
             profile_id: string;
             /** Version */
@@ -112,11 +87,6 @@ export interface components {
         };
         /** ExplainRequest */
         ExplainRequest: {
-            /**
-             * Code Field
-             * @default code
-             */
-            code_field: string;
             /**
              * Parser Version
              * @default v1
@@ -127,36 +97,45 @@ export interface components {
              * @default humaneval-best-effort
              */
             profile_id: string;
-            /** Stages */
-            stages?: components["schemas"]["ExplainStage"][] | null;
             /** Text */
             text: string;
-        };
-        /**
-         * ExplainStage
-         * @enum {string}
-         */
-        ExplainStage: "unwrap" | "candidates" | "selection" | "result";
-        /** ExtractionExplanation */
-        ExtractionExplanation: {
-            /** Candidates */
-            candidates?: components["schemas"]["CandidateExplanation"][] | null;
-            profile: components["schemas"]["CodeParserProfile"];
-            result?: components["schemas"]["CodeExtractionResult"] | null;
-            selection?: components["schemas"]["SelectionExplanation"] | null;
-            /** Stages */
-            stages: components["schemas"]["ExplainStage"][];
-            unwrap?: components["schemas"]["UnwrapExplanation"] | null;
         };
         /**
          * ExtractionMethod
          * @enum {string}
          */
-        ExtractionMethod: "dspy_code_field" | "json_code_field" | "json_string" | "fenced_code" | "cleaned_candidate" | "bare_python" | "field_marker";
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
+        ExtractionMethod: "fenced_code" | "cleaned_candidate" | "bare_python" | "field_marker";
+        /** ExtractionTrace */
+        ExtractionTrace: {
+            /** Candidates */
+            candidates: components["schemas"]["CandidateSelectionTrace"][];
+            /** Extraction Error */
+            extraction_error?: string | null;
+            extraction_method?: components["schemas"]["ExtractionMethod"] | null;
+            profile: components["schemas"]["CodeParserProfile"];
+            /** Rationale */
+            rationale: string;
+            /** Roots */
+            roots: components["schemas"]["ExtractionTraceNode"][];
+            /** Selected Candidate Index */
+            selected_candidate_index?: number | null;
+        };
+        /** ExtractionTraceNode */
+        ExtractionTraceNode: {
+            /** After Text */
+            after_text?: string | null;
+            /** Before Text */
+            before_text?: string | null;
+            /** Check Name */
+            check_name?: string | null;
+            /** Children */
+            children?: components["schemas"]["ExtractionTraceNode"][];
+            kind: components["schemas"]["TraceNodeKind"];
+            /** Name */
+            name: string;
+            /** Reason */
+            reason?: string | null;
+            verdict?: components["schemas"]["TraceCheckVerdict"] | null;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -165,6 +144,11 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** ProfilesResponse */
         ProfilesResponse: {
             /** Parser Version */
@@ -172,26 +156,16 @@ export interface components {
             /** Profile Ids */
             profile_ids: string[];
         };
-        /** SelectionExplanation */
-        SelectionExplanation: {
-            /** Method */
-            method: string | null;
-            /** Rationale */
-            rationale: string;
-            /** Selected Index */
-            selected_index: number | null;
-        };
-        /** UnwrapExplanation */
-        UnwrapExplanation: {
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            };
-            /** Method */
-            method: string | null;
-            /** Unwrapped Text */
-            unwrapped_text: string | null;
-        };
+        /**
+         * TraceCheckVerdict
+         * @enum {string}
+         */
+        TraceCheckVerdict: "pass" | "fail";
+        /**
+         * TraceNodeKind
+         * @enum {string}
+         */
+        TraceNodeKind: "fork" | "transform" | "check";
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -211,7 +185,7 @@ export interface components {
     requestBodies: never;
     headers: never;
     pathItems: never;
-}
+};
 export type $defs = Record<string, never>;
 export interface operations {
     explain_explain_post: {
@@ -233,7 +207,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ExtractionExplanation"];
+                    "application/json": components["schemas"]["ExtractionTrace"];
                 };
             };
             /** @description Validation Error */

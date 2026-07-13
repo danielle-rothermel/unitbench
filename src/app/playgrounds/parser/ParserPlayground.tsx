@@ -1,294 +1,442 @@
 'use client'
 
-import { useState } from 'react'
-import { CodePane } from '@/components/code/CodePane'
-import { Inspector } from '@/components/inspector/Inspector'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { useEffect, useMemo, useState } from 'react'
 import { SECTION_LABEL, Tag } from '@/components/primitives'
 import { cn } from '@/lib/cn'
-import {
-  DR_CODE_SERVE_URL,
-  drCodeClient,
-  type CandidateExplanation,
-  type ExplainStage,
-  type ExtractionExplanation,
-} from '@/lib/api/dr-code-client'
+import type { components } from '@/lib/api/dr-code'
 
-const PARSER_VERSION = 'v1'
-const CODE_FIELD = 'code'
-
-const PARSER_PROFILES = [
-  { id: 'humaneval-best-effort', label: 'Best effort' },
-  { id: 'humaneval-field-marker', label: 'Strict field marker' },
-] as const
-
-const EXPLAIN_STAGES: { id: ExplainStage; label: string }[] = [
-  { id: 'unwrap', label: 'Unwrap' },
-  { id: 'candidates', label: 'Candidates' },
-  { id: 'selection', label: 'Selection' },
-  { id: 'result', label: 'Result' },
-]
-
-const SAMPLE_TEXT = `Here is my solution:
-
-\`\`\`python
-def broken(:
-\`\`\`
-
-Wait, let me fix that:
+const DR_CODE_API_BASE_URL =
+  process.env.NEXT_PUBLIC_DR_CODE_API_BASE_URL ?? 'http://127.0.0.1:8321'
+const DEFAULT_PROFILE_ID = 'humaneval-best-effort'
+const DEFAULT_PARSER_VERSION = 'v1'
+const DEFAULT_TEXT = `Here is the answer:
 
 \`\`\`python
 def add(a, b):
     return a + b
 \`\`\`
 `
+const FACADE_HINT =
+  'Facade: uv --directory ../dr-code run python -m dr_code.serve serve (port 8321).'
 
-const FACADE_HINT = `Start it with: uv run python -m dr_code.serve serve (dr-code serve branch, port 8321; override with NEXT_PUBLIC_DR_CODE_SERVE_URL)`
+type ExtractionTrace = components['schemas']['ExtractionTrace']
+type ExtractionTraceNode = components['schemas']['ExtractionTraceNode']
+type CandidateSelectionTrace =
+  components['schemas']['CandidateSelectionTrace']
+type ProfilesResponse = components['schemas']['ProfilesResponse']
 
-const CANDIDATE_TONE: Record<
-  CandidateExplanation['status'],
-  'green' | 'red' | 'neutral'
-> = {
-  selected: 'green',
-  rejected: 'red',
-  not_reached: 'neutral',
+type RequestState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; trace: ExtractionTrace }
+  | { status: 'error'; message: string }
+
+function labelFromValue(value: string): string {
+  return value.replaceAll('_', ' ')
 }
 
-function CandidateCard({ candidate }: { candidate: CandidateExplanation }) {
+function hasTextDiff(node: ExtractionTraceNode): boolean {
+  return Boolean(node.before_text || node.after_text)
+}
+
+function verdictTone(verdict: string | null | undefined): 'green' | 'red' | 'neutral' {
+  if (verdict === 'pass') return 'green'
+  if (verdict === 'fail') return 'red'
+  return 'neutral'
+}
+
+function statusTone(status: string): 'green' | 'red' | 'blue' | 'neutral' {
+  if (status === 'selected') return 'green'
+  if (status === 'rejected') return 'red'
+  if (status === 'not_reached') return 'blue'
+  return 'neutral'
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  const body = await response.text()
+  if (!body) return `${response.status} ${response.statusText}`
+
+  try {
+    const parsed = JSON.parse(body) as unknown
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'detail' in parsed
+    ) {
+      const detail = parsed.detail
+      return typeof detail === 'string' ? detail : JSON.stringify(detail)
+    }
+  } catch {
+    return body
+  }
+
+  return body
+}
+
+function CodeBlock({ value }: { value: string | null | undefined }) {
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-2 rounded-xl border p-3',
-        candidate.status === 'selected'
-          ? 'border-[var(--green)] bg-[var(--green-bg)]'
-          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)]',
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[12px] text-[var(--text-secondary)]">
-          #{candidate.index}
-        </span>
-        <Tag tone={CANDIDATE_TONE[candidate.status]}>
-          {candidate.status.replaceAll('_', ' ')}
-        </Tag>
-        <Tag tone={candidate.compile_ok ? 'neutral' : 'yellow'} mono>
-          {candidate.compile_ok ? 'compiles' : 'no compile'}
-        </Tag>
+    <pre className="min-h-[96px] overflow-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-code)] p-3 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-[var(--text-primary)]">
+      {value || 'empty'}
+    </pre>
+  )
+}
+
+function TextDiff({ node }: { node: ExtractionTraceNode }) {
+  if (!hasTextDiff(node)) return null
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-3 max-lg:grid-cols-1">
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)] uppercase">
+          Before
+        </div>
+        <CodeBlock value={node.before_text} />
       </div>
-      {candidate.rejection_reason && (
-        <p className="font-mono text-[12px] text-[var(--red)]">
-          {candidate.rejection_reason}
-        </p>
-      )}
-      <CodePane
-        label={`Candidate ${candidate.index}`}
-        value={candidate.source}
-        language="python"
-        collapsible
-        defaultOpen={candidate.status === 'selected'}
-      />
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)] uppercase">
+          After
+        </div>
+        <CodeBlock value={node.after_text} />
+      </div>
     </div>
   )
 }
 
-export function ParserPlayground() {
-  const [text, setText] = useState('')
-  const [profileId, setProfileId] = useState<string>(PARSER_PROFILES[0].id)
-  const [stages, setStages] = useState<Set<ExplainStage>>(
-    () => new Set(EXPLAIN_STAGES.map(stage => stage.id)),
-  )
-  const [explanation, setExplanation] = useState<ExtractionExplanation | null>(
-    null,
-  )
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+function TraceNodeCard({
+  node,
+  depth = 0,
+}: {
+  node: ExtractionTraceNode
+  depth?: number
+}) {
+  const children = node.children ?? []
 
-  const toggleStage = (stage: ExplainStage) => {
-    setStages(previous => {
-      const next = new Set(previous)
-      if (next.has(stage)) next.delete(stage)
-      else next.add(stage)
-      return next
-    })
+  return (
+    <li
+      className={cn(
+        'rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-3',
+        depth > 0 && 'ml-4 border-l-2',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Tag tone={node.kind === 'fork' ? 'blue' : 'neutral'}>
+          {labelFromValue(node.kind)}
+        </Tag>
+        <span className="font-display text-[14px] font-semibold text-[var(--text-primary)]">
+          {labelFromValue(node.name)}
+        </span>
+        {node.verdict && (
+          <Tag tone={verdictTone(node.verdict)}>
+            {labelFromValue(node.verdict)}
+          </Tag>
+        )}
+      </div>
+      {node.reason && (
+        <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
+          {node.reason}
+        </p>
+      )}
+      <TextDiff node={node} />
+      {children.length > 0 && (
+        <ol className="mt-3 space-y-3">
+          {children.map((child, index) => (
+            <TraceNodeCard
+              key={`${child.kind}-${child.name}-${index}`}
+              node={child}
+              depth={depth + 1}
+            />
+          ))}
+        </ol>
+      )}
+    </li>
+  )
+}
+
+function CheckList({ checks }: { checks: ExtractionTraceNode[] }) {
+  if (checks.length === 0) {
+    return (
+      <p className="text-[13px] text-[var(--text-muted)]">
+        No checks were run for this candidate.
+      </p>
+    )
   }
 
-  const explain = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const response = await drCodeClient.POST('/explain', {
-        body: {
-          text,
-          profile_id: profileId,
-          parser_version: PARSER_VERSION,
-          code_field: CODE_FIELD,
-          stages: [...stages],
-        },
-      })
-      if (response.error) {
-        setExplanation(null)
-        setError(
-          typeof response.error.detail === 'string'
-            ? response.error.detail
-            : `Facade returned an error (${JSON.stringify(response.error.detail)})`,
-        )
+  return (
+    <ul className="space-y-2">
+      {checks.map((check, index) => (
+        <li
+          key={`${check.name}-${index}`}
+          className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-secondary)] p-2"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[12px] text-[var(--text-primary)]">
+              {check.check_name ?? check.name}
+            </span>
+            <Tag tone={verdictTone(check.verdict)}>{check.verdict ?? 'n/a'}</Tag>
+          </div>
+          {check.reason && (
+            <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
+              {check.reason}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function CandidateCard({ candidate }: { candidate: CandidateSelectionTrace }) {
+  return (
+    <article className="rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="font-display text-[15px] font-semibold text-[var(--text-primary)]">
+          Candidate {candidate.index}
+        </span>
+        <Tag tone={statusTone(candidate.status)}>
+          {labelFromValue(candidate.status)}
+        </Tag>
+        {candidate.compile_ok !== null && candidate.compile_ok !== undefined && (
+          <Tag tone={candidate.compile_ok ? 'green' : 'red'}>
+            compile {candidate.compile_ok ? 'ok' : 'failed'}
+          </Tag>
+        )}
+      </div>
+      {candidate.rejection_reason && (
+        <p className="mb-3 text-[13px] text-[var(--red)]">
+          {candidate.rejection_reason}
+        </p>
+      )}
+      <CodeBlock value={candidate.source} />
+      <div className="mt-3">
+        <CheckList checks={candidate.checks ?? []} />
+      </div>
+    </article>
+  )
+}
+
+function TraceResult({ trace }: { trace: ExtractionTrace }) {
+  return (
+    <div className="space-y-5" data-testid="trace-result">
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Tag tone="accent">{trace.profile.profile_id}</Tag>
+          <Tag mono>{trace.profile.version}</Tag>
+          {trace.extraction_method && (
+            <Tag tone="green">{labelFromValue(trace.extraction_method)}</Tag>
+          )}
+          {trace.extraction_error && (
+            <Tag tone="red">{trace.extraction_error}</Tag>
+          )}
+        </div>
+        <p className="mt-3 text-[15px] text-[var(--text-primary)]">
+          {trace.rationale}
+        </p>
+      </section>
+
+      <section>
+        <h2 className={SECTION_LABEL}>Candidate lineage</h2>
+        <ol className="mt-3 space-y-3">
+          {trace.roots.map((node, index) => (
+            <TraceNodeCard key={`${node.kind}-${node.name}-${index}`} node={node} />
+          ))}
+        </ol>
+      </section>
+
+      <section>
+        <h2 className={SECTION_LABEL}>Check verdicts</h2>
+        <div className="mt-3 grid grid-cols-2 gap-3 max-xl:grid-cols-1">
+          {trace.candidates.map(candidate => (
+            <CandidateCard key={candidate.index} candidate={candidate} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className={SECTION_LABEL}>Selection walk</h2>
+        <ol className="mt-3 space-y-2">
+          {trace.candidates.map(candidate => (
+            <li
+              key={candidate.index}
+              className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3 py-2 text-[13px]"
+            >
+              <span className="font-mono text-[var(--text-primary)]">
+                #{candidate.index}
+              </span>
+              <Tag tone={statusTone(candidate.status)}>
+                {labelFromValue(candidate.status)}
+              </Tag>
+              <span className="text-[var(--text-secondary)]">
+                {candidate.rejection_reason ??
+                  (candidate.status === 'selected'
+                    ? 'first candidate passing parser checks'
+                    : 'not evaluated after selection')}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {trace.selected_candidate_index !== null &&
+          trace.selected_candidate_index !== undefined && (
+            <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
+              Selected candidate {trace.selected_candidate_index}.
+            </p>
+          )}
+      </section>
+    </div>
+  )
+}
+
+export default function ParserPlayground() {
+  const [text, setText] = useState(DEFAULT_TEXT)
+  const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID)
+  const [parserVersion, setParserVersion] = useState(DEFAULT_PARSER_VERSION)
+  const [profileIds, setProfileIds] = useState<string[]>([DEFAULT_PROFILE_ID])
+  const [requestState, setRequestState] = useState<RequestState>({
+    status: 'idle',
+  })
+
+  useEffect(() => {
+    const controller = new AbortController()
+    async function loadProfiles() {
+      try {
+        const response = await fetch(`${DR_CODE_API_BASE_URL}/profiles`, {
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+        const profiles = (await response.json()) as ProfilesResponse
+        setProfileIds(profiles.profile_ids)
+        setParserVersion(profiles.parser_version)
+        if (!profiles.profile_ids.includes(profileId)) {
+          setProfileId(profiles.profile_ids[0] ?? DEFAULT_PROFILE_ID)
+        }
+      } catch {
         return
       }
-      setExplanation(response.data ?? null)
-    } catch {
-      setExplanation(null)
-      setError(`Could not reach the dr-code facade at ${DR_CODE_SERVE_URL}.`)
-    } finally {
-      setIsLoading(false)
+    }
+
+    void loadProfiles()
+    return () => controller.abort()
+  }, [profileId])
+
+  const canSubmit = useMemo(
+    () => requestState.status !== 'loading' && text.trim().length > 0,
+    [requestState.status, text],
+  )
+
+  async function explain() {
+    setRequestState({ status: 'loading' })
+    try {
+      const response = await fetch(`${DR_CODE_API_BASE_URL}/explain`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          profile_id: profileId,
+          parser_version: parserVersion,
+        }),
+      })
+      if (!response.ok) {
+        setRequestState({
+          status: 'error',
+          message: await readErrorMessage(response),
+        })
+        return
+      }
+      setRequestState({
+        status: 'success',
+        trace: (await response.json()) as ExtractionTrace,
+      })
+    } catch (error) {
+      setRequestState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Request failed',
+      })
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className={SECTION_LABEL}>Raw generation text</span>
-          <textarea
-            value={text}
-            onChange={event => setText(event.target.value)}
-            rows={10}
-            placeholder="Paste a raw model generation…"
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-code)] p-4 font-mono text-[12.5px] leading-relaxed text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
-            data-testid="parser-input"
-          />
-        </label>
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2">
+    <div className="mx-auto grid w-full max-w-[1320px] grid-cols-[minmax(360px,460px)_1fr] gap-5 max-xl:grid-cols-1">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] p-5">
+        <div className="mb-5">
+          <Tag tone="blue">dr-code trace</Tag>
+          <h1 className="mt-3 font-display text-[26px] leading-tight font-bold text-[var(--text-primary)]">
+            Parser playground
+          </h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+            Paste a raw model answer and inspect the lineage tree, candidate
+            checks, and selection walk returned by the local facade.
+          </p>
+          <p className="mt-2 font-mono text-[12px] text-[var(--text-muted)]">
+            {FACADE_HINT}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <label className="block">
             <span className={SECTION_LABEL}>Profile</span>
             <select
               value={profileId}
               onChange={event => setProfileId(event.target.value)}
-              className="rounded-md border border-[var(--border)] bg-[var(--bg-primary)] px-2.5 py-1.5 font-mono text-[13px] text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              className="mt-1.5 w-full rounded-md border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-[14px] text-[var(--text-primary)]"
             >
-              {PARSER_PROFILES.map(profile => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.label}
+              {profileIds.map(id => (
+                <option key={id} value={id}>
+                  {id}
                 </option>
               ))}
             </select>
           </label>
-          <div className="flex items-center gap-2">
-            <span className={SECTION_LABEL}>Stages</span>
-            {EXPLAIN_STAGES.map(stage => (
-              <label
-                key={stage.id}
-                className={cn(
-                  'inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-[12px] font-medium',
-                  stages.has(stage.id)
-                    ? 'border-[var(--accent)] bg-[var(--accent-bg)] text-[var(--accent)]'
-                    : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={stages.has(stage.id)}
-                  onChange={() => toggleStage(stage.id)}
-                  className="accent-[var(--accent)]"
-                />
-                {stage.label}
-              </label>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setText(SAMPLE_TEXT)}
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-            >
-              Load sample
-            </button>
-            <button
-              type="button"
-              onClick={explain}
-              disabled={isLoading || text.trim().length === 0}
-              className="rounded-md bg-[var(--accent)] px-4 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? 'Explaining…' : 'Explain'}
-            </button>
-          </div>
+
+          <label className="block">
+            <span className={SECTION_LABEL}>Parser version</span>
+            <input
+              value={parserVersion}
+              onChange={event => setParserVersion(event.target.value)}
+              className="mt-1.5 w-full rounded-md border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 font-mono text-[14px] text-[var(--text-primary)]"
+            />
+          </label>
+
+          <label className="block">
+            <span className={SECTION_LABEL}>Raw answer</span>
+            <textarea
+              value={text}
+              onChange={event => setText(event.target.value)}
+              rows={18}
+              className="mt-1.5 w-full resize-y rounded-md border border-[var(--border)] bg-[var(--bg-code)] px-3 py-2 font-mono text-[13px] leading-relaxed text-[var(--text-primary)]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={explain}
+            disabled={!canSubmit}
+            className="inline-flex w-full items-center justify-center rounded-md bg-[var(--accent)] px-4 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            {requestState.status === 'loading' ? 'Tracing...' : 'Trace parser'}
+          </button>
         </div>
       </section>
 
-      {error && (
-        <ErrorSection
-          tone="setup"
-          title="Facade unreachable or rejected the request"
-          message={`${error} ${FACADE_HINT}`}
-        />
-      )}
-
-      {explanation && (
-        <div className="flex flex-col gap-6" data-testid="parser-explanation">
-          {explanation.unwrap && (
-            <section className="flex flex-col gap-2.5">
-              <span className={SECTION_LABEL}>Unwrap</span>
-              <div className="flex flex-wrap items-center gap-2">
-                <Tag tone={explanation.unwrap.method ? 'blue' : 'neutral'} mono>
-                  {explanation.unwrap.method ?? 'passthrough'}
-                </Tag>
-                {Object.entries(explanation.unwrap.metadata ?? {}).map(
-                  ([key, value]) => (
-                    <Tag key={key} mono>
-                      {key}={String(value)}
-                    </Tag>
-                  ),
-                )}
-              </div>
-            </section>
-          )}
-
-          {explanation.candidates && (
-            <section className="flex flex-col gap-2.5">
-              <span className={SECTION_LABEL}>
-                Candidates ({explanation.candidates.length})
-              </span>
-              <div className="flex flex-col gap-3">
-                {explanation.candidates.map(candidate => (
-                  <CandidateCard key={candidate.index} candidate={candidate} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {explanation.selection && (
-            <section className="flex flex-col gap-2.5">
-              <span className={SECTION_LABEL}>Selection</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {explanation.selection.method && (
-                  <Tag tone="accent" mono>
-                    {explanation.selection.method}
-                  </Tag>
-                )}
-                <p
-                  className="text-[13px] text-[var(--text-secondary)]"
-                  data-testid="winner-rationale"
-                >
-                  {explanation.selection.rationale}
-                </p>
-              </div>
-            </section>
-          )}
-
-          {explanation.result?.extracted_code && (
-            <CodePane
-              label="Extracted code"
-              value={explanation.result.extracted_code}
-              language="python"
-              accent
-            />
-          )}
-
-          <Inspector
-            payloadsLabel="Raw explanation"
-            payloads={[{ label: 'Explanation', value: explanation }]}
-          />
-        </div>
-      )}
+      <section className="min-w-0">
+        {requestState.status === 'idle' && (
+          <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-secondary)] p-6 text-[14px] text-[var(--text-secondary)]">
+            Run the parser to render candidate forks, transform before/after
+            text, check verdicts, and the selected candidate walk.
+          </div>
+        )}
+        {requestState.status === 'loading' && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-[14px] text-[var(--text-secondary)]">
+            Requesting trace from dr-code...
+          </div>
+        )}
+        {requestState.status === 'error' && (
+          <div className="rounded-xl border border-[var(--red-border)] bg-[var(--red-bg)] p-6 text-[14px] text-[var(--red)]">
+            {requestState.message}
+          </div>
+        )}
+        {requestState.status === 'success' && (
+          <TraceResult trace={requestState.trace} />
+        )}
+      </section>
     </div>
   )
 }

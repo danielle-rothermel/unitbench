@@ -1,48 +1,81 @@
-// Regenerates the library-facade clients: dumps each facade's OpenAPI
-// schema from its serve CLI, then emits TypeScript types. All
-// artifacts are committed; rerun with `pnpm gen:api` after facade
-// changes.
-//
-// Assumes each library's `serve` branch is checked out at the listed
-// directory (git worktrees by default; override with the env vars).
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
-const FACADES = [
-  {
-    name: 'dr-code',
-    dir: process.env.DR_CODE_SERVE_DIR ?? '../dr-code-serve',
+const FACADES = {
+  'dr-code': {
+    sourceDir: '../dr-code',
     module: 'dr_code.serve',
+    openapiPath: 'src/lib/api/dr-code-openapi.json',
+    typesPath: 'src/lib/api/dr-code.ts',
   },
-  {
-    name: 'dr-providers',
-    dir: process.env.DR_PROVIDERS_SERVE_DIR ?? '../dr-providers-serve',
+  'dr-providers': {
+    sourceDir: '../dr-providers',
     module: 'dr_providers.serve',
+    openapiPath: 'src/lib/api/dr-providers-openapi.json',
+    typesPath: 'src/lib/api/dr-providers.ts',
   },
-]
+}
 
-const outDir = path.resolve(process.cwd(), 'src/lib/api')
-mkdirSync(outDir, { recursive: true })
+const selectedFacades = process.argv.slice(2)
+const facadeNames = selectedFacades.length > 0 ? selectedFacades : ['dr-code']
 
-for (const facade of FACADES) {
-  const serveDir = path.resolve(process.cwd(), facade.dir)
-  const schemaPath = path.join(outDir, `${facade.name}-openapi.json`)
-  const typesPath = path.join(outDir, `${facade.name}.ts`)
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    ...options,
+  })
 
-  console.log(`Dumping ${facade.name} OpenAPI schema from ${serveDir} …`)
-  const schema = execFileSync(
-    'uv',
-    ['--directory', serveDir, 'run', 'python', '-m', facade.module, 'openapi'],
-    { encoding: 'utf8' },
-  )
-  writeFileSync(schemaPath, schema)
+  if (result.status !== 0) {
+    throw new Error(
+      [
+        `${command} ${args.join(' ')} failed with status ${result.status}`,
+        result.stderr.trim(),
+        result.stdout.trim(),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    )
+  }
 
-  console.log(`Generating ${facade.name} TypeScript types …`)
-  execFileSync(
-    'pnpm',
-    ['exec', 'openapi-typescript', schemaPath, '-o', typesPath],
-    { stdio: 'inherit' },
-  )
-  console.log(`Wrote ${typesPath}`)
+  return result.stdout
+}
+
+function writeJson(path, value) {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${JSON.stringify(JSON.parse(value), null, 2)}\n`)
+}
+
+for (const facadeName of facadeNames) {
+  const facade = FACADES[facadeName]
+  if (!facade) {
+    throw new Error(`Unknown facade: ${facadeName}`)
+  }
+
+  const openapiPath = resolve(facade.openapiPath)
+  const typesPath = resolve(facade.typesPath)
+  const openapi = run('uv', [
+    '--directory',
+    facade.sourceDir,
+    'run',
+    'python',
+    '-m',
+    facade.module,
+    'openapi',
+  ])
+
+  writeJson(openapiPath, openapi)
+  mkdirSync(dirname(typesPath), { recursive: true })
+  run('pnpm', [
+    'exec',
+    'openapi-typescript',
+    openapiPath,
+    '--output',
+    typesPath,
+    '--export-type',
+    '--alphabetize',
+  ], { stdio: 'inherit' })
+
+  console.log(`generated ${facade.openapiPath} and ${facade.typesPath}`)
 }
