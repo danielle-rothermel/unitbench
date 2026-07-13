@@ -1,0 +1,24 @@
+name: Release parity
+on:
+  workflow_dispatch:
+
+jobs:
+  release-parity:
+    name: release preflight + credentialed adapter parity
+    runs-on: ubuntu-latest
+    env:
+      UNITBENCH_DELIVERY_PARITY: '1'
+      UNITBENCH_DELIVERY_PARITY_DESCRIPTOR: ${{ secrets.UNITBENCH_DELIVERY_PARITY_DESCRIPTOR }}
+      LOCAL_ANALYSIS_DATABASE_PATH: ${{ secrets.LOCAL_ANALYSIS_DATABASE_PATH }}
+      ANALYSIS_DATABASE_URL: ${{ secrets.ANALYSIS_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:delivery-preflight
+      - run: pnpm check:delivery-parity
