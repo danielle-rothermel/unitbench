@@ -8,7 +8,7 @@ layout), including retries, failures, and skipped downstream stages.
 
 **Frozen inputs.** The component consumes `PipelineTrace` / `PipelineStage` /
 `StageFailure` from `src/fixtures/pipeline.ts` exactly as merged (design:
-`docs/plans/05-r0-fixture-shapes.md`, Shape 4). No fixture changes are planned.
+`docs/planning/viz-components/v0/plan.md`, Shape 4). No fixture changes are planned.
 All fake data comes from `makePipelineTrace(options)` (deterministic, seeded).
 
 **Zero new dependencies.** Layout is flexbox + Tailwind CSS-variable tokens, matching
@@ -107,7 +107,7 @@ src/components/pipeline-flow/
   demo-traces.test.ts            scenario invariants (each demo shows what it claims)
 src/app/dev/pipeline-flow/
   page.tsx                       multi-sample demo route (server component)
-docs/plans/
+docs/planning/viz-components/v0/workstreams/
   06-r4-pipeline-flow.md         this plan
 ```
 

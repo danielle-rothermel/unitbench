@@ -2,7 +2,7 @@
  * Pure view-model helpers for the pipeline-flow visualizer (R4, REL-5).
  *
  * Consumes the frozen PipelineTrace/PipelineStage fixture contract
- * (src/fixtures/pipeline.ts); plan: docs/plans/06-r4-pipeline-flow.md.
+ * (src/fixtures/pipeline.ts); plan: docs/planning/viz-components/v0/workstreams/r4-pipeline-flow.md.
  */
 
 import type { FailureClass } from '@/fixtures/primitives'

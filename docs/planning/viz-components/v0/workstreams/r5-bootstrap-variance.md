@@ -5,7 +5,7 @@ Status: PLAN — implementation to follow on branch `rel6-bootstrap-variance`.
 Visualizes bootstrapped variance and confidence bounds on per-task and aggregate
 pass rates, so the coarse budget sweep can answer "how many repetitions (N) do we
 need, and which compression range differences are real?" Builds strictly on the
-frozen R0 fixture contract (`docs/plans/05-r0-fixture-shapes.md`, Shape 5 +
+frozen R0 fixture contract (`docs/planning/viz-components/v0/plan.md`, Shape 5 +
 Decision 1): raw `BootstrapSampleRow[]` in, client-side seeded bootstrapping,
 `BootstrapCiSummary` as the computed output contract of a NEW shared helper.
 No fixture files, no shared files, and no `tools/unitbench_publish` files change.
@@ -158,7 +158,7 @@ helper the single place bootstrap math lives.
 | `src/components/bootstrap/CiWidthVsNChart.test.tsx` | Across-N rendering tests |
 | `src/components/bootstrap/BootstrapControls.tsx` | Seed / resamples / confidence / grouping / N controls (tested through the panel) |
 | `src/app/dev/bootstrap-variance/page.tsx` | Demo route over `makeBootstrapSampleRows` + handcrafted edge-case scenarios |
-| `docs/plans/06-r5-bootstrap-variance.md` | This plan |
+| `docs/planning/viz-components/v0/workstreams/r5-bootstrap-variance.md` | This plan |
 
 Notes:
 

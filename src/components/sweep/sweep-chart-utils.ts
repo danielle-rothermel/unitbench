@@ -3,7 +3,7 @@
  *
  * Colocated with the charts (not src/lib/) to keep R1's file isolation; if a
  * later component needs these, promote them in a shared-file pass.
- * Plan: docs/plans/06-r1-sweep-dashboard.md.
+ * Plan: docs/planning/viz-components/v0/workstreams/r1-sweep-dashboard.md.
  */
 import type { SweepGroupKey, SweepMetricsRow } from '@/fixtures'
 

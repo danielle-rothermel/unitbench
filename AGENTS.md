@@ -53,7 +53,7 @@ docs swept 2026-07-07
 
 ## FROZEN fixture contract
 
-`docs/plans/05-r0-fixture-shapes.md` plus its implementation in `src/fixtures/`
+`docs/planning/viz-components/v0/plan.md` plus its implementation in `src/fixtures/`
 is the FROZEN contract for the R1–R6 component work. Do not change fixture
 shapes, keys, or value sets while building components against them — build to
 the contract, and raise a flag if the contract seems wrong.
@@ -77,3 +77,21 @@ Before doing frontend work in this repo, read the vendored skills in
 The app reads a single env var, `DATABASE_URL` (Neon Postgres connection
 string), in `src/lib/neon.ts`. Copy `.env.example` to `.env` to set it. Without
 it, pages render a "DATABASE_URL not configured" notice instead of data.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub; external PRs are not a request surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the canonical five-role triage vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
+
+### Planning docs
+
+Versioned efforts live under `docs/planning/<effort>/`; only draft versions are mutable. See `docs/agents/planning.md`.

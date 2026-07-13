@@ -6,7 +6,7 @@ _Captured 2026-06-30. The current app is intentionally minimal — a read-only v
 that proves we can see our data. This doc records where we want to take it, why, and
 what the upstream `dr-dspy` data model and plans actually support today. It is a
 direction document, not an execution plan; execution prompts will live in
-`docs/plans/`._
+`docs/planning/viz-components/`._
 
 ---
 
