@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const WhetstoneProducerSha = '9a290669efb5b5016b0edb6a4503159de280f5af'
+const WhetstoneProducerSha = '195fa66049017bc62f96696b4ff414d6f61e5cdf'
 
 describe('release parity reusable workflow caller', () => {
   it('pins the signed Whetstone producer and passes its exact immutable input', async () => {
