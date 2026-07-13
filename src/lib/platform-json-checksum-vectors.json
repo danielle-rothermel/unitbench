@@ -1,0 +1,27 @@
+[
+  {
+    "name": "nested-unsafe-and-arbitrary-integers",
+    "json": "{\"outer\":{\"positive\":9007199254740993,\"negative\":-9007199254740993,\"huge\":1234567890123456789012345678901234567890}}",
+    "expected": "0a2f40a6f42a71f51a8c1bac0e318b908050cf1f8ea38c91ffb68f1540c6d184"
+  },
+  {
+    "name": "mixed-fractional-and-exponent",
+    "json": "{\"values\":[1e0,1.25e-5,-0.0,1e16,1.234e16]}",
+    "expected": "6c17d4d2f74fec8bd8f1a5103af1679e506536f7387e719dccd9880c9a9ebcf7"
+  },
+  {
+    "name": "escaped-unicode-keys-and-strings",
+    "json": "{\"\\ue000\":\"\\ud834\\udd1e\",\"\\ud800\\udc00\":\"snowman: \\u2603\",\"escaped\":\"line\\\\nbreak\\\\t\\\\\\\"\\\\\\\\\"}",
+    "expected": "faebf25eea457a87b363fca1590a36a4cb196523e2d659de870a2d98d2161e01"
+  },
+  {
+    "name": "nested-arrays-and-objects",
+    "json": "{\"array\":[{\"n\":9007199254740993},[true,null,{\"fraction\":0.0000123}]]}",
+    "expected": "9dfc4fc758daf03965b2123262622679a60bff9f5e0c5899db2c7b6a1fe0b027"
+  },
+  {
+    "name": "duplicate-key-last-wins",
+    "json": "{\"duplicate\":1,\"duplicate\":9007199254740993}",
+    "expected": "675da5cc2a85e2bb50c47ca540942dd490ec87212940c76b68ec853c01d22d95"
+  }
+]

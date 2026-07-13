@@ -327,7 +327,11 @@ function buildScoringStage(detail: PredictionDetail): PipelineStageInfo {
       detail: detail.score === null ? null : `score ${detail.score.toFixed(2)}`,
     }
   }
-  if (status === 'score_error' || status === 'scoring_error') {
+  if (
+    status === 'score_error' ||
+    status === 'scoring_error' ||
+    status === 'harness_failure'
+  ) {
     return {
       id: 'scoring',
       label: 'Scoring',

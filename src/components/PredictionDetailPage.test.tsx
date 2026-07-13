@@ -59,7 +59,7 @@ describe('PredictionDetailPage', () => {
       screen.getByRole('link', { name: 'dr-dspy/direct/sweep-1' }),
     ).toHaveAttribute(
       'href',
-      '/tables/published-experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
+      '/tables/experiments?experiment_id=dr-dspy%2Fdirect%2Fsweep-1',
     )
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
     expect(screen.queryByText('Raw generation')).not.toBeInTheDocument()
@@ -83,6 +83,22 @@ describe('PredictionDetailPage', () => {
     expect(paneLabels).not.toContain('Code')
     expect(screen.getByText('Prompt')).toBeInTheDocument()
     expect(screen.getByText('Code')).toBeInTheDocument()
+  })
+
+  it('uses plain-text highlighting for prompt and raw-generation content', () => {
+    render(
+      <PredictionDetailPage
+        detail={makeDetail({ raw_generation: 'raw provider response' })}
+        backHref="/tables/x"
+      />,
+    )
+
+    const codeBlocks = screen.getAllByTestId('viewer-code-block')
+    expect(codeBlocks.map(block => block.dataset.language)).toEqual([
+      'text',
+      'python',
+      'text',
+    ])
   })
 
   it('shows harness failure counts in diagnostics when present', () => {

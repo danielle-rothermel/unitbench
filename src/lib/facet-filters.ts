@@ -25,20 +25,23 @@ export function buildFacetWhereParts(
   for (const [rawColumn, values] of Object.entries(filters.filterIn)) {
     if (values.length === 0) continue
     if (!allowed.has(rawColumn)) continue
-    params.push(values)
-    conditions.push(
-      `${filterExpression(rawColumn)} = ANY($${paramOffset + params.length}::text[])`,
-    )
+    const expression = filterExpression(rawColumn)
+    const placeholders = values.map(value => {
+      params.push(value)
+      return `$${paramOffset + params.length}`
+    })
+    conditions.push(`(${placeholders.map(placeholder => `${expression} = ${placeholder}`).join(' OR ')})`)
   }
 
   for (const [rawColumn, values] of Object.entries(filters.filterOut)) {
     if (values.length === 0) continue
     if (!allowed.has(rawColumn)) continue
-    params.push(values)
     const expression = filterExpression(rawColumn)
-    conditions.push(
-      `(${expression} IS NULL OR ${expression} <> ALL($${paramOffset + params.length}::text[]))`,
-    )
+    const placeholders = values.map(value => {
+      params.push(value)
+      return `$${paramOffset + params.length}`
+    })
+    conditions.push(`(${expression} IS NULL OR (${placeholders.map(placeholder => `${expression} <> ${placeholder}`).join(' AND ')}))`)
   }
 
   return { conditions, params }

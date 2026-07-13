@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getTableConfig } from '@/lib/table-config'
 import { buildTableQuery, parseTableState } from '@/lib/table-params'
 
-const config = getTableConfig('published-predictions')
+const config = getTableConfig('predictions')
 
 describe('parseTableState', () => {
   it('returns defaults for empty params', () => {

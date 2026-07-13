@@ -5,7 +5,7 @@ Status: PLAN — implementation to follow on branch `rel4-compression-results`.
 Per-sample visualizer that validates enc-dec infra behavior: did the encoder hit its
 compression target, what did the intermediate representation cost in characters, and
 how do the lossless codecs compare? Built entirely against the frozen fixture contract
-(`src/fixtures/compression.ts`, doc `05-r0-fixture-shapes.md`, Shape 3). Components
+(`src/fixtures/compression.ts`, [the v0 plan](../plan.md), Shape 3). Components
 adapt to the fixture; no fixture or shared-file changes are planned.
 
 Constraints honored:

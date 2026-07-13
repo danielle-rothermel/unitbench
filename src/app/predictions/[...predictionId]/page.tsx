@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { PredictionDetailPage } from '@/components/PredictionDetailPage'
 import { getPredictionDetail } from '@/lib/prediction-detail'
 import {
   DEFAULT_PREDICTIONS_TABLE_ID,
   getTableConfig,
-  PUBLISHED_PREDICTION_DETAIL_TABLES,
   UnknownTableError,
 } from '@/lib/table-config'
 
@@ -31,46 +30,33 @@ function backHrefFrom(
   return raw ? `${base}?${raw}` : base
 }
 
+export function predictionIdFromSegments(predictionId: readonly string[]): string | null {
+  if (predictionId.length === 0 || predictionId.some(segment => !segment)) return null
+  return predictionId.map(decodeURIComponent).join('/')
+}
+
 export default async function Page({ params, searchParams }: PageProps) {
   const [{ predictionId }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ])
-  const id = predictionId.map(decodeURIComponent).join('/')
+  const id = predictionIdFromSegments(predictionId)
+  if (!id) notFound()
   const tableId = tableIdFrom(resolvedSearchParams)
 
-  let detailTables = PUBLISHED_PREDICTION_DETAIL_TABLES
   try {
-    const tableConfig = getTableConfig(tableId)
-    detailTables = tableConfig.detailTables ?? PUBLISHED_PREDICTION_DETAIL_TABLES
+    getTableConfig(tableId)
   } catch (error) {
     if (!(error instanceof UnknownTableError)) throw error
   }
 
-  const result = await getPredictionDetail(id, detailTables)
+  const result = await getPredictionDetail(id)
 
   if (result.status === 'not-found') notFound()
 
   const backHref = backHrefFrom(tableId, resolvedSearchParams.return)
 
-  if (result.status === 'missing-url') {
-    return (
-      <ErrorSection
-        tone="setup"
-        title="DATABASE_URL not configured"
-        message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-      />
-    )
-  }
+  if (result.status === 'failure') return <BundleState plane="Detail" failure={result.failure} />
 
-  if (result.status === 'error') {
-    return (
-      <ErrorSection
-        title="Failed to load prediction"
-        message={result.message}
-      />
-    )
-  }
-
-  return <PredictionDetailPage detail={result.detail} backHref={backHref} />
+  return <PredictionDetailPage detail={result.detail} provenance={result.provenance} bundle={result.bundle} backHref={backHref} />
 }

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   parseCorrectnessCompressionRow,
   parseDistributionRow,
-} from '@/lib/read-layer'
+} from '@/lib/dashboard-model'
+import { COMPRESSION_BUCKET_SQL } from '@/lib/read-layer'
 
 describe('parseCorrectnessCompressionRow', () => {
   it('maps a joined row into a typed point', () => {
@@ -46,5 +47,17 @@ describe('parseDistributionRow', () => {
     expect(
       parseDistributionRow({ bucket: '3', result_state: 'failed', count: 41 }),
     ).toEqual({ bucket: 3, resultState: 'failed', count: 41 })
+  })
+})
+
+describe('compression bucket SQL', () => {
+  it('uses portable explicit numeric semantics for both Analysis adapters', () => {
+    expect(COMPRESSION_BUCKET_SQL).not.toContain('width_bucket')
+    expect(COMPRESSION_BUCKET_SQL).toContain(
+      'CAST(compression_ratio AS DOUBLE PRECISION)',
+    )
+    expect(COMPRESSION_BUCKET_SQL).toContain('THEN 0')
+    expect(COMPRESSION_BUCKET_SQL).toContain('CAST($1 AS DOUBLE PRECISION)')
+    expect(COMPRESSION_BUCKET_SQL).toContain('CAST($2 AS INTEGER)')
   })
 })

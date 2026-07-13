@@ -15,11 +15,8 @@ import {
   type HeatmapAxis,
 } from '@/lib/heatmap-config'
 import type { HeatmapState } from '@/lib/heatmap-params'
-import {
-  MissingDatabaseUrlError,
-  neonSql,
-  type SqlClient,
-} from '@/lib/neon'
+import { withAnalysisBundle } from '@/lib/bundle-adapter.server'
+import { bundleFailure, bundleIdentity, type BundleIdentity, type BundleViewFailure } from '@/lib/bundle-view'
 import { totalPages } from '@/lib/pagination'
 import {
   orderByForSort,
@@ -33,7 +30,7 @@ import {
   modelGroupBySql,
 } from '@/lib/canonical-model'
 import type { TableRow } from '@/lib/table-data'
-import { buildTestExperimentWhereParts } from '@/lib/test-experiment-filter'
+import { testExperimentPatterns } from '@/lib/test-experiment-filter'
 
 export type { AggregateFilters } from '@/lib/aggregate-filters'
 
@@ -63,17 +60,14 @@ export type AggregatePage =
       rows: TableRow[]
       total: number
       totalPages: number
+      facets: AggregateFacets
+      bundle: BundleIdentity
     }
   | {
-      status: 'missing-url'
+      status: 'failure'
       state: AggregateState
       tableConfig: ReturnType<typeof buildAggregateTableConfig>
-    }
-  | {
-      status: 'error'
-      state: AggregateState
-      tableConfig: ReturnType<typeof buildAggregateTableConfig>
-      message: string
+      failure: BundleViewFailure
     }
 
 export class InvalidAggregateQueryError extends Error {
@@ -84,14 +78,18 @@ export class InvalidAggregateQueryError extends Error {
 }
 
 function queryWithParams<T extends TableRow>(
-  sql: SqlClient,
   query: string,
   params: unknown[],
 ): Promise<T[]> {
-  return sql.query(query, params) as Promise<T[]>
+  return withAnalysisBundle((database, bundle) =>
+    database.query<T>(
+      query.replaceAll('"predictions"', bundle.members.predictions),
+      params,
+    ) as Promise<T[]>,
+  )
 }
 
-function countFromRows(rows: TableRow[]): number {
+function countFromRows(rows: readonly TableRow[]): number {
   const first = rows[0]
   const raw = first?.total
   if (typeof raw === 'number') return raw
@@ -177,13 +175,22 @@ function appendPredictionsTestExperimentFilter(
   params: unknown[],
   hide: boolean,
 ): void {
-  const testParts = buildTestExperimentWhereParts({
-    hide,
-    paramOffset: params.length,
-    experimentIdExpr: quoteIdentifier('experiment_id'),
+  if (!hide) return
+  const expression = quoteIdentifier('experiment_id')
+  conditions.push(`NOT (${scalarPlaceholders(expression, 'ILIKE', testExperimentPatterns(), params).join(' OR ')})`)
+}
+
+/** Scalar bindings work identically in postgres.js, MotherDuck, and DuckDB's native callback API. */
+function scalarPlaceholders(
+  expression: string,
+  operator: 'ILIKE' | '=',
+  values: readonly string[],
+  params: unknown[],
+): string[] {
+  return values.map(value => {
+    params.push(value)
+    return `${expression} ${operator} $${params.length}`
   })
-  conditions.push(...testParts.conditions)
-  params.push(...testParts.params)
 }
 
 function buildHeatmapWhere(state: TestExperimentFilterState): SqlQuery {
@@ -193,19 +200,14 @@ function buildHeatmapWhere(state: TestExperimentFilterState): SqlQuery {
   for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `${heatmapFilterExpression(column)} = ANY($${params.length}::text[])`,
-    )
+    conditions.push(`(${scalarPlaceholders(heatmapFilterExpression(column), '=', values, params).join(' OR ')})`)
   }
 
   for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateHeatmapFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `(${heatmapFilterExpression(column)} IS NULL OR ${heatmapFilterExpression(column)} <> ALL($${params.length}::text[]))`,
-    )
+    const expression = heatmapFilterExpression(column)
+    conditions.push(`(${expression} IS NULL OR NOT (${scalarPlaceholders(expression, '=', values, params).join(' OR ')}))`)
   }
 
   appendPredictionsTestExperimentFilter(
@@ -297,19 +299,14 @@ function buildWhere(state: TestExperimentFilterState): SqlQuery {
   for (const [rawColumn, values] of Object.entries(state.filterIn)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `${filterExpression(column)} = ANY($${params.length}::text[])`,
-    )
+    conditions.push(`(${scalarPlaceholders(filterExpression(column), '=', values, params).join(' OR ')})`)
   }
 
   for (const [rawColumn, values] of Object.entries(state.filterOut)) {
     if (values.length === 0) continue
     const column = validateFilterColumn(rawColumn)
-    params.push(values)
-    conditions.push(
-      `(${filterExpression(column)} IS NULL OR ${filterExpression(column)} <> ALL($${params.length}::text[]))`,
-    )
+    const expression = filterExpression(column)
+    conditions.push(`(${expression} IS NULL OR NOT (${scalarPlaceholders(expression, '=', values, params).join(' OR ')}))`)
   }
 
   appendPredictionsTestExperimentFilter(
@@ -427,31 +424,34 @@ export async function getAggregatePage(
 ): Promise<AggregatePage> {
   const tableConfig = buildAggregateTableConfig(state)
   try {
-    const sql = neonSql()
     const countQuery = buildAggregateCountQuery(state)
     const selectQuery = buildAggregateQuery(state)
-    const [countRows, rows] = await Promise.all([
-      queryWithParams(sql, countQuery.text, countQuery.params),
-      queryWithParams(sql, selectQuery.text, selectQuery.params),
-    ])
-    const total = countFromRows(countRows)
+    const result = await withAnalysisBundle(async (database, bundle) => {
+      const source = bundle.members.predictions
+      const [countRows, rows, facets] = await Promise.all([
+        database.query<TableRow>(countQuery.text.replaceAll('"predictions"', source), countQuery.params),
+        database.query<TableRow>(selectQuery.text.replaceAll('"predictions"', source), selectQuery.params),
+        getAggregateFacetsFromDatabase(state, database, source),
+      ])
+      return { countRows, rows, facets, bundle: bundleIdentity(bundle) }
+    })
+    const total = countFromRows(result.countRows)
     return {
       status: 'ok',
       state,
       tableConfig,
-      rows,
+      rows: [...result.rows],
       total,
       totalPages: totalPages(total, state.pageSize),
+      facets: result.facets,
+      bundle: result.bundle,
     }
   } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
-      return { status: 'missing-url', state, tableConfig }
-    }
     return {
-      status: 'error',
+      status: 'failure',
       state,
       tableConfig,
-      message: error instanceof Error ? error.message : String(error),
+      failure: bundleFailure(error),
     }
   }
 }
@@ -460,25 +460,29 @@ function predictionsFacetWhere(
   hide: boolean,
   extraCondition?: string,
 ): { where: string; params: unknown[] } {
-  const testParts = buildTestExperimentWhereParts({
-    hide,
-    paramOffset: 0,
-    experimentIdExpr: quoteIdentifier('experiment_id'),
-  })
-  const conditions = extraCondition
-    ? [extraCondition, ...testParts.conditions]
-    : [...testParts.conditions]
+  const conditions = extraCondition ? [extraCondition] : []
+  const params: unknown[] = []
+  appendPredictionsTestExperimentFilter(conditions, params, hide)
   return {
     where: conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '',
-    params: testParts.params,
+    params,
   }
 }
 
 export async function getAggregateFacets(
   state: Pick<AggregateState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const sql = neonSql()
-  const table = qualifiedTableName(AGGREGATE_TABLE)
+  return withAnalysisBundle((database, bundle) =>
+    getAggregateFacetsFromDatabase(state, database, bundle.members.predictions),
+  )
+}
+
+async function getAggregateFacetsFromDatabase(
+  state: Pick<AggregateState, 'hideTestExperiments'>,
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+  source: string,
+): Promise<AggregateFacets> {
+  const table = source
   const keys = ['model', 'experiment_kind'] as const
   const entries = await Promise.all(
     keys.map(async key => {
@@ -489,16 +493,14 @@ export async function getAggregateFacets(
           : `${quoteIdentifier(key)} IS NOT NULL`,
       )
       if (key === 'model') {
-        const rows = await queryWithParams<{ value: unknown }>(
-          sql,
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
         return [key, rows.map(row => String(row.value))] as const
       }
       const id = quoteIdentifier(key)
-      const rows = await queryWithParams<{ value: unknown }>(
-        sql,
+      const rows = await database.query<{ value: unknown }>(
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -511,8 +513,17 @@ export async function getAggregateFacets(
 export async function getHeatmapFacets(
   state: Pick<HeatmapState, 'hideTestExperiments'>,
 ): Promise<AggregateFacets> {
-  const sql = neonSql()
-  const table = qualifiedTableName(AGGREGATE_TABLE)
+  return withAnalysisBundle((database, bundle) =>
+    getHeatmapFacetsFromDatabase(state, database, bundle.members.predictions),
+  )
+}
+
+async function getHeatmapFacetsFromDatabase(
+  state: Pick<HeatmapState, 'hideTestExperiments'>,
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+  source: string,
+): Promise<AggregateFacets> {
+  const table = source
   const entries = await Promise.all(
     HEATMAP_FILTER_COLUMNS.map(async key => {
       if (key === 'model') {
@@ -520,8 +531,7 @@ export async function getHeatmapFacets(
           state.hideTestExperiments,
           `${quoteIdentifier('model')} IS NOT NULL`,
         )
-        const rows = await queryWithParams<{ value: unknown }>(
-          sql,
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${modelGroupBySql()} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -529,8 +539,7 @@ export async function getHeatmapFacets(
       }
       if (key === 'budget') {
         const { where, params } = predictionsFacetWhere(state.hideTestExperiments)
-        const rows = await queryWithParams<{ value: unknown }>(
-          sql,
+        const rows = await database.query<{ value: unknown }>(
           `SELECT DISTINCT ${BUDGET_DIMENSION_SQL} AS value FROM ${table}${where} ORDER BY value ASC`,
           params,
         )
@@ -541,8 +550,7 @@ export async function getHeatmapFacets(
         state.hideTestExperiments,
         `${id} IS NOT NULL`,
       )
-      const rows = await queryWithParams<{ value: unknown }>(
-        sql,
+      const rows = await database.query<{ value: unknown }>(
         `SELECT DISTINCT ${id} AS value FROM ${table}${where} ORDER BY ${id} ASC`,
         params,
       )
@@ -554,6 +562,34 @@ export async function getHeatmapFacets(
 
 export async function getHeatmapRows(state: HeatmapState): Promise<TableRow[]> {
   const query = buildHeatmapQuerySql(state)
-  const sql = neonSql()
-  return queryWithParams(sql, query.text, query.params)
+  return queryWithParams(query.text, query.params)
+}
+
+/** A heatmap is one Analysis view: facets and cells must share one pin. */
+export type HeatmapPage =
+  | Readonly<{
+      status: 'ok'
+      rows: readonly TableRow[]
+      facets: AggregateFacets
+      bundle: BundleIdentity
+    }>
+  | Readonly<{
+      status: 'failure'
+      failure: BundleViewFailure
+    }>
+
+export async function getHeatmapPage(state: HeatmapState): Promise<HeatmapPage> {
+  try {
+    return await withAnalysisBundle(async (database, bundle) => {
+      const source = bundle.members.predictions
+      const query = buildHeatmapQuerySql(state)
+      const [rows, facets] = await Promise.all([
+        database.query<TableRow>(query.text.replaceAll('"predictions"', source), query.params),
+        getHeatmapFacetsFromDatabase(state, database, source),
+      ])
+      return { status: 'ok', rows, facets, bundle: bundleIdentity(bundle) }
+    })
+  } catch (error) {
+    return { status: 'failure', failure: bundleFailure(error) }
+  }
 }

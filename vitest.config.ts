@@ -20,6 +20,11 @@ export default defineConfig({
         ).pathname,
       },
       {
+        find: 'server-only',
+        replacement: new URL('./src/test/server-only.ts', import.meta.url)
+          .pathname,
+      },
+      {
         find: '@',
         replacement: new URL('./src', import.meta.url).pathname,
       },
@@ -27,8 +32,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    exclude: ['e2e/**', '**/node_modules/**', '**/dist/**', '.worktrees/**'],
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    exclude: ['e2e/**', '**/node_modules/**', '**/dist/**', '.worktrees/**'],
   },
 })

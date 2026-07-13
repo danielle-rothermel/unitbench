@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }))
 
-const predictionsConfig = getTableConfig('published-predictions')
+const predictionsConfig = getTableConfig('predictions')
 const defaultState = parseTableState(predictionsConfig, {})
 
 const sampleRow = {
@@ -59,12 +59,12 @@ describe('GenericTable', () => {
     // Numeric columns sort descending on first click (TanStack sortDescFirst).
     fireEvent.click(screen.getByRole('button', { name: /Score/ }))
     expect(push).toHaveBeenCalledWith(
-      '/tables/published-predictions?sort=score&dir=desc',
+      '/tables/predictions?sort=score&dir=desc',
     )
   })
 
   it('renders an empty state when no rows are available', () => {
-    const experimentsConfig = getTableConfig('published-experiments')
+    const experimentsConfig = getTableConfig('experiments')
     render(
       <GenericTable
         config={experimentsConfig}

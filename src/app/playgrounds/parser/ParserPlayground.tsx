@@ -76,9 +76,11 @@ export default function ParserPlayground() {
         const profiles = (await response.json()) as ProfilesResponse
         setProfileIds(profiles.profile_ids)
         setParserVersion(profiles.parser_version)
-        if (!profiles.profile_ids.includes(profileId)) {
-          setProfileId(profiles.profile_ids[0] ?? DEFAULT_PROFILE_ID)
-        }
+        setProfileId(currentProfileId =>
+          profiles.profile_ids.includes(currentProfileId)
+            ? currentProfileId
+            : (profiles.profile_ids[0] ?? DEFAULT_PROFILE_ID),
+        )
       } catch {
         return
       }
@@ -86,7 +88,7 @@ export default function ParserPlayground() {
 
     void loadProfiles()
     return () => controller.abort()
-  }, [profileId])
+  }, [])
 
   const canSubmit = useMemo(
     () => requestState.status !== 'loading' && text.trim().length > 0,

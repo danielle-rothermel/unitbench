@@ -188,6 +188,22 @@ describe('buildPredictionDiagnostics', () => {
     )
     expect(shouldShowDiagnostics(diagnostics, detail)).toBe(true)
   })
+
+  it('treats harness-only scoring failures as failed scoring', () => {
+    const diagnostics = buildPredictionDiagnostics(
+      makeDetail({
+        result_state: 'error',
+        scoring_status: 'harness_failure',
+        score: null,
+        harness_failure_count: 1,
+      }),
+    )
+
+    expect(diagnostics.pipelineStages.find(stage => stage.id === 'scoring')).toMatchObject({
+      status: 'failed',
+      detail: 'harness_failure',
+    })
+  })
 })
 
 describe('buildRunConfigFields', () => {

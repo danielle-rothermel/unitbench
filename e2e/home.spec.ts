@@ -13,7 +13,7 @@ test('home page renders the table directory without console errors', async ({
   await expect(
     page.getByRole('main').getByRole('heading', { level: 1, name: 'Unitbench' }),
   ).toBeVisible()
-  await expect(page.getByRole('link', { name: /published/i }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: /predictions/i }).first()).toBeVisible()
 
   expect(consoleErrors).toEqual([])
 })

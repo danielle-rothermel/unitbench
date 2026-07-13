@@ -46,20 +46,13 @@ function predictionDetailHref(
   returnQuery: string,
   tableId: string,
 ): string {
-  const encoded = predictionId.split('/').map(encodeURIComponent).join('/')
+  const encoded = encodeURIComponent(predictionId)
   const params = new URLSearchParams()
   if (returnQuery) params.set('return', returnQuery)
   if (tableId !== DEFAULT_PREDICTIONS_TABLE_ID) params.set('table', tableId)
   const query = params.toString()
   const base = `/predictions/${encoded}`
   return query ? `${base}?${query}` : base
-}
-
-function experimentPredictionsTableId(config: TableConfig): string {
-  if (config.id === 'published-v1-experiments') {
-    return 'published-v1-predictions'
-  }
-  return DEFAULT_PREDICTIONS_TABLE_ID
 }
 
 function cellContent(value: unknown, column: TableColumn): ReactNode {
@@ -141,16 +134,11 @@ export function GenericTable({
             )
           }
           if (
-            (config.id === 'published-experiments' ||
-              config.id === 'published-v1-experiments') &&
+            config.id === 'experiments' &&
             column.key === 'experiment_id'
           ) {
             const id = formatCellValue(value)
-            const predictionsTableId = experimentPredictionsTableId(config)
-            const href =
-              predictionsTableId === DEFAULT_PREDICTIONS_TABLE_ID
-                ? experimentPredictionsHref(id)
-                : `/tables/${predictionsTableId}?experiment_id=${encodeURIComponent(id)}`
+            const href = experimentPredictionsHref(id)
             return (
               <Link
                 href={href}

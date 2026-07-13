@@ -1,10 +1,9 @@
 import { AggregatePageShell } from '@/components/AggregatePageShell'
 import { HeatmapFilters } from '@/components/HeatmapFilters'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { ScoreHeatmap } from '@/components/ScoreHeatmap'
-import { getHeatmapFacets, getHeatmapRows } from '@/lib/aggregate-data'
+import { getHeatmapPage } from '@/lib/aggregate-data'
 import { heatmapTitle } from '@/lib/heatmap-config'
-import { MissingDatabaseUrlError } from '@/lib/neon'
 import { parseHeatmapState } from '@/lib/heatmap-params'
 
 export const dynamic = 'force-dynamic'
@@ -17,22 +16,7 @@ export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const state = parseHeatmapState(resolvedSearchParams)
 
-  let facets: Awaited<ReturnType<typeof getHeatmapFacets>> = {}
-  let heatmapRows: Awaited<ReturnType<typeof getHeatmapRows>> = []
-  let status: 'ok' | 'missing-url' | 'error' = 'ok'
-  let errorMessage = ''
-
-  try {
-    facets = await getHeatmapFacets(state)
-    heatmapRows = await getHeatmapRows(state)
-  } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
-      status = 'missing-url'
-    } else {
-      status = 'error'
-      errorMessage = error instanceof Error ? error.message : String(error)
-    }
-  }
+  const heatmapPage = await getHeatmapPage(state)
 
   return (
     <AggregatePageShell
@@ -43,22 +27,11 @@ export default async function Page({ searchParams }: PageProps) {
         label: 'View flexible aggregation →',
       }}
     >
-      {status === 'missing-url' && (
-        <ErrorSection
-          tone="setup"
-          title="DATABASE_URL not configured"
-          message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-        />
-      )}
-
-      {status === 'error' && (
-        <ErrorSection title="Failed to load heatmap" message={errorMessage} />
-      )}
-
-      {status === 'ok' && (
+      {heatmapPage.status === 'failure' && <BundleState plane="Analysis" failure={heatmapPage.failure} />}
+      {heatmapPage.status === 'ok' && (
         <>
-          <HeatmapFilters state={state} facets={facets} />
-          <ScoreHeatmap rows={heatmapRows} state={state} />
+          <HeatmapFilters state={state} facets={heatmapPage.facets} />
+          <ScoreHeatmap rows={[...heatmapPage.rows]} state={state} />
         </>
       )}
     </AggregatePageShell>

@@ -5,9 +5,9 @@ import { TableFilters } from '@/components/TableFilters'
 import { TableExploreAggregatesLink } from '@/components/TableExploreAggregatesLink'
 import { TableHideTestExperimentsToggle } from '@/components/TableHideTestExperimentsToggle'
 import { TableQuickFilters } from '@/components/TableQuickFilters'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { Dot, Tag } from '@/components/primitives'
-import { getTableFacets, getTablePage } from '@/lib/table-data'
+import { getTablePage } from '@/lib/table-data'
 import { UnknownTableError } from '@/lib/table-config'
 
 export const dynamic = 'force-dynamic'
@@ -30,11 +30,6 @@ export default async function Page({ params, searchParams }: PageProps) {
     if (error instanceof UnknownTableError) notFound()
     throw error
   }
-
-  const facets =
-    tablePage.status === 'ok'
-      ? await getTableFacets(tablePage.config, tablePage.state)
-      : {}
 
   return (
     <div className="w-full">
@@ -61,17 +56,7 @@ export default async function Page({ params, searchParams }: PageProps) {
         </p>
       </header>
 
-      {tablePage.status === 'missing-url' && (
-        <ErrorSection
-          tone="setup"
-          title="DATABASE_URL not configured"
-          message="Set DATABASE_URL locally or in Vercel before reading this Neon table."
-        />
-      )}
-
-      {tablePage.status === 'error' && (
-        <ErrorSection title="Failed to load table" message={tablePage.message} />
-      )}
+      {tablePage.status === 'failure' && <BundleState plane={tablePage.config.plane === 'analysis' ? 'Analysis' : 'Detail'} failure={tablePage.failure} />}
 
       {tablePage.status === 'ok' && (
         <>
@@ -84,8 +69,9 @@ export default async function Page({ params, searchParams }: PageProps) {
           <TableFilters
             config={tablePage.config}
             state={tablePage.state}
-            facets={facets}
+            facets={tablePage.facets}
           />
+          <p className="mb-3 font-mono text-[11px] text-[var(--text-muted)]">Pinned {tablePage.config.plane} bundle {tablePage.bundle.bundle_id} · snapshot {tablePage.bundle.snapshot_seq}</p>
           <GenericTable
             config={tablePage.config}
             state={tablePage.state}

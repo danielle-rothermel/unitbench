@@ -2,9 +2,9 @@ export type ExtractionTrace = {
   rationale?: string
 }
 
-export function CodeBlock({ code }: { code: string }) {
+export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   return (
-    <pre data-testid="viewer-code-block">
+    <pre data-testid="viewer-code-block" data-language={lang}>
       <code>{code}</code>
     </pre>
   )

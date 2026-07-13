@@ -1,19 +1,15 @@
-import { modelFilterSql, modelFilterSqlQualified } from '@/lib/canonical-model'
+import { modelFilterSql } from '@/lib/canonical-model'
 import {
   buildFacetWhereParts,
 } from '@/lib/facet-filters'
-import {
-  MissingDatabaseUrlError,
-  neonSql,
-  type SqlClient,
-} from '@/lib/neon'
+import { withAnalysisBundle, withDetailBundle } from '@/lib/bundle-adapter.server'
+import { bundleFailure, bundleIdentity, type BundleIdentity, type BundleViewFailure } from '@/lib/bundle-view'
 import { BUDGET_DIMENSION_SQL, BUDGET_URL_PARAM } from '@/lib/heatmap-config'
 import { totalPages } from '@/lib/pagination'
 import {
   allTableColumns,
   facetColumnKeys,
   getTableConfig,
-  isJoinedColumn,
   tableFromClause,
   type TableConfig,
 } from '@/lib/table-config'
@@ -46,25 +42,26 @@ export type TablePage =
       rows: TableRow[]
       total: number
       totalPages: number
+      bundle: BundleIdentity
+      facets: TableFacets
     }
   | {
-      status: 'missing-url'
+      status: 'failure'
       config: TableConfig
       state: TableState
-    }
-  | {
-      status: 'error'
-      config: TableConfig
-      state: TableState
-      message: string
+      failure: BundleViewFailure
     }
 
-function queryWithParams<T extends TableRow>(
-  sql: SqlClient,
+function executeWithDatabase<T extends TableRow>(
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
   query: string,
   params: unknown[],
+  member: string,
+  members: Readonly<Record<string, string>>,
 ): Promise<T[]> {
-  return sql.query(query, params) as Promise<T[]>
+  const source = members[member]
+  if (!source) throw new Error('Pinned bundle member is unavailable')
+  return database.query<T>(query.replaceAll(`"${member}"`, source), params) as Promise<T[]>
 }
 
 function countFromRows(rows: TableRow[]): number {
@@ -78,16 +75,7 @@ function countFromRows(rows: TableRow[]): number {
 
 function filterExpression(config: TableConfig, column: string): string {
   if (column === BUDGET_URL_PARAM) return BUDGET_DIMENSION_SQL
-  if (column === 'model') {
-    if (config.join) return modelFilterSqlQualified(config.join.alias)
-    return modelFilterSql()
-  }
-  if (isJoinedColumn(config, column)) {
-    return `${quoteIdentifier(config.join!.alias)}.${quoteIdentifier(column)}`
-  }
-  if (config.localAlias) {
-    return `${quoteIdentifier(config.localAlias)}.${quoteIdentifier(column)}`
-  }
+  if (column === 'model') return modelFilterSql()
   return quoteIdentifier(column)
 }
 
@@ -98,16 +86,6 @@ function columnExpression(config: TableConfig, key: string): string {
 function selectedColumnSql(config: TableConfig): string {
   return allTableColumns(config)
     .map(column => {
-      if (isJoinedColumn(config, column.key)) {
-        const alias = config.join!.alias
-        if (column.key === 'model') {
-          return `${modelFilterSqlQualified(alias)} AS ${quoteIdentifier(column.key)}`
-        }
-        return `${quoteIdentifier(alias)}.${quoteIdentifier(column.key)} AS ${quoteIdentifier(column.key)}`
-      }
-      if (config.localAlias) {
-        return `${quoteIdentifier(config.localAlias)}.${quoteIdentifier(column.key)} AS ${quoteIdentifier(column.key)}`
-      }
       return quoteIdentifier(column.key)
     })
     .join(', ')
@@ -122,19 +100,12 @@ function testExperimentWhereParts(
   hide: boolean,
   paramOffset: number,
 ) {
-  if (config.id === 'published-experiments') {
+  if (config.id === 'experiments') {
     return buildTestExperimentWhereParts({
       hide,
       paramOffset,
       experimentIdExpr: quoteIdentifier('experiment_id'),
       displayNameExpr: quoteIdentifier('display_name'),
-    })
-  }
-  if (config.localAlias) {
-    return buildTestExperimentWhereParts({
-      hide,
-      paramOffset,
-      experimentIdExpr: `${quoteIdentifier(config.localAlias)}.${quoteIdentifier('experiment_id')}`,
     })
   }
   return buildTestExperimentWhereParts({
@@ -241,39 +212,45 @@ export async function getTablePage(
   const config = getTableConfig(tableId)
   const state = parseTableState(config, input)
   try {
-    const sql = neonSql()
     const countQuery = buildCountQuery(config, state)
     const selectQuery = buildSelectQuery(config, state)
-    const [countRows, rows] = await Promise.all([
-      queryWithParams(sql, countQuery.text, countQuery.params),
-      queryWithParams(sql, selectQuery.text, selectQuery.params),
-    ])
-    const total = countFromRows(countRows)
+    const load = async (
+      database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+      members: Readonly<Record<string, string>>,
+      bundle: { bundleId: string; snapshotSeq: number },
+    ) => {
+      const [countRows, rows, facets] = await Promise.all([
+        executeWithDatabase(database, countQuery.text, countQuery.params, config.table.name, members),
+        executeWithDatabase(database, selectQuery.text, selectQuery.params, config.table.name, members),
+        getTableFacetsFromPinnedBundle(config, state, database, members),
+      ])
+      return { countRows, rows, facets, bundle: bundleIdentity(bundle) }
+    }
+    const result = await (config.plane === 'analysis'
+      ? withAnalysisBundle((database, bundle) => load(database, bundle.members, bundle))
+      : withDetailBundle((database, bundle) => load(database, bundle.members, bundle)))
+    const total = countFromRows(result.countRows)
     return {
       status: 'ok',
       config,
       state,
-      rows,
+      rows: result.rows,
       total,
       totalPages: totalPages(total, state.pageSize),
+      bundle: result.bundle,
+      facets: result.facets,
     }
   } catch (error) {
-    if (error instanceof MissingDatabaseUrlError) {
-      return { status: 'missing-url', config, state }
-    }
     return {
-      status: 'error',
+      status: 'failure',
       config,
       state,
-      message: error instanceof Error ? error.message : String(error),
+      failure: bundleFailure(error),
     }
   }
 }
 
 function facetSelectExpression(config: TableConfig, key: string): string {
-  if (key === 'model' && config.join) {
-    return modelFilterSqlQualified(config.join.alias)
-  }
   if (key === 'model') return modelFilterSql()
   return filterExpression(config, key)
 }
@@ -282,9 +259,23 @@ export async function getTableFacets(
   config: TableConfig,
   state: TableState,
 ): Promise<TableFacets> {
+  const load = (
+    database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+    members: Readonly<Record<string, string>>,
+  ) => getTableFacetsFromPinnedBundle(config, state, database, members)
+  return config.plane === 'analysis'
+    ? withAnalysisBundle((database, bundle) => load(database, bundle.members))
+    : withDetailBundle((database, bundle) => load(database, bundle.members))
+}
+
+async function getTableFacetsFromPinnedBundle(
+  config: TableConfig,
+  state: TableState,
+  database: { query<Row extends TableRow>(statement: string, values: readonly unknown[]): Promise<readonly Row[]> },
+  members: Readonly<Record<string, string>>,
+): Promise<TableFacets> {
   const keys = facetColumnKeys(config)
   if (keys.length === 0) return {}
-  const sql = neonSql()
   const fromClause = tableFromClause(config)
   const entries = await Promise.all(
     keys.map(async key => {
@@ -296,10 +287,10 @@ export async function getTableFacets(
       )
       const conditions = [`${expression} IS NOT NULL`, ...testParts.conditions]
       const where = ` WHERE ${conditions.join(' AND ')}`
-      const rows = await queryWithParams<{ value: unknown }>(
-        sql,
-        `SELECT DISTINCT ${expression} AS value FROM ${fromClause}${where} ORDER BY value ASC`,
-        testParts.params,
+      const source = members[config.table.name]
+      if (!source) throw new Error('Pinned bundle member is unavailable')
+      const rows = await database.query<{ value: unknown }>(
+        `SELECT DISTINCT ${expression} AS value FROM ${fromClause}${where} ORDER BY value ASC`.replaceAll(`"${config.table.name}"`, source), testParts.params,
       )
       return [key, rows.map(row => String(row.value))] as const
     }),

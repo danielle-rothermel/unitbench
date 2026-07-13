@@ -11,8 +11,9 @@ docs swept 2026-07-07
 - **Package manager:** pnpm (pinned via `packageManager: pnpm@9.15.2`). Never
   use npm or yarn; the lockfile is `pnpm-lock.yaml`.
 - **Framework:** Next.js (v16) App Router under `src/app/`, React 19,
-  TypeScript throughout. Pages are React Server Components that read Neon
-  Postgres server-side via `@neondatabase/serverless` (`src/lib/neon.ts`);
+  TypeScript throughout. Pages are React Server Components that read pinned,
+  published Platform v6 Analysis and Detail bundles server-side via the
+  adapters in `src/lib/bundle-adapter.server.ts`;
   interactive pieces are colocated `'use client'` components in
   `src/components/`.
 - **Styling:** Tailwind CSS 4 with the OKLCH design-token system in
@@ -25,16 +26,13 @@ docs swept 2026-07-07
   keys, table column keys (`src/lib/table-config.ts`), and detail fields are
   the Neon column / JSONB payload keys, verbatim. A component built against a
   fixture row must render a SQL result row with zero mapping.
-- **Python side:** `tools/unitbench_publish/` is a Typer CLI (uv-managed,
-  `pyproject.toml`, tests in `tests/`) that publishes curated experiment
-  tables to Neon. It is a separate publish path; the Next.js app only reads.
 
 ## Current app surfaces
 
-- `/` — home: allowlisted table cards plus Neon connection status
+- `/` — home: allowlisted table cards plus Analysis/Detail bundle status
   (`src/app/page.tsx`).
 - `/tables/[tableId]` — tables explorer: filterable/sortable browse tables over
-  the allowlisted Neon tables defined in `src/lib/table-config.ts`
+  the allowlisted published bundle projections defined in `src/lib/table-config.ts`
   (experiments, predictions, prediction details, and their v1 variants). The
   predictions tables are the predictions browser; rows link to detail pages.
 - `/predictions/[...predictionId]` — per-prediction detail: outcome banner,
@@ -47,9 +45,6 @@ docs swept 2026-07-07
 - `src/fixtures/` — fake-data fixture package for the six viz components
   (REL-13): seeded RNG, sweep/extraction/compression/pipeline/bootstrap/heatmap
   generators. Shapes double as the component API contract.
-- `tools/unitbench_publish/` — Python CLI that curates experiment tables into
-  Neon (`published_*` and `published_v1_*` tables); reads
-  `UNITBENCH_SOURCE_DATABASE_URL` / `UNITBENCH_TARGET_DATABASE_URL`.
 
 ## FROZEN fixture contract
 
@@ -74,9 +69,12 @@ Before doing frontend work in this repo, read the vendored skills in
 
 ## Environment
 
-The app reads a single env var, `DATABASE_URL` (Neon Postgres connection
-string), in `src/lib/neon.ts`. Copy `.env.example` to `.env` to set it. Without
-it, pages render a "DATABASE_URL not configured" notice instead of data.
+The app reads server-only v6 store configuration: `DATABASE_URL` and
+`DETAIL_PUBLICATION_DESTINATION_ID` for Detail; either
+`ANALYSIS_DATABASE_URL` or `LOCAL_ANALYSIS_DATABASE_PATH`, plus
+`ANALYSIS_PUBLICATION_DESTINATION_ID`, for Analysis. Copy `.env.example` to
+`.env` and select one Analysis transport. Without a complete plane
+configuration, its pages render an actionable store-not-configured notice.
 
 ## Agent skills
 

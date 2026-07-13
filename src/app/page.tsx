@@ -1,71 +1,51 @@
 import Link from 'next/link'
-import { ErrorSection } from '@/components/panels/ErrorSection'
+import { BundleState } from '@/components/panels/BundleState'
 import { Tag } from '@/components/primitives'
-import { getConnectionStatus } from '@/lib/neon'
+import { withAnalysisBundle, withDetailBundle } from '@/lib/bundle-adapter.server'
+import { bundleFailure, type BundleViewFailure } from '@/lib/bundle-view'
 import { getTableConfigs } from '@/lib/table-config'
 
 export const dynamic = 'force-dynamic'
 
-function statusToneClass(tone: 'green' | 'red' | 'yellow') {
-  if (tone === 'green') return 'green'
-  if (tone === 'red') return 'red'
-  return 'yellow'
-}
+type PlaneStatus = { plane: 'Analysis' | 'Detail'; failure?: BundleViewFailure }
 
-function statusCopy(status: Awaited<ReturnType<typeof getConnectionStatus>>) {
-  if (status.status === 'ok') {
-    return {
-      title: 'Neon connected',
-      message: 'Server-side database reads are available.',
-      tone: 'green' as const,
-    }
-  }
-  if (status.status === 'missing-url') {
-    return {
-      title: 'DATABASE_URL not configured',
-      message:
-        'Set DATABASE_URL locally or in Vercel to read published Unitbench tables.',
-      tone: 'yellow' as const,
-    }
-  }
-  return {
-    title: 'Neon connection failed',
-    message: status.message,
-    tone: 'red' as const,
+async function planeStatus(plane: 'analysis' | 'detail'): Promise<PlaneStatus> {
+  try {
+    await (plane === 'analysis'
+      ? withAnalysisBundle(async () => undefined)
+      : withDetailBundle(async () => undefined))
+    return { plane: plane === 'analysis' ? 'Analysis' : 'Detail' }
+  } catch (error) {
+    return { plane: plane === 'analysis' ? 'Analysis' : 'Detail', failure: bundleFailure(error) }
   }
 }
 
 export default async function Page() {
-  const [tables, connection] = await Promise.all([
+  const [tables, analysis, detail] = await Promise.all([
     Promise.resolve(getTableConfigs()),
-    getConnectionStatus(),
+    planeStatus('analysis'),
+    planeStatus('detail'),
   ])
-  const status = statusCopy(connection)
 
   return (
     <div className="mx-auto w-full max-w-[1040px]">
       <header className="mb-8">
         <div className="mb-2 flex items-center gap-2">
-          <Tag tone={statusToneClass(status.tone)}>{status.title}</Tag>
+          <Tag tone="accent">pinned publication bundles</Tag>
         </div>
         <h1 className="font-display text-[30px] leading-tight font-bold text-[var(--text-primary)]">
           Unitbench
         </h1>
         <p className="mt-1.5 max-w-[72ch] text-[15px] text-[var(--text-secondary)]">
-          A lightweight viewer for published benchmark and experiment result
-          tables. V1 reads allowlisted Neon tables from server-side Next.js code.
+          A read-only viewer for accepted benchmark results. Analysis and root-detail
+          views are independently pinned to validated published bundles.
         </p>
       </header>
 
-      {connection.status !== 'ok' && (
-        <div className="mb-6">
-          <ErrorSection
-            tone={connection.status === 'missing-url' ? 'setup' : 'error'}
-            title={status.title}
-            message={status.message}
-          />
-        </div>
-      )}
+      <div className="mb-6 grid gap-3 md:grid-cols-2">
+        {analysis.failure ? <BundleState plane={analysis.plane} failure={analysis.failure} /> : <p className="rounded-lg border border-[var(--green-border)] bg-[var(--green-bg)] px-4 py-3 text-sm text-[var(--green)]">Analysis bundle validated.</p>}
+        {detail.failure ? <BundleState plane={detail.plane} failure={detail.failure} /> : <p className="rounded-lg border border-[var(--green-border)] bg-[var(--green-bg)] px-4 py-3 text-sm text-[var(--green)]">Detail root bundle validated.</p>}
+      </div>
 
       <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
         {tables.map(table => (
