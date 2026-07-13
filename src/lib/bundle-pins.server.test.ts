@@ -174,6 +174,17 @@ describe('resolveBundlePin', () => {
     expect(platformChecksum(postgresRows)).toBe(platformChecksum(duckdbRows))
   })
   it.each([
+    [0, 'aa16ddc6070b66bccceef5084525341323ac0a1123deb2b71734dae7567f8718'],
+    [1, 'd8218081624f0c131ca90f95eacf4ea88c7223f1a3aafce17199216d774d0c0c'],
+    [-1, 'cef5217b8cc86cedce37648b304a2ad256ce9da3b0e7de67a61e0b1efd30c4fb'],
+    ['9007199254740993', 'ae107e1bac8c2d6fe5f92938597971b8e515d6b6208d7fa6bcb33000faa410dc'],
+  ])('preserves signed harness failure count %s without Number coercion', (value, checksum) => {
+    const postgres = { harness_failure_count: String(value) }
+    const duckdb = { harness_failure_count: BigInt(value) }
+    expect(platformChecksum([postgres])).toBe(checksum)
+    expect(platformChecksum([duckdb])).toBe(checksum)
+  })
+  it.each([
     ['timestamp exact second in Platform UTC wire form', { created_at: '2026-07-12T22:45:22+00:00' }, '2eb31d3e123f6d76b3aab5ec1c101c292cf9878cef73d241dd5400898742ea8c'],
     ['timestamp microseconds in Platform UTC wire form', { created_at: '2026-07-12T22:45:22.961426+00:00' }, 'a07951b8de2e45e907d4e095d79119ec2dd9e5eff661ef12f57d9aec64709b06'],
     ['numeric Decimal integral float marker', { pass_rate: '1.000' }, '243ccf84199a0b437183d721e61bfffb8155476b4c5aa9721107ae03ac5e9ad8'],

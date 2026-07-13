@@ -50,13 +50,25 @@ describe('local release parity against a Whetstone-produced signed DuckDB', () =
       expect(FROZEN_PRODUCTION_PARITY_INVENTORY).toHaveLength(2024)
       const fingerprints: string[] = []
       const resolved = { analysis: { database: fingerprinting(analysis, 'analysis', fingerprints), bundle: analysisBundle }, detail: { database: fingerprinting(detail, 'detail', fingerprints), bundle: detailBundle } }
+      const [analysisFailureRows, detailFailureRows] = await Promise.all([
+        resolved.analysis.database.query<{ harness_failure_count: bigint }>(`SELECT harness_failure_count FROM "${descriptor.analysis.members.predictions}" WHERE prediction_id = $1`, [descriptor.fixture_prediction_id]),
+        resolved.detail.database.query<{ harness_failure_count: bigint }>(`SELECT harness_failure_count FROM "${descriptor.detail.members.detail_predictions}" WHERE prediction_id = $1`, [descriptor.fixture_prediction_id]),
+      ])
+      // DuckDB's native BIGINT binding must remain bigint until the loader's
+      // explicitly safe display-model boundary.
+      expect(analysisFailureRows[0]?.harness_failure_count).toBe(BigInt(1))
+      expect(detailFailureRows[0]?.harness_failure_count).toBe(BigInt(1))
       const completed: string[] = []
       for (const item of FROZEN_PRODUCTION_PARITY_INVENTORY) {
         const executable = FROZEN_PRODUCTION_PARITY_CASES.find(candidate => candidate.id === item.id)
         if (!executable) throw new Error(`Production parity case is missing: ${item.id}`)
         const value = await withResolvedParityBundles(resolved, () => executeFrozenParityCase(executable, descriptor.fixture_prediction_id))
         assertSuccessfulAndNonEmpty(value, item.id)
-        if (item.id === 'detail/read') expect((value as { detail?: { prediction_id?: string } }).detail?.prediction_id).toBe(descriptor.fixture_prediction_id)
+        if (item.id === 'detail/read') {
+          const result = value as { detail?: { prediction_id?: string; harness_failure_count?: number } }
+          expect(result.detail?.prediction_id).toBe(descriptor.fixture_prediction_id)
+          expect(result.detail?.harness_failure_count).toBe(1)
+        }
         completed.push(item.id)
       }
       expect(completed).toEqual(FROZEN_PRODUCTION_PARITY_INVENTORY.map(item => item.id))

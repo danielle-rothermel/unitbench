@@ -149,7 +149,7 @@ function matchesDescriptorMember(
  */
 const INTEGER_COLUMNS = new Set([
   'snapshot_seq', 'row_count', 'sample_index', 'attempt_index', 'platform_attempt',
-  'failure_count',
+  'failure_count', 'harness_failure_count',
 ])
 const FLOAT_COLUMNS = new Set([
   'pass_rate', 'score', 'provider_cost', 'latency_ms', 'compression_ratio', 'metric_value',
