@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   whetstone-owned-fixture:
-    uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@071559f13ec2e04f141e5f5013ea57bb046764d1
+    uses: danielle-rothermel/whetstone-ai/.github/workflows/release-parity.yml@026b7d62023cc4209f2c07961b0f48f9c46e5433
     with:
-      whetstone_sha: 071559f13ec2e04f141e5f5013ea57bb046764d1
+      whetstone_sha: 026b7d62023cc4209f2c07961b0f48f9c46e5433
     secrets: inherit
