@@ -2,7 +2,6 @@ import { defineConfig, devices } from '@playwright/test'
 
 const PORT = 3211
 const BASE_URL = `http://localhost:${PORT}`
-const DR_CODE_SERVE_DIR = process.env.DR_CODE_SERVE_DIR ?? '../dr-code-serve'
 const DR_PROVIDERS_SERVE_DIR =
   process.env.DR_PROVIDERS_SERVE_DIR ?? '../dr-providers-serve'
 
@@ -31,14 +30,6 @@ export default defineConfig({
       url: BASE_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-    },
-    {
-      // dr-code serve facade (serve branch worktree); parser playground
-      // e2e drives the page against it with fixture text only.
-      command: `uv --directory ${DR_CODE_SERVE_DIR} run --extra serve python -m dr_code.serve serve --port 8321`,
-      url: 'http://127.0.0.1:8321/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 60_000,
     },
     {
       // dr-providers serve facade; provider playground e2e uses the

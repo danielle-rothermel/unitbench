@@ -101,27 +101,6 @@ function NavLink({
   )
 }
 
-function CodeIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      role="presentation"
-      focusable="false"
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5.5 4.5L2 8L5.5 11.5" />
-      <path d="M10.5 4.5L14 8L10.5 11.5" />
-    </svg>
-  )
-}
-
 function GraphIcon() {
   return (
     <svg
@@ -226,12 +205,6 @@ export default function AppShell({ children, tables }: AppShellProps) {
             />
           </NavGroup>
           <NavGroup label="Playgrounds">
-            <NavLink
-              href="/playgrounds/parser"
-              active={isActive(pathname, '/playgrounds/parser')}
-              icon={<CodeIcon />}
-              label="Parser"
-            />
             <NavLink
               href="/playgrounds/provider"
               active={isActive(pathname, '/playgrounds/provider')}
