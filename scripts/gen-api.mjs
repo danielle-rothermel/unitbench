@@ -3,18 +3,12 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
-const DEFAULT_FACADE_NAMES = ['dr-code', 'dr-providers']
+const DEFAULT_FACADE_NAMES = ['dr-providers']
 
 export function resolveFacades(selectedFacades, environment = process.env) {
   const facadeNames =
     selectedFacades.length > 0 ? selectedFacades : DEFAULT_FACADE_NAMES
   const facades = {
-    'dr-code': {
-      sourceDir: environment.DR_CODE_SERVE_DIR ?? '../dr-code-serve',
-      module: 'dr_code.serve',
-      openapiPath: 'src/lib/api/dr-code-openapi.json',
-      typesPath: 'src/lib/api/dr-code.ts',
-    },
     'dr-providers': {
       sourceDir: environment.DR_PROVIDERS_SERVE_DIR ?? '../dr-providers-serve',
       module: 'dr_providers.serve',

@@ -11,7 +11,7 @@ import {
   type DetailBundleMember,
 } from '@/lib/bundle-contract'
 import { publicationStoreConfiguration } from '@/lib/store-environment.server'
-import { configuredAnalysisAdapter, localDuckDbAdapter, postgresPublicationAdapter } from '@/lib/analysis-adapter.server'
+import { configuredAnalysisAdapter } from '@/lib/analysis-adapter.server'
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
 const PUBLICATION_STATE_TABLE = 'dr_platform_publication_state'
@@ -101,44 +101,6 @@ function quoteIdentifier(identifier: string): string {
 
 function physicalTable(member: ManifestMember): string {
   return `${quoteIdentifier(member.schema_name)}.${quoteIdentifier(member.table_name)}`
-}
-
-type DescriptorMemberIdentity = Readonly<{
-  schemaName?: string
-  tableName: string
-}>
-
-/**
- * Platform descriptors carry reader-facing identifiers, not SQL fragments:
- * remote members are `schema.table`, while local members are `table`.
- * Parse that wire contract before rendering (or comparing) any SQL.
- */
-function parseDescriptorMemberIdentity(value: unknown, local: boolean): DescriptorMemberIdentity {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new BundlePinError('PINNED_BUNDLE_GONE')
-  }
-  const parts = value.split('.')
-  if ((local && parts.length !== 1) || (!local && parts.length !== 2)) {
-    throw new BundlePinError('PINNED_BUNDLE_GONE')
-  }
-  if (parts.some(part => !IDENTIFIER.test(part))) {
-    throw new BundlePinError('PINNED_BUNDLE_GONE')
-  }
-  return local ? { tableName: parts[0]! } : { schemaName: parts[0]!, tableName: parts[1]! }
-}
-
-function matchesDescriptorMember(
-  evidence: unknown,
-  member: IntegrityMember,
-  local: boolean,
-): boolean {
-  try {
-    const descriptor = parseDescriptorMemberIdentity(evidence, local)
-    return descriptor.tableName === member.table_name
-      && (local || descriptor.schemaName === member.schema_name)
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -438,7 +400,6 @@ export function integrityCanonicalJson(value: unknown): string {
 }
 
 type IntegrityMember = ManifestMember & Readonly<{ physical_digest: string }>
-const pinnedBundleMemberIdentities = new WeakMap<object, Readonly<Record<string, IntegrityMember>>>()
 type SignedIntegrityPayload = Readonly<{
   destination_id: string
   bundle_key: string
@@ -738,7 +699,6 @@ async function verifyPinnedBundle<Member extends BundleMember>(
       contract.members.map((member) => [member, physicalTable(members[member])]),
     ) as Readonly<Record<Member, string>>,
   }
-  pinnedBundleMemberIdentities.set(resolved, members)
   return resolved
 }
 
@@ -913,52 +873,6 @@ async function releaseLocalBundlePin(database: PublicationDatabase, pin: BundleP
   )
 }
 
-export type ResolveOnlyPin = Readonly<{
-  destination_id: string
-  bundle_key: string
-  pin: Readonly<{ pin_id: string; bundle_id: string; expires_at_ms: number }>
-  snapshot_seq: number
-  members: Readonly<Record<string, string>>
-}>
-
-/**
- * Resolves a producer-created pin. Deliberately does not acquire, renew, or
- * delete a pin: release parity is a read-only consumer of fixture lifecycle.
- */
-export async function resolveOnlyPinnedBundle<Plane extends BundlePlane>(
-  plane: Plane,
-  database: PublicationDatabase,
-  evidence: ResolveOnlyPin,
-): Promise<PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>> {
-  const contract = bundleContract(plane)
-  if (evidence.bundle_key !== contract.bundleKey) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  const resolved = await resolveBundlePin(database, contract, {
-    destinationId: evidence.destination_id,
-    bundleKey: evidence.bundle_key,
-    pinId: evidence.pin.pin_id,
-    bundleId: evidence.pin.bundle_id,
-    expiresAtMs: evidence.pin.expires_at_ms,
-  })
-  if (resolved.bundleId !== evidence.pin.bundle_id || resolved.snapshotSeq !== evidence.snapshot_seq) {
-    throw new BundlePinError('PINNED_BUNDLE_GONE')
-  }
-  for (const member of contract.members) {
-    const signed = pinnedBundleMemberIdentities.get(resolved)?.[member]
-    if (!signed || !matchesDescriptorMember(evidence.members[member], signed, false)) {
-      throw new BundlePinError('PINNED_BUNDLE_GONE')
-    }
-  }
-  return resolved as PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>
-}
-
-export function resolveOnlyLocalAdapter(path: string): PublicationDatabase {
-  return localDuckDbAdapter(path)
-}
-
-export function resolveOnlyRemoteAdapter(plane: BundlePlane, url: string): PublicationDatabase {
-  return plane === 'analysis' ? postgresPublicationAdapter(url) : nativePublicationDatabase(url)
-}
-
 function localManifestMembers<Member extends BundleMember>(
   contract: BundleContract<BundlePlane, Member>,
   manifestJson: string,
@@ -1044,33 +958,7 @@ async function resolveLocalBundlePin<Member extends BundleMember>(
     snapshotSeq,
     members: Object.fromEntries(contract.members.map(member => [member, quoteIdentifier(members[member].table_name)])) as Readonly<Record<Member, string>>,
   }
-  pinnedBundleMemberIdentities.set(resolved, members)
   return resolved
-}
-
-/** Resolves a producer-created Platform DuckDB pin without changing its lifecycle. */
-export async function resolveOnlyLocalBundle<Plane extends BundlePlane>(
-  plane: Plane,
-  database: PublicationDatabase,
-  evidence: Omit<ResolveOnlyPin, 'destination_id'>,
-): Promise<PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>> {
-  const contract = bundleContract(plane)
-  if (evidence.bundle_key !== contract.bundleKey) throw new BundlePinError('PIN_EXPIRED_OR_GONE')
-  const resolved = await resolveLocalBundlePin(database, contract, {
-    destinationId: 'local-duckdb', bundleKey: evidence.bundle_key, pinId: evidence.pin.pin_id,
-    bundleId: evidence.pin.bundle_id, expiresAtMs: evidence.pin.expires_at_ms,
-  })
-  if (resolved.snapshotSeq !== evidence.snapshot_seq) throw new BundlePinError('PINNED_BUNDLE_GONE')
-  for (const member of contract.members) {
-    const signed = pinnedBundleMemberIdentities.get(resolved)?.[member]
-    if (!signed || !matchesDescriptorMember(evidence.members[member], signed, true)) {
-      throw new BundlePinError('PINNED_BUNDLE_GONE')
-    }
-  }
-  return {
-    ...resolved,
-    members: resolved.members as PinnedBundle<Plane extends 'analysis' ? AnalysisBundleMember : DetailBundleMember>['members'],
-  }
 }
 
 export async function pinConfiguredBundle(

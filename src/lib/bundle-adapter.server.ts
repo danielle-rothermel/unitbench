@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { AsyncLocalStorage } from 'node:async_hooks'
 import type {
   AnalysisBundleMember,
   DetailBundleMember,
@@ -14,21 +13,6 @@ import {
 import { MissingStoreConfigurationError } from '@/lib/store-environment.server'
 
 type BundleReadPlane = 'analysis' | 'detail'
-
-export type ResolvedParityBundle = Readonly<{
-  database: PublicationDatabase
-  bundle: PinnedBundle<AnalysisBundleMember> | PinnedBundle<DetailBundleMember>
-}>
-
-const parityBundles = new AsyncLocalStorage<Readonly<Record<BundleReadPlane, ResolvedParityBundle>>>()
-
-/** Runs production loaders against already-resolved, read-only parity pins. */
-export async function withResolvedParityBundles<Result>(
-  bundles: Readonly<Record<BundleReadPlane, ResolvedParityBundle>>,
-  operation: () => Promise<Result>,
-): Promise<Result> {
-  return parityBundles.run(bundles, operation)
-}
 
 export class BundleReadError extends Error {
   readonly code:
@@ -121,8 +105,6 @@ async function withBundle<Members extends string, Result>(
   ) => Promise<Result>,
 ): Promise<Result> {
   try {
-    const resolved = parityBundles.getStore()?.[plane]
-    if (resolved) return await operation(resolved.database, resolved.bundle as PinnedBundle<Members & (AnalysisBundleMember | DetailBundleMember)>)
     return await withConfiguredPinnedBundle(plane, operation as never)
   } catch (error) {
     const classified = toBundleReadError(error)

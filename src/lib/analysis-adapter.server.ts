@@ -41,7 +41,7 @@ export function localDuckDbAdapter(path: string): AnalysisAdapter {
   return adapter
 }
 
-export function postgresPublicationAdapter(url: string): AnalysisAdapter {
+function postgresAdapter(url: string): AnalysisAdapter {
   const sql = postgres(url, { connect_timeout: 10, idle_timeout: 20, max: 1 })
   const adapter: AnalysisAdapter = {
     kind: 'postgres',
@@ -69,5 +69,5 @@ export function configuredAnalysisAdapter(
   if (localPath) return localDuckDbAdapter(localPath)
   enforceRemoteComputePolicy(policy, false, confirmed)
   if (!remoteUrl) throw new Error('ANALYSIS_DATABASE_URL is not configured.')
-  return postgresPublicationAdapter(remoteUrl)
+  return postgresAdapter(remoteUrl)
 }
