@@ -1,9 +1,6 @@
 # unitbench
 
-A hosted viewer for accepted benchmark and experiment results. The Next.js app reads
-validated, pinned Analysis and Detail publication bundles server-side, with 
-filterable/sortable browse tables, per-prediction detail pages, an aggregate 
-view (`/aggregate`), and a score heatmap (`/aggregate/heatmap`).
+A hosted viewer for  experiment results. 
 
 ## Local development
 
